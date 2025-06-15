@@ -20,13 +20,13 @@ pub fn HistoryScreen() -> Element {
                     tr {
                         td { "2025-06-14" }
                         td { "Sent" }
-                        td { "-0.01 BTC" }
+                        td { "-0.01 NPT" }
                         td { code { "a1b2c3d4..." } }
                     }
                     tr {
                         td { "2025-06-12" }
                         td { "Received" }
-                        td { "+0.05 BTC" }
+                        td { "+0.05 NPT" }
                         td { code { "e5f6g7h8..." } }
                     }
                 }

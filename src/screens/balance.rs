@@ -9,7 +9,7 @@ pub fn BalanceScreen() -> Element {
     rsx! {
         Card {
             h2 { "Current Balance" }
-            h1 { "0.0042 BTC" }
+            h1 { "0.0042 NPT" }
             p { "$281,400.65 USD" }
         }
         Card {

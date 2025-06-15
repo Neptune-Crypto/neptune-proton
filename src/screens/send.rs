@@ -40,7 +40,7 @@ pub fn SendScreen() -> Element {
                 Input {
                     label: "Recipient Address".to_string(),
                     name: "address".to_string(),
-                    placeholder: "bc1q...".to_string()
+                    placeholder: "nolga...".to_string()
                 }
                 Grid {
                     Input {

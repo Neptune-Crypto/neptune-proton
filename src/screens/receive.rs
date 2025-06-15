@@ -15,7 +15,7 @@ pub fn ReceiveScreen() -> Element {
                     style: "width: 150px; height: 150px; background: #eee; margin: auto;",
                 }
                 figcaption {
-                    "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh"
+                    "nolgaqxy2k...hx0wlh"
                 }
             }
             Button { "Copy Address" }
