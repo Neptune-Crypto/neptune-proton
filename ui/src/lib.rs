@@ -1,21 +1,14 @@
-// The main application file for the Neptune Wallet.
+// The client-side Dioxus application logic.
 
 use dioxus::prelude::*;
-
-// Declare the modules that contain our components.
 mod components;
 mod screens;
 
 // Use components from our modules.
 use components::pico::{Button, ButtonType, Container};
 use screens::{
-    addresses::AddressesScreen,
-    balance::BalanceScreen,
-    blockchain::BlockChainScreen,
-    history::HistoryScreen,
-    mempool::MempoolScreen,
-    receive::ReceiveScreen,
-    send::SendScreen,
+    addresses::AddressesScreen, balance::BalanceScreen, blockchain::BlockChainScreen,
+    history::HistoryScreen, mempool::MempoolScreen, receive::ReceiveScreen, send::SendScreen,
 };
 
 /// Enum to represent the different screens in our application.
@@ -102,13 +95,10 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                 "☰"
             }
             if is_open() {
-                // Backdrop to capture clicks away from the menu
                 div {
                     class: "menu-backdrop",
                     onclick: move |_| is_open.set(false),
                 }
-                // The dropdown menu is now an <article> tag.
-                // Pico will treat this like a card, giving it a solid background.
                 article {
                     class: "custom-dropdown-menu",
                     for screen in ALL_SCREENS {
@@ -122,9 +112,7 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                             "{screen.name()}"
                         }
                     }
-                    // Add a separator before the view toggle
                     hr {}
-                    // The "Desktop View" button is now inside the menu
                     a {
                         class: "custom-dropdown-item",
                         href: "#",
@@ -141,14 +129,10 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
 }
 
 //=============================================================================
-// MAIN APPLICATION
+// MAIN APPLICATION COMPONENT (Client-side)
 //=============================================================================
-fn main() {
-    launch(App);
-}
-
 #[allow(non_snake_case)]
-fn App() -> Element {
+pub fn App() -> Element {
     let mut active_screen = use_signal(Screen::default);
     let mut view_mode = use_signal(ViewMode::default);
 
@@ -195,7 +179,6 @@ fn App() -> Element {
             padding: 0.5rem 1rem;
             text-align: right;
             border-radius: var(--border-radius);
-            /* ** THE FIX **: Prevent text from wrapping onto a new line */
             white-space: nowrap;
         }
         .custom-dropdown-item:hover {
@@ -239,10 +222,19 @@ fn App() -> Element {
         }
     "#;
 
-    let wrapper_class = if view_mode() == ViewMode::Mobile { "mobile-view-wrapper" } else { "" };
-    let content_class = if view_mode() == ViewMode::Mobile { "mobile-view-content" } else { "" };
+    let wrapper_class = if view_mode() == ViewMode::Mobile {
+        "mobile-view-wrapper"
+    } else {
+        ""
+    };
+    let content_class = if view_mode() == ViewMode::Mobile {
+        "mobile-view-content"
+    } else {
+        ""
+    };
 
     rsx! {
+        document::Meta { name: "viewport", content: "width=device-width, initial-scale=1.0" }
         document::Stylesheet { href: asset!("/assets/css/pico.cyan.min.css") }
         style { "{responsive_css}" }
 
@@ -282,7 +274,6 @@ fn App() -> Element {
                 }
             }
         } else {
-            // In mobile view, use our custom styled frame.
             div {
                 class: "{wrapper_class}",
                 div {
@@ -294,7 +285,6 @@ fn App() -> Element {
                             }
                             ul {
                                 li {
-                                    // The toggle button is now inside the HamburgerMenu
                                     HamburgerMenu { active_screen: active_screen, view_mode: view_mode }
                                 }
                             }

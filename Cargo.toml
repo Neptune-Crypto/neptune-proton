@@ -1,33 +1,20 @@
-[package]
-name = "neptune-gui"
-version = "0.1.0"
-authors = ["danda <dan-da@users.noreply.github.com>"]
-edition = "2021"
+[workspace]
+resolver = "2"
+members = [
+    "ui",
+    "web",
+    "desktop",
+    "mobile",
+    "api",
+    "server_bin",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace.dependencies]
+dioxus = { version = "0.6.0" }
 
-# ===== Common Dependencies (for all targets) =====
-[dependencies]
-dioxus = { version = "0.6", features = ["router"] }
-# NOTE: We have removed neptune-cash and tokio from here.
-
-# ===== Native-Only Dependencies (for Desktop/Mobile) =====
-# These will NOT be included in the WebAssembly build.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "8698d309" }
-tokio = { version = "1", features = ["full"] }
-
-# ===== WebAssembly-Only Dependencies =====
-# These will ONLY be included in the WebAssembly build.
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-# getrandom = { version = "0.2", features = ["js"] }
-
-[features]
-default = ["web"]
-web = ["dioxus/web"]
-desktop = ["dioxus/desktop"]
-mobile = ["dioxus/mobile"]
-
+# workspace
+ui = { path = "ui" }
+api = { path = "api" }
 
 [profile]
 

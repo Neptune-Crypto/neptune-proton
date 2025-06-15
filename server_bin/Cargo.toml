@@ -1,0 +1,17 @@
+[package]
+name = "server_bin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dioxus = { workspace = true, features = ["router", "fullstack"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"], optional = true }
+
+api = { path = "../api" }
+# Assuming your main Dioxus App component is in the 'web' crate
+# If it's in 'ui', change this to ui = { path = "../ui" }
+# web = { path = "../web" }
+
+# If your Route enum is defined in 'web' or another shared crate
+# ensure it's accessible here. For this example, we'll define a local one.
