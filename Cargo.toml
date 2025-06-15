@@ -6,18 +6,28 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# ===== Common Dependencies (for all targets) =====
 [dependencies]
-dioxus = { version = "0.6.0", features = ["router"] }
-dioxus-tw-components = "0.1.11"
+dioxus = { version = "0.6", features = ["router"] }
+# NOTE: We have removed neptune-cash and tokio from here.
+
+# ===== Native-Only Dependencies (for Desktop/Mobile) =====
+# These will NOT be included in the WebAssembly build.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "8698d309" }
+tokio = { version = "1", features = ["full"] }
+
+# ===== WebAssembly-Only Dependencies =====
+# These will ONLY be included in the WebAssembly build.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# getrandom = { version = "0.2", features = ["js"] }
 
 [features]
 default = ["web"]
-# The feature that are only required for the web = ["dioxus/web"] build target should be optional and only enabled in the web = ["dioxus/web"] feature
 web = ["dioxus/web"]
-# The feature that are only required for the desktop = ["dioxus/desktop"] build target should be optional and only enabled in the desktop = ["dioxus/desktop"] feature
 desktop = ["dioxus/desktop"]
-# The feature that are only required for the mobile = ["dioxus/mobile"] build target should be optional and only enabled in the mobile = ["dioxus/mobile"] feature
 mobile = ["dioxus/mobile"]
+
 
 [profile]
 

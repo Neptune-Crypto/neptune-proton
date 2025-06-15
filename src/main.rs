@@ -99,7 +99,7 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                 button_type: ButtonType::Secondary,
                 outline: true,
                 on_click: move |_| is_open.toggle(),
-                "☰ Menu"
+                "☰"
             }
             if is_open() {
                 // Backdrop to capture clicks away from the menu
