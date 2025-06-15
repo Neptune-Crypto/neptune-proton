@@ -1,0 +1,104 @@
+/* override color for light color scheme (Default) */
+/* Can be forced with data-theme="light" */
+[data-theme=light],
+:root:not([data-theme=dark]) {
+    --pico-color: rgb(0, 115, 115);
+    --pico-h1-color: var(--pico-color);
+    --pico-h2-color: var(--pico-color);
+    --pico-h3-color: var(--pico-color);
+    --pico-h4-color: var(--pico-color);
+    --pico-h5-color: var(--pico-color);
+    --pico-h6-color: var(--pico-color);
+    --pico-accordion-open-summary-color: var(--pico-color);
+}
+
+/* override color for dark color scheme (Auto) */
+/* Automatically enabled if user has Dark mode enabled */
+@media only screen and (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+    --pico-color: cyan;
+    --pico-h1-color: var(--pico-color);
+    --pico-h2-color: var(--pico-color);
+    --pico-h3-color: var(--pico-color);
+    --pico-h4-color: var(--pico-color);
+    --pico-h5-color: var(--pico-color);
+    --pico-h6-color: var(--pico-color);    }
+    --pico-accordion-open-summary-color: var(--pico-color);
+}
+
+/* override color for dark color scheme (Forced) */
+/* Enabled if forced with data-theme="dark" */
+[data-theme=dark] {
+    --pico-color: cyan;
+    --pico-h1-color: var(--pico-color);
+    --pico-h2-color: var(--pico-color);
+    --pico-h3-color: var(--pico-color);
+    --pico-h4-color: var(--pico-color);
+    --pico-h5-color: var(--pico-color);
+    --pico-h6-color: var(--pico-color);
+    --pico-accordion-open-summary-color: var(--pico-color);
+}
+
+div.indent {
+    position: relative;
+    left: 20px;
+}
+
+.mono {
+    font-family: monospace, monospace;
+}
+
+.center-text {
+    text-align: center;
+}
+
+/* Tooltip container */
+.tooltip {
+    position: relative;
+    display: inline-block;
+    bottom: 0.1em;
+    transition: 0s;
+    font-weight: bold;
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+    transition-delay: 0.5s;
+    top: -5px;
+    left: 115%;
+    visibility: hidden;
+    width: 300px;
+    background-color: white;
+    color: rgb(0, 118, 118);
+    text-align: center;
+    padding: 5px;
+    border-radius: 6px;
+    border: solid 1px rgb(1, 220, 220);
+    font-weight: normal;
+
+    /* Position the tooltip text - see examples below! */
+    position: absolute;
+    z-index: 1;
+}
+
+/* adds a speech-bubble thingy at top-left of tooltip */
+.tooltip .tooltiptext::after {
+    content: " ";
+    position: absolute;
+    top: 20px;
+    right: 100%;
+    /* To the left of the tooltip */
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent rgb(1, 220, 220) transparent transparent;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+
+.tooltip:hover {
+    cursor: help;
+}
