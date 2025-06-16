@@ -6,17 +6,57 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn BlockChainScreen() -> Element {
+
+    // 1. `use_resource` takes an async block that will be run in the background.
+    //    It immediately returns a `Resource` signal.
+    let mut height_resource = use_resource(move || async move {
+        // Your async API call goes here.
+        api::block_height().await
+    });
+
     rsx! {
-        Card {
-            h2 { "Blockchain Status" }
-            Grid {
-                div {
-                    h4 { "Current Block Height" }
-                    p { "847,921" }
+        // 2. The `rsx!` macro reads the current state of the `balance` signal.
+        match &*height_resource.read() {
+            // The resource is still loading or has not been run yet.
+            None => {
+                rsx! {
+                    Card {
+                        h2 { "Block Height" }
+                        p { "Loading height..." }
+                        progress {} // An indeterminate progress bar
+                    }
                 }
-                div {
-                    h4 { "Sync Status" }
-                    p { "100% (Synced)" }
+            }
+            // The async task finished successfully.
+            Some(Ok(height)) => {
+                rsx! {
+                    Card {
+                        h2 { "Blockchain Status" }
+                        Grid {
+                            div {
+                                h4 { "Current Block Height" }
+                                p { "{height}" }
+                            }
+                            div {
+                                h4 { "Sync Status" }
+                                p { "100% (Synced)" }
+                            }
+                        }
+                    }
+                }
+            }
+            // The async task returned an error.
+            Some(Err(e)) => {
+                rsx! {
+                    Card {
+                        h3 { "Error" }
+                        p { "Failed to load: {e}" }
+                        // You could add a "Retry" button here
+                        button {
+                            onclick: move |_| height_resource.restart(),
+                            "Retry"
+                        }
+                    }
                 }
             }
         }

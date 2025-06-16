@@ -155,6 +155,7 @@ dependencies = [
  "dioxus",
  "neptune-cash",
  "serde",
+ "tarpc",
 ]
 
 [[package]]
@@ -6837,6 +6838,7 @@ version = "0.1.0"
 dependencies = [
  "api",
  "dioxus",
+ "dioxus-web",
 ]
 
 [[package]]

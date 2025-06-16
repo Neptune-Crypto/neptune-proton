@@ -4,6 +4,7 @@
 use crate::components::pico::Card;
 use dioxus::prelude::*;
 
+#[allow(non_snake_case)]
 #[component]
 pub fn HistoryScreen() -> Element {
     rsx! {

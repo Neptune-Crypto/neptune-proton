@@ -1,13 +1,16 @@
-//=============================================================================
-// File: src/screens/send.rs
-//=============================================================================
+// In src/screens/send.rs
+
 use crate::components::pico::{Button, ButtonType, Card, Grid, Input, Modal};
 use dioxus::prelude::*;
 
 #[component]
 pub fn SendScreen() -> Element {
-    // Signal to control the confirmation modal's visibility.
+    // A signal to control the confirmation modal's visibility.
     let mut is_confirm_modal_open = use_signal(|| false);
+
+    // **THE RECOMMENDED PATTERN**
+    // 1. A signal to hold the result of our API call. It starts as None.
+    let mut api_response = use_signal::<Option<String>>(|| None);
 
     rsx! {
         // This Modal component is now part of the SendScreen's layout.
@@ -25,8 +28,31 @@ pub fn SendScreen() -> Element {
                 }
                 Button {
                     on_click: move |_| {
-                        // In a real app, the transaction broadcast logic would go here.
                         is_confirm_modal_open.set(false);
+                        // Clear any previous API response before making a new call.
+                        api_response.set(None);
+
+                        // 2. Spawn an async task to call the API.
+                        spawn({
+                            // Clone the signal so we can move it into the async block.
+                            let mut api_response = api_response.clone();
+                            async move {
+                                // In a real app, you would gather data from the input fields.
+                                // For now, we call the API with a placeholder message.
+                                let result = api::echo("Transaction Sent!".to_string()).await;
+
+                                // Format the result for display, handling both success and error.
+                                let message = match result {
+                                    Ok(msg) => format!("Success: {}", msg),
+                                    Err(err) => format!("API Error: {}", err),
+                                };
+
+                                // 3. When the API call completes, update the signal.
+                                //    Dioxus will automatically re-render any part of the
+                                //    UI that reads this signal.
+                                api_response.set(Some(message));
+                            }
+                        });
                     },
                     "Confirm & Send"
                 }
@@ -35,7 +61,6 @@ pub fn SendScreen() -> Element {
 
         Card {
             h2 { "Send Funds" }
-            // No longer a form, just a div for layout and capturing inputs.
             div {
                 Input {
                     label: "Recipient Address".to_string(),
@@ -61,6 +86,15 @@ pub fn SendScreen() -> Element {
                     on_click: move |_| is_confirm_modal_open.set(true),
                     "Review Transaction"
                 }
+            }
+        }
+
+        // 4. Conditionally render the API response.
+        //    This part of the UI will automatically update when the `api_response` signal changes.
+        if let Some(response) = api_response() {
+            Card {
+                h3 { "Transaction Status" }
+                p { "{response}" }
             }
         }
     }
