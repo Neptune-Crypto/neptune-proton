@@ -7,3 +7,4 @@ edition = "2021"
 dioxus = { workspace = true, features = ["web", "fullstack"] }
 api = { workspace = true }
 dioxus-web = "0.6.3"
+#neptune-types = {path="../../neptune-types"}

@@ -8,9 +8,9 @@ use dioxus::prelude::*;
 pub fn MempoolScreen() -> Element {
     rsx! {
         Card {
-            h2 { "Mempool Status" }
+            h3 { "Mempool" }
             p { "Awaiting confirmation:" }
-            h3 { "3,450 transactions" }
+            h4 { "3,450 transactions" }
         }
     }
 }

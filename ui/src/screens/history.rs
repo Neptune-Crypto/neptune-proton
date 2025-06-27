@@ -9,7 +9,7 @@ use dioxus::prelude::*;
 pub fn HistoryScreen() -> Element {
     rsx! {
         Card {
-            h2 { "Transaction History" }
+            h3 { "History" }
             table {
                 thead { tr {
                     th { "Date" }

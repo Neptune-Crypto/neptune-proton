@@ -21,8 +21,8 @@ pub fn BlockChainScreen() -> Element {
             None => {
                 rsx! {
                     Card {
-                        h2 { "Block Height" }
-                        p { "Loading height..." }
+                        h3 { "Blockchain" }
+                        p { "Loading..." }
                         progress {} // An indeterminate progress bar
                     }
                 }
@@ -31,7 +31,7 @@ pub fn BlockChainScreen() -> Element {
             Some(Ok(height)) => {
                 rsx! {
                     Card {
-                        h2 { "Blockchain Status" }
+                        h3 { "Blockchain" }
                         Grid {
                             div {
                                 h4 { "Current Block Height" }

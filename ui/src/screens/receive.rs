@@ -8,7 +8,7 @@ use dioxus::prelude::*;
 pub fn ReceiveScreen() -> Element {
     rsx! {
         Card {
-            h2 { "Receive Address" }
+            h3 { "Receive Address" }
             p { "Share this address to receive funds." }
             figure {
                 div {

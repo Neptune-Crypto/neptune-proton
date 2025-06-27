@@ -60,7 +60,7 @@ pub fn SendScreen() -> Element {
         }
 
         Card {
-            h2 { "Send Funds" }
+            h3 { "Send Funds" }
             div {
                 Input {
                     label: "Recipient Address".to_string(),

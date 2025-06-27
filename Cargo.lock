@@ -151,7 +151,6 @@ dependencies = [
 name = "api"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "dioxus",
  "neptune-cash",
  "serde",

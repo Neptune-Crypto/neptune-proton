@@ -9,7 +9,7 @@ use dioxus::prelude::*;
 pub fn AddressesScreen() -> Element {
     rsx! {
         Card {
-            h2 { "My Addresses" }
+            h3 { "My Addresses" }
             p { "List of generated addresses." }
             ul {
                 li { code { "nolgaqxy2k...fjhx0wlh" } }
