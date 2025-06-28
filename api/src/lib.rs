@@ -14,7 +14,7 @@ pub async fn echo(input: String) -> Result<String, ServerFnError> {
 
 #[server]
 pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ServerFnError> {
-    let client = &neptune_rpc::shared_state().await.rpc_client;
+    let client = neptune_rpc::rpc_client().await;
     let token = neptune_rpc::get_token().await;
 
     let balance = client.confirmed_available_balance(tarpc::context::current(), token).await.unwrap().unwrap();
@@ -23,7 +23,7 @@ pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ServerFnError> {
 
 #[server(BlockHeightApi)]
 pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
-    let client = &neptune_rpc::shared_state().await.rpc_client;
+    let client = neptune_rpc::rpc_client().await;
     let token = neptune_rpc::get_token().await;
 
     let height = client.block_height(tarpc::context::current(), token).await.unwrap().unwrap();
@@ -48,33 +48,21 @@ mod neptune_rpc {
     use tarpc::tokio_serde::formats::Json;
     use tokio::sync::OnceCell;
 
-    pub(super) struct State {
-        pub rpc_client: rpc_api::RPCClient,
-    }
-
-    pub(super) async fn gen_rpc_client() -> rpc_api::RPCClient {
+    async fn gen_rpc_client() -> rpc_api::RPCClient {
         let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 9799);
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await.unwrap();
 
         rpc_api::RPCClient::new(client::Config::default(), transport).spawn()
     }
 
-    pub async fn gen_shared_state() -> State {
-        let rpc_client = gen_rpc_client().await;
+    pub async fn rpc_client() -> &'static rpc_api::RPCClient {
+        static STATE: OnceCell<rpc_api::RPCClient> = OnceCell::const_new();
 
-        State {
-            rpc_client,
-        }
-    }
-
-    pub(super) async fn shared_state() -> &'static State {
-        static STATE: OnceCell<State> = OnceCell::const_new();
-
-        STATE.get_or_init(|| async { gen_shared_state().await } ).await
+        STATE.get_or_init(|| async { gen_rpc_client().await } ).await
     }
 
     pub async fn cookie_hint() -> rpc_auth::CookieHint {
-        let client = &shared_state().await.rpc_client;
+        let client = rpc_client().await;
         client.cookie_hint(context::current()).await.unwrap().unwrap()
     }
 
