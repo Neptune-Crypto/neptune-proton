@@ -3,6 +3,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
 use dioxus::prelude::*;
+use neptune_types::address::BaseSpendingKey;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::block_height::BlockHeight;
 
@@ -28,6 +29,15 @@ pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
 
     let height = client.block_height(tarpc::context::current(), *token).await??;
     Ok(height.into())
+}
+
+#[server]
+pub async fn known_keys() -> Result<Vec<BaseSpendingKey>, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let known_keys = client.known_keys(tarpc::context::current(), *token).await??;
+    Ok(known_keys)
 }
 
 
