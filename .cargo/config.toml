@@ -1,7 +1,11 @@
 # tokio_unstable compile flag is necessary for tokio-console usage.
 # see: https://docs.rs/console-subscriber/latest/console_subscriber/
 [build]
-rustflags = [
-    "--cfg", "tokio_unstable",
-]
+rustflags = ["--cfg", "tokio_unstable"]
 
+[target.wasm32-unknown-unknown]
+rustflags = [
+  "--cfg", "getrandom_backend=\"wasm_js\"",
+  "-C", "debuginfo=0",
+  "-C", "strip=symbols",
+]

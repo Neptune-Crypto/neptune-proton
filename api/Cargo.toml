@@ -8,8 +8,12 @@ dioxus = { workspace = true, features = ["fullstack"] }
 # Add serde if your server functions use custom serializable types
 serde = { version = "1.0", features = ["derive"], optional = true }
 
+neptune-types.workspace = true
+twenty-first.workspace = true
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "8698d309" }
+neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "08a26dd134c5205017633e11a266ccd704d522d2" }
+#neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "2f360c778498948ff787497e28c7606751844577" }
 #neptune-cash = { path = "../../neptune-core" }
 #chrono = "^0.4.34"
 #chrono = "=0.4.34"

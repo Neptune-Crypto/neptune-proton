@@ -1,5 +1,11 @@
 //! This crate contains all shared fullstack server functions.
+
+#[cfg(not(target_arch = "wasm32"))]
+mod rpc_api;
 use dioxus::prelude::*;
+// use neptune_cash::api::export::BlockHeight;
+use neptune_types::block_height::BlockHeight;
+
 
 /// Echo the user input on the server.
 #[server(Echo)]
@@ -16,9 +22,9 @@ pub async fn wallet_balance() -> Result<String, ServerFnError> {
     Ok(balance.display_n_decimals(8))
 }
 
-#[server(BlockHeight)]
-pub async fn block_height() -> Result<u64, ServerFnError> {
-    let client = neptune_rpc::rpc_client().await;
+#[server(BlockHeightApi)]
+pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
+    let client = neptune_rpc::api_rpc_client().await;
     let token = neptune_rpc::get_token().await;
 
     let height = client.block_height(tarpc::context::current(), token).await.unwrap().unwrap();
@@ -36,6 +42,7 @@ pub async fn block_height() -> Result<u64, ServerFnError> {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod neptune_rpc {
+    use super::rpc_api;
     use neptune_cash::rpc_server::DashBoardOverviewDataFromClient;
 
     use std::net::Ipv4Addr;
@@ -50,6 +57,13 @@ mod neptune_rpc {
     use tarpc::client;
     use tarpc::context;
     use tarpc::tokio_serde::formats::Json;
+
+    pub(super) async fn api_rpc_client() -> rpc_api::RPCClient {
+        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 9799);
+        let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await.unwrap();
+
+        rpc_api::RPCClient::new(client::Config::default(), transport).spawn()
+    }
 
     pub(super) async fn rpc_client() -> RPCClient {
         let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 9799);

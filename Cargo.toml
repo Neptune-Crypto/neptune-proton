@@ -10,7 +10,10 @@ members = [
 ]
 
 [workspace.dependencies]
+twenty-first = "0.50"
 dioxus = { version = "0.6.0" }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+neptune-types = {path="../neptune-types"}
 
 # workspace
 ui = { path = "ui" }
