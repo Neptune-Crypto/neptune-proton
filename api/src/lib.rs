@@ -12,9 +12,9 @@ pub async fn echo(input: String) -> Result<String, ServerFnError> {
     Ok(format!("{}", input))
 }
 
-#[server(WalletBalance)]
+#[server]
 pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ServerFnError> {
-    let client = neptune_rpc::api_rpc_client().await;
+    let client = &neptune_rpc::shared_state().await.rpc_client;
     let token = neptune_rpc::get_token().await;
 
     let balance = client.confirmed_available_balance(tarpc::context::current(), token).await.unwrap().unwrap();
@@ -23,7 +23,7 @@ pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ServerFnError> {
 
 #[server(BlockHeightApi)]
 pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
-    let client = neptune_rpc::api_rpc_client().await;
+    let client = &neptune_rpc::shared_state().await.rpc_client;
     let token = neptune_rpc::get_token().await;
 
     let height = client.block_height(tarpc::context::current(), token).await.unwrap().unwrap();
@@ -31,18 +31,9 @@ pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
 }
 
 
-// #[server(DashboardOverview)]
-// pub async fn dashboard_overview() -> Result<f32, ServerFnError> {
-//     let client = rpc_client();
-//     let token = get_token();
-
-//     Ok(client.dashboard_overview_data(context::current(), token).await.unwrap().unwrap())
-// }
-
 #[cfg(not(target_arch = "wasm32"))]
 mod neptune_rpc {
     use super::rpc_api;
-    use neptune_cash::rpc_server::DashBoardOverviewDataFromClient;
 
     use std::net::Ipv4Addr;
     use std::net::SocketAddr;
@@ -51,28 +42,39 @@ mod neptune_rpc {
     use neptune_cash::rpc_server::error::RpcError;
     use neptune_cash::rpc_server::RPCClient;
     use neptune_cash::config_models::network::Network;
-    use neptune_cash::models::blockchain::block::block_selector::BlockSelector;
 
     use tarpc::client;
     use tarpc::context;
     use tarpc::tokio_serde::formats::Json;
+    use tokio::sync::OnceCell;
 
-    pub(super) async fn api_rpc_client() -> rpc_api::RPCClient {
+    pub(super) struct State {
+        pub rpc_client: rpc_api::RPCClient,
+    }
+
+    pub(super) async fn gen_rpc_client() -> rpc_api::RPCClient {
         let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 9799);
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await.unwrap();
 
         rpc_api::RPCClient::new(client::Config::default(), transport).spawn()
     }
 
-    pub(super) async fn rpc_client() -> RPCClient {
-        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 9799);
-        let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await.unwrap();
+    pub async fn gen_shared_state() -> State {
+        let rpc_client = gen_rpc_client().await;
 
-        RPCClient::new(client::Config::default(), transport).spawn()
+        State {
+            rpc_client,
+        }
+    }
+
+    pub(super) async fn shared_state() -> &'static State {
+        static STATE: OnceCell<State> = OnceCell::const_new();
+
+        STATE.get_or_init(|| async { gen_shared_state().await } ).await
     }
 
     pub async fn cookie_hint() -> rpc_auth::CookieHint {
-        let client = rpc_client().await;
+        let client = &shared_state().await.rpc_client;
         client.cookie_hint(context::current()).await.unwrap().unwrap()
     }
 

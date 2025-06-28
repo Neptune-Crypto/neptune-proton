@@ -150,6 +150,7 @@ dependencies = [
  "neptune-types",
  "serde",
  "tarpc",
+ "tokio",
  "twenty-first 0.50.0",
 ]
 
