@@ -3,9 +3,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
 use dioxus::prelude::*;
-// use neptune_cash::api::export::BlockHeight;
+use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::block_height::BlockHeight;
-
 
 /// Echo the user input on the server.
 #[server(Echo)]
@@ -14,12 +13,12 @@ pub async fn echo(input: String) -> Result<String, ServerFnError> {
 }
 
 #[server(WalletBalance)]
-pub async fn wallet_balance() -> Result<String, ServerFnError> {
-    let client = neptune_rpc::rpc_client().await;
+pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ServerFnError> {
+    let client = neptune_rpc::api_rpc_client().await;
     let token = neptune_rpc::get_token().await;
 
     let balance = client.confirmed_available_balance(tarpc::context::current(), token).await.unwrap().unwrap();
-    Ok(balance.display_n_decimals(8))
+    Ok(balance)
 }
 
 #[server(BlockHeightApi)]
