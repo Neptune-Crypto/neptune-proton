@@ -17,7 +17,7 @@ pub fn SendScreen() -> Element {
         // It will only be visible when `is_confirm_modal_open` is true.
         Modal {
             is_open: is_confirm_modal_open,
-            h2 { "Confirm Transaction" }
+            title: "Confirm Transaction",
             p { "Please review the details below. This action cannot be undone." }
             footer {
                 Button {

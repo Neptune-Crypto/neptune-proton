@@ -4,6 +4,7 @@
 #![allow(non_snake_case)] // Allow PascalCase for component function names
 
 use dioxus::prelude::*;
+use dioxus::html::input_data::keyboard_types::Key;
 
 //=============================================================================
 // Layout Components
@@ -141,10 +142,10 @@ pub fn Input(props: InputProps) -> Element {
 #[derive(Props, PartialEq, Clone)]
 pub struct ModalProps {
     is_open: Signal<bool>,
+    title: String,
     children: Element,
 }
 
-/// A modal dialog that opens over the page content.
 pub fn Modal(mut props: ModalProps) -> Element {
     rsx! {
         if (props.is_open)() {
@@ -158,8 +159,41 @@ pub fn Modal(mut props: ModalProps) -> Element {
                             class: "close",
                             onclick: move |_| props.is_open.set(false)
                         }
-                        "Modal"
+                        h3 { style: "margin-bottom: 0;", "{props.title}" }
                     }
+                    {props.children}
+                }
+            }
+        }
+    }
+}
+
+// A modal with no title bar that closes on backdrop click or Escape key.
+#[derive(Props, PartialEq, Clone)]
+pub struct NoTitleModalProps {
+    is_open: Signal<bool>,
+    children: Element,
+}
+
+pub fn NoTitleModal(mut props: NoTitleModalProps) -> Element {
+    rsx! {
+        if (props.is_open)() {
+            dialog {
+                open: true,
+                // focus this element as soon as it is rendered into the DOM.
+                autofocus: true,
+                // Close when the dialog's backdrop is clicked.
+                onclick: move |_| props.is_open.set(false),
+                // Listen for keyboard events to close on "Escape".
+                onkeydown: move |evt| {
+                    if evt.key() == Key::Escape {
+                        props.is_open.set(false);
+                    }
+                },
+                // The <article> tag holds the content and stops the click
+                // from propagating to the backdrop and closing the modal.
+                article {
+                    onclick: |evt| evt.stop_propagation(),
                     {props.children}
                 }
             }

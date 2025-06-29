@@ -3,7 +3,7 @@
 //=============================================================================
 use std::rc::Rc;
 use dioxus::prelude::*;
-use crate::components::pico::{Button, ButtonType, Card, Modal};
+use crate::components::pico::{Button, ButtonType, Card, NoTitleModal};
 use neptune_types::address::{AddressableKeyType, ReceivingAddress};
 use neptune_types::network::Network;
 
@@ -36,8 +36,9 @@ fn AddressRow(
             td {
                 style: "min-width: 150px; text-align: right;",
                 if is_hovered() {
+                    // Use Pico's `role="group"` for horizontal button layout.
                     div {
-                        class: "action-buttons",
+                        role: "group",
                         if is_copied() {
                             Button { button_type: ButtonType::Secondary, disabled: true, "Copied!" }
                         } else {
@@ -103,8 +104,6 @@ pub fn AddressesScreen() -> Element {
                 let mut qr_code_content = use_signal::<Option<(String, String)>>(|| None);
                 let mut qr_modal_is_open = use_signal(|| false);
 
-                // The parent no longer needs to track which item was copied.
-
                 let addresses: Vec<_> = keys
                     .into_iter()
                     .rev()
@@ -113,12 +112,15 @@ pub fn AddressesScreen() -> Element {
                     .collect();
 
                 rsx! {
-                    Modal {
+                    NoTitleModal {
                         is_open: qr_modal_is_open,
-                        if let Some((addr_abbrev, svg_data)) = qr_code_content() {
-                            h3 { "Address QR Code" }
-                            div { dangerous_inner_html: "{svg_data}" }
-                            p { "{addr_abbrev}" }
+                        div {
+                            style: "text-align: center;",
+                            if let Some((addr_abbrev, svg_data)) = qr_code_content() {
+                                h3 { "Receiving Address" },
+                                div { dangerous_inner_html: "{svg_data}" }
+                                p { "{addr_abbrev}" }
+                            }
                         }
                     }
                     Card {
