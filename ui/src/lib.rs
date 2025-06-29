@@ -133,6 +133,7 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
 //=============================================================================
 #[allow(non_snake_case)]
 pub fn App() -> Element {
+
     let mut active_screen = use_signal(Screen::default);
     let mut view_mode = use_signal(ViewMode::default);
 

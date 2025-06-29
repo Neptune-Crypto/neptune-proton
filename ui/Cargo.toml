@@ -4,7 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dioxus = { workspace = true, features = ["web", "fullstack"] }
+dioxus = { workspace = true, features = ["web", "fullstack", "logger"] }
+dioxus-logger.workspace = true
 api.workspace = true
 dioxus-web = "0.6.3"
+qrcode = "0.12"
 neptune-types.workspace = true
+web-sys = { version = "0.3.69", features = [
+    "Window",
+    "Navigator",
+    "Clipboard",
+    "console",
+]}
+# For handling JavaScript Promises in Rust
+wasm-bindgen-futures = "0.4.42"
