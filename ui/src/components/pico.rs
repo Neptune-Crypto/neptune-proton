@@ -3,8 +3,8 @@
 
 #![allow(non_snake_case)] // Allow PascalCase for component function names
 
-use dioxus::prelude::*;
 use dioxus::html::input_data::keyboard_types::Key;
+use dioxus::prelude::*;
 
 //=============================================================================
 // Layout Components
@@ -179,19 +179,15 @@ pub fn NoTitleModal(mut props: NoTitleModalProps) -> Element {
     rsx! {
         if (props.is_open)() {
             dialog {
+                tabindex: "0",
                 open: true,
-                // focus this element as soon as it is rendered into the DOM.
                 autofocus: true,
-                // Close when the dialog's backdrop is clicked.
                 onclick: move |_| props.is_open.set(false),
-                // Listen for keyboard events to close on "Escape".
                 onkeydown: move |evt| {
                     if evt.key() == Key::Escape {
                         props.is_open.set(false);
                     }
                 },
-                // The <article> tag holds the content and stops the click
-                // from propagating to the backdrop and closing the modal.
                 article {
                     onclick: |evt| evt.stop_propagation(),
                     {props.children}

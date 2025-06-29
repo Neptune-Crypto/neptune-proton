@@ -3,6 +3,8 @@
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
 use dioxus::prelude::*;
+use neptune_types::address::ReceivingAddress;
+use neptune_types::address::KeyType;
 use neptune_types::address::BaseSpendingKey;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::block_height::BlockHeight;
@@ -39,6 +41,16 @@ pub async fn known_keys() -> Result<Vec<BaseSpendingKey>, ServerFnError> {
     let known_keys = client.known_keys(tarpc::context::current(), *token).await??;
     Ok(known_keys)
 }
+
+#[server]
+pub async fn next_receiving_address(key_type: KeyType) -> Result<ReceivingAddress, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let address = client.next_receiving_address(tarpc::context::current(), *token, key_type).await??;
+    Ok(address)
+}
+
 
 
 #[cfg(not(target_arch = "wasm32"))]
