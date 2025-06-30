@@ -84,23 +84,29 @@ pub struct ButtonProps {
 
 /// A versatile button component.
 pub fn Button(props: ButtonProps) -> Element {
-    let class_str = if props.outline {
-        match props.button_type {
-            ButtonType::Primary => "secondary",
-            ButtonType::Secondary => "secondary",
-            ButtonType::Contrast => "contrast",
-        }
-    } else {
-        props.button_type.to_class()
-    };
+    // **THE FIX**: Build the class string correctly based on Pico's documentation.
+    let mut class_parts = Vec::new();
+
+    // Add the base style class.
+    match props.button_type {
+        ButtonType::Primary => class_parts.push("primary"),
+        ButtonType::Secondary => class_parts.push("secondary"),
+        ButtonType::Contrast => class_parts.push("contrast"),
+    }
+
+    // Add the "outline" class if the prop is true.
+    if props.outline {
+        class_parts.push("outline");
+    }
+
+    let class_str = class_parts.join(" ");
+
     rsx! {
         button {
+            // Use the correctly generated class string.
             class: "{class_str}",
-            "data-theme": match props.button_type {
-                ButtonType::Primary => "primary",
-                ButtonType::Secondary => "secondary",
-                ButtonType::Contrast => "contrast",
-            },
+            // style: "padding: 0.1rem; margin-top: 0.1rem;",
+            // The `data-theme` attribute is removed as it was incorrect.
             disabled: props.disabled,
             onclick: move |evt| {
                 if let Some(handler) = &props.on_click {
@@ -192,6 +198,56 @@ pub fn NoTitleModal(mut props: NoTitleModalProps) -> Element {
                     onclick: |evt| evt.stop_propagation(),
                     {props.children}
                 }
+            }
+        }
+    }
+}
+
+// ** NEW CopyButton Component **
+#[derive(Props, PartialEq, Clone)]
+pub struct CopyButtonProps {
+    /// The string that will be copied to the clipboard when the button is clicked.
+    pub text_to_copy: String,
+}
+
+/// A button that copies a given text string to the clipboard and displays
+/// a "Copied!" confirmation for 5 seconds.
+#[allow(non_snake_case)]
+pub fn CopyButton(props: CopyButtonProps) -> Element {
+    let mut is_copied = use_signal(|| false);
+
+    rsx! {
+        if is_copied() {
+            Button {
+                button_type: ButtonType::Secondary,
+                disabled: true,
+                "Copied!"
+            }
+        } else {
+            Button {
+                on_click: move |_| {
+                    let text_to_copy = props.text_to_copy.clone();
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        if let Some(clipboard) = web_sys::window().and_then(|win| Some(win.navigator().clipboard())) {
+                            let promise = clipboard.write_text(&text_to_copy);
+                            wasm_bindgen_futures::spawn_local(async move {
+                                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                            });
+                        }
+                    }
+
+                    // Set the state to "Copied!" and spawn the timer to reset it.
+                    is_copied.set(true);
+                    spawn({
+                        let mut is_copied = is_copied.clone();
+                        async move {
+                            gloo_timers::future::TimeoutFuture::new(5000).await;
+                            is_copied.set(false);
+                        }
+                    });
+                },
+                "Copy"
             }
         }
     }

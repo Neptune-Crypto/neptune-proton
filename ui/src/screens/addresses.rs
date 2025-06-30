@@ -3,7 +3,7 @@
 //=============================================================================
 use std::rc::Rc;
 use dioxus::prelude::*;
-use crate::components::pico::{Button, ButtonType, Card, NoTitleModal};
+use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
 use neptune_types::address::{AddressableKeyType, ReceivingAddress};
 use neptune_types::network::Network;
 
@@ -15,7 +15,6 @@ fn AddressRow(
 ) -> Element {
     // This component now manages its own hover and copied state locally.
     let mut is_hovered = use_signal(|| false);
-    let mut is_copied = use_signal(|| false);
 
     let ktype = AddressableKeyType::from(&*address).to_string();
     let addr_abbrev = address.to_display_bech32m_abbreviated(Network::Main).unwrap();
@@ -27,7 +26,6 @@ fn AddressRow(
             onmouseenter: move |_| is_hovered.set(true),
             onmouseleave: move |_| {
                 is_hovered.set(false);
-                is_copied.set(false);
             },
 
             td { "{ktype}" }
@@ -38,29 +36,10 @@ fn AddressRow(
                 if is_hovered() {
                     // Use Pico's `role="group"` for horizontal button layout.
                     div {
+                        style: "font-size: 0.8em",
                         role: "group",
-                        if is_copied() {
-                            Button { button_type: ButtonType::Secondary, disabled: true, "Copied!" }
-                        } else {
-                            Button {
-                                button_type: ButtonType::Secondary,
-                                outline: true,
-                                on_click: move |_| {
-                                    let full_address = address_rc.to_bech32m(Network::Main).unwrap();
-
-                                    #[cfg(target_arch = "wasm32")]
-                                    {
-                                        if let Some(clipboard) = web_sys::window().and_then(|win| Some(win.navigator().clipboard())) {
-                                            let promise = clipboard.write_text(&full_address);
-                                            wasm_bindgen_futures::spawn_local(async move {
-                                                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-                                            });
-                                        }
-                                    }
-                                    is_copied.set(true);
-                                },
-                                "Copy"
-                            }
+                        CopyButton {
+                            text_to_copy: address.to_bech32m(Network::Main).unwrap()
                         }
                         Button {
                             button_type: ButtonType::Contrast,
