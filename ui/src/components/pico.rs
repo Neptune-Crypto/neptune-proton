@@ -227,14 +227,11 @@ pub fn CopyButton(props: CopyButtonProps) -> Element {
             Button {
                 on_click: move |_| {
                     let text_to_copy = props.text_to_copy.clone();
-                    #[cfg(target_arch = "wasm32")]
-                    {
-                        if let Some(clipboard) = web_sys::window().and_then(|win| Some(win.navigator().clipboard())) {
-                            let promise = clipboard.write_text(&text_to_copy);
-                            wasm_bindgen_futures::spawn_local(async move {
-                                let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-                            });
-                        }
+                    if let Some(clipboard) = web_sys::window().and_then(|win| Some(win.navigator().clipboard())) {
+                        let promise = clipboard.write_text(&text_to_copy);
+                        wasm_bindgen_futures::spawn_local(async move {
+                            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                        });
                     }
 
                     // Set the state to "Copied!" and spawn the timer to reset it.

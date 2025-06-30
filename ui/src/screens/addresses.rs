@@ -4,21 +4,21 @@
 use std::rc::Rc;
 use dioxus::prelude::*;
 use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
-use neptune_types::address::{AddressableKeyType, ReceivingAddress};
+use neptune_types::address::{KeyType, ReceivingAddress};
 use neptune_types::network::Network;
 
 /// A new, self-contained component for rendering a single row in the address table.
 #[component]
 fn AddressRow(
     address: Rc<ReceivingAddress>,
-    on_qr_request: EventHandler<String>,
+    on_qr_request: EventHandler<Rc<ReceivingAddress>>,
 ) -> Element {
     // This component now manages its own hover and copied state locally.
     let mut is_hovered = use_signal(|| false);
 
-    let ktype = AddressableKeyType::from(&*address).to_string();
+    let key_type = KeyType::from(&*address);
+    let key_type_str = key_type.to_string();
     let addr_abbrev = address.to_display_bech32m_abbreviated(Network::Main).unwrap();
-    let address_rc = Rc::clone(&address);
 
     rsx! {
         tr {
@@ -28,7 +28,7 @@ fn AddressRow(
                 is_hovered.set(false);
             },
 
-            td { "{ktype}" }
+            td { "{key_type_str}" }
             td { code { "{addr_abbrev}" } }
 
             td {
@@ -45,8 +45,7 @@ fn AddressRow(
                             button_type: ButtonType::Contrast,
                             outline: true,
                             on_click: move |_| {
-                                let full_address = address.to_bech32m(Network::Main).unwrap();
-                                on_qr_request.call(full_address);
+                                on_qr_request.call(address.clone());
                             },
                             "QR"
                         }
@@ -119,8 +118,14 @@ pub fn AddressesScreen() -> Element {
                                         AddressRow {
                                             key: "{full_address_for_key}",
                                             address: Rc::clone(&address),
-                                            on_qr_request: move |full_address: String| {
-                                                let abbrev_address = full_address.chars().take(12).collect::<String>() + "..." + &full_address.chars().rev().take(12).collect::<String>().chars().rev().collect::<String>();
+                                            on_qr_request: move |address: Rc<ReceivingAddress>| {
+                                                let abbrev_address = address.to_bech32m_abbreviated(Network::Main).unwrap();
+                                                let full_address = if KeyType::from(&*address).is_generation() {
+                                                    abbrev_address.clone()
+                                                } else {
+                                                     address.to_bech32m(Network::Main).unwrap()
+                                                };
+
                                                 use qrcode::QrCode;
                                                 use qrcode::render::svg;
                                                 if let Ok(code) = QrCode::new(full_address.as_bytes()) {
