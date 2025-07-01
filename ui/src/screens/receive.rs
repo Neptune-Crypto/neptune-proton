@@ -5,11 +5,14 @@ use crate::components::pico::{Button, ButtonType, Card, CopyButton};
 use dioxus::prelude::*;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
-use neptune_types::network::Network;
 use std::rc::Rc;
+use crate::app_state::AppState;
+
 
 #[component]
 pub fn ReceiveScreen() -> Element {
+    let network = use_context::<AppState>().network;
+
     let mut receiving_address = use_signal::<Option<Rc<ReceivingAddress>>>(|| None);
     let mut is_generating = use_signal(|| false);
     let mut selected_key_type = use_signal(|| KeyType::Generation);
@@ -42,9 +45,9 @@ pub fn ReceiveScreen() -> Element {
                             use qrcode::QrCode;
                             use qrcode::render::svg;
                             let full_address = if KeyType::from(&*address).is_generation() {
-                                address.to_display_bech32m_abbreviated(Network::Main).unwrap()
+                                address.to_display_bech32m_abbreviated(network).unwrap()
                             } else {
-                                address.to_display_bech32m(Network::Main).unwrap()
+                                address.to_display_bech32m(network).unwrap()
                             };
                             match QrCode::new(full_address.as_bytes()) {
                                 Ok(code) => {
@@ -59,12 +62,12 @@ pub fn ReceiveScreen() -> Element {
                     }
                     code {
                         style: "word-break: break-all; font-size: 0.9rem;",
-                        "{address.to_bech32m_abbreviated(Network::Main).unwrap()}"
+                        "{address.to_bech32m_abbreviated(network).unwrap()}"
                     }
                     div {
                         style: "margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem;",
                         CopyButton {
-                            text_to_copy: address.to_bech32m(Network::Main).unwrap()
+                            text_to_copy: address.to_bech32m(network).unwrap()
                         }
                         Button {
                             button_type: ButtonType::Secondary,

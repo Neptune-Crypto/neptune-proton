@@ -8,11 +8,17 @@ use neptune_types::address::KeyType;
 use neptune_types::address::BaseSpendingKey;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::block_height::BlockHeight;
+use neptune_types::network::Network;
 
 /// Echo the user input on the server.
 #[server(Echo)]
 pub async fn echo(input: String) -> Result<String, ServerFnError> {
     Ok(format!("{}", input))
+}
+
+#[server(NetworkApi)]
+pub async fn network() -> Result<Network, ServerFnError> {
+    neptune_rpc::network().await
 }
 
 #[server]
@@ -64,7 +70,8 @@ mod neptune_rpc {
     use neptune_cash::rpc_auth;
     use neptune_cash::rpc_server::error::RpcError;
     use neptune_cash::rpc_server::RPCClient;
-    use neptune_cash::config_models::network::Network;
+
+    use neptune_types::network::Network;
 
     use tarpc::client;
     use tarpc::context;
@@ -98,6 +105,19 @@ mod neptune_rpc {
         static STATE: OnceCell<Result<rpc_auth::Token, ServerFnError>> = OnceCell::const_new();
 
         STATE.get_or_init(|| async { gen_token().await } ).await.as_ref().map_err(|err| err.clone())
+    }
+
+    async fn get_network() -> Result<Network, ServerFnError> {
+        let client = rpc_client().await?;
+        let token = get_token().await?;
+        let network = client.network(tarpc::context::current()).await??;
+        Ok(network)
+    }
+
+    pub async fn network() -> Result<Network, ServerFnError> {
+        static STATE: OnceCell<Result<Network, ServerFnError>> = OnceCell::const_new();
+
+        STATE.get_or_init(|| async { get_network().await } ).await.as_ref().map_err(|err| err.clone()).copied()
     }
 
 }

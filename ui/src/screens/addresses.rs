@@ -1,3 +1,4 @@
+use std::net;
 //=============================================================================
 // File: src/screens/addresses.rs
 //=============================================================================
@@ -6,19 +7,22 @@ use dioxus::prelude::*;
 use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
 use neptune_types::address::{KeyType, ReceivingAddress};
 use neptune_types::network::Network;
+use crate::app_state::AppState;
+
 
 /// A new, self-contained component for rendering a single row in the address table.
 #[component]
 fn AddressRow(
     address: Rc<ReceivingAddress>,
     on_qr_request: EventHandler<Rc<ReceivingAddress>>,
+    network: Network,
 ) -> Element {
     // This component now manages its own hover and copied state locally.
     let mut is_hovered = use_signal(|| false);
 
     let key_type = KeyType::from(&*address);
     let key_type_str = key_type.to_string();
-    let addr_abbrev = address.to_display_bech32m_abbreviated(Network::Main).unwrap();
+    let addr_abbrev = address.to_display_bech32m_abbreviated(network).unwrap();
 
     rsx! {
         tr {
@@ -39,7 +43,7 @@ fn AddressRow(
                         style: "font-size: 0.8em",
                         role: "group",
                         CopyButton {
-                            text_to_copy: address.to_bech32m(Network::Main).unwrap()
+                            text_to_copy: address.to_bech32m(network).unwrap()
                         }
                         Button {
                             button_type: ButtonType::Contrast,
@@ -58,9 +62,13 @@ fn AddressRow(
 
 #[component]
 pub fn AddressesScreen() -> Element {
+
+    let network = use_context::<AppState>().network;
+
     let mut known_keys = use_resource(move || async move {
         api::known_keys().await
     });
+
 
     rsx! {
         match &*known_keys.read() {
@@ -113,17 +121,18 @@ pub fn AddressesScreen() -> Element {
                             }
                             tbody {
                                 {addresses.into_iter().map(|address| {
-                                    let full_address_for_key = address.to_bech32m(Network::Main).unwrap();
+                                    let full_address_for_key = address.to_bech32m(network).unwrap();
                                     rsx! {
                                         AddressRow {
                                             key: "{full_address_for_key}",
                                             address: Rc::clone(&address),
+                                            network,
                                             on_qr_request: move |address: Rc<ReceivingAddress>| {
-                                                let abbrev_address = address.to_bech32m_abbreviated(Network::Main).unwrap();
+                                                let abbrev_address = address.to_bech32m_abbreviated(network).unwrap();
                                                 let full_address = if KeyType::from(&*address).is_generation() {
                                                     abbrev_address.clone()
                                                 } else {
-                                                     address.to_bech32m(Network::Main).unwrap()
+                                                     address.to_bech32m(network).unwrap()
                                                 };
 
                                                 use qrcode::QrCode;

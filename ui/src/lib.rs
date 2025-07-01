@@ -1,8 +1,13 @@
 // The client-side Dioxus application logic.
 
 use dioxus::prelude::*;
+
 mod components;
 mod screens;
+mod app_state;
+
+use app_state::AppState;
+use neptune_types::network::Network;
 
 // Use components from our modules.
 use components::pico::{Button, ButtonType, Container};
@@ -131,8 +136,36 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
 //=============================================================================
 // MAIN APPLICATION COMPONENT (Client-side)
 //=============================================================================
+
 #[allow(non_snake_case)]
 pub fn App() -> Element {
+
+    let future = use_server_future(api::network)?;
+
+    let content = match &*future.read() {
+        None => rsx! {
+            h1 { "Loading..." }
+            progress {}
+        },
+        Some(Ok(network)) => rsx! {
+            LoadedApp { app_state: AppState::new(*network) }
+        },
+        Some(Err(e)) => rsx! {
+            h1 { "Error from API" }
+            p { "{e}" }
+        },
+    };
+
+    content
+}
+
+
+/// A new component to hold the main part of your app.
+/// This makes the logic cleaner, as it only runs when the data is ready.
+#[component]
+fn LoadedApp(app_state: AppState) -> Element {
+
+    use_context_provider(|| app_state);
 
     let mut active_screen = use_signal(Screen::default);
     let mut view_mode = use_signal(ViewMode::default);

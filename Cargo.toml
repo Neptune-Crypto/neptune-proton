@@ -6,7 +6,6 @@ members = [
     "desktop",
     "mobile",
     "api",
-    "server_bin",
 ]
 
 [workspace.dependencies]
