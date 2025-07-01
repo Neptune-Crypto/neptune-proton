@@ -90,12 +90,15 @@ pub fn SendScreen() -> Element {
     // --- Modal State ---
     let mut is_confirm_modal_open = use_signal(|| false);
     let mut is_qr_modal_open = use_signal(|| false);
+    // New state for the duplicate address warning feature
+    let mut show_duplicate_warning_modal = use_signal(|| false);
+    let mut suppress_duplicate_warning = use_signal(|| false);
+    let mut pending_recipient = use_signal::<Option<Recipient>>(|| None);
 
 
     // --- Event Handlers ---
 
     let handle_paste_address = move |_| {
-        // Use `spawn` directly from the prelude, NOT `cx.spawn`
         spawn(async move {
             let clipboard = web_sys::window().unwrap().navigator().clipboard();
             let promise = clipboard.read_text();
@@ -105,7 +108,6 @@ pub fn SendScreen() -> Element {
 
                 match ReceivingAddress::from_bech32m(&clipboard_text, network) {
                     Ok(addr) => {
-                        // With signals, you set the value directly
                         *current_address.write() = Some(Rc::new(addr));
                         *address_error.write() = None;
                     }
@@ -126,6 +128,17 @@ pub fn SendScreen() -> Element {
         amount_error.set(None);
         editing_index.set(None);
     };
+
+    // Helper function to add/update a recipient to avoid duplicated code.
+    let mut add_or_update_recipient = move |recipient_to_add: Recipient| {
+        if let Some(index) = editing_index() {
+            recipients.with_mut(|r| r[index] = recipient_to_add);
+        } else {
+            recipients.push(recipient_to_add);
+        }
+        clear_form();
+    };
+
 
     // Handles adding a new recipient to the list.
     let mut handle_add_recipient = move || {
@@ -148,26 +161,36 @@ pub fn SendScreen() -> Element {
             }
         };
 
-        if !is_valid {
-            return ;
-        }
+        if !is_valid { return; }
 
-        // --- Add to List ---
         let new_recipient = Recipient {
             address: current_address().unwrap(),
             amount: amount.unwrap(),
         };
 
-        if let Some(index) = editing_index() {
-            // If we are editing, replace the item at the index.
-            recipients.with_mut(|r| r[index] = new_recipient);
-        } else {
-            // Otherwise, add a new recipient.
-            recipients.push(new_recipient);
+        // --- New Duplicate Check Logic ---
+        if !suppress_duplicate_warning() {
+            let is_duplicate = recipients.read().iter().enumerate().any(|(i, r)| {
+                // Ignore the recipient if it's the one we are currently editing.
+                if Some(i) == editing_index() {
+                    false
+                } else {
+                    r.address == new_recipient.address
+                }
+            });
+
+            if is_duplicate {
+                // A duplicate was found, show the modal and wait for user action.
+                pending_recipient.set(Some(new_recipient));
+                show_duplicate_warning_modal.set(true);
+                return;
+            }
         }
 
-        clear_form();
+        // If no duplicate is found (or warnings are suppressed), proceed directly.
+        add_or_update_recipient(new_recipient);
     };
+
 
     let address_value = if let Some(addr) = current_address() {
         addr.to_display_bech32m_abbreviated(network).unwrap()
@@ -212,6 +235,45 @@ pub fn SendScreen() -> Element {
             // TODO: Implement QR code scanning UI here
             h3 { "QR Scanner Placeholder" }
             p { "The QR scanner would appear here." }
+        }
+        // --- New Duplicate Address Warning Modal ---
+        Modal {
+            is_open: show_duplicate_warning_modal,
+            title: "Duplicate Address".to_string(),
+            p { "This address is already in the recipient list. Are you sure you want to proceed?" }
+            div {
+                style: "margin-top: 1rem; margin-bottom: 1rem;",
+                label {
+                    input {
+                        r#type: "checkbox",
+                        checked: "{suppress_duplicate_warning}",
+                        oninput: move |event| {
+                            suppress_duplicate_warning.set(event.value() == "true")
+                        },
+                    }
+                    "Don't ask me again"
+                }
+            }
+            footer {
+                Button {
+                    button_type: ButtonType::Secondary,
+                    outline: true,
+                    on_click: move |_| {
+                        show_duplicate_warning_modal.set(false);
+                        pending_recipient.set(None); // Important: Clear the pending data
+                    },
+                    "Cancel"
+                }
+                Button {
+                    on_click: move |_| {
+                        show_duplicate_warning_modal.set(false);
+                        if let Some(recipient) = pending_recipient.take() {
+                            add_or_update_recipient(recipient);
+                        }
+                    },
+                    "Confirm"
+                }
+            }
         }
 
         // --- Main Content ---
@@ -318,9 +380,10 @@ pub fn SendScreen() -> Element {
                     name: "fee",
                     input_type: "number".to_string(),
                     placeholder: "0.0".to_string(),
-                    value: "{current_fee}"
+                    value: "{current_fee}",
+                    on_input: move |event: FormEvent| current_fee.set(event.value().clone()),
                 }
-                div {} // Spacer
+                div {}
             }
             if let Some(err) = fee_error() {
                 small { style: "color: var(--pico-color-red-500);", "{err}" }
