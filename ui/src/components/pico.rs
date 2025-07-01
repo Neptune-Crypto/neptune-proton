@@ -128,6 +128,11 @@ pub struct InputProps {
     placeholder: Option<String>,
     #[props(default = false)]
     disabled: bool,
+    #[props(default = false)]
+    readonly: bool,
+    value: String,
+    #[props(optional)]
+    on_input: Option<EventHandler<FormEvent>>,
 }
 
 /// A labeled form input field.
@@ -140,6 +145,14 @@ pub fn Input(props: InputProps) -> Element {
                 name: "{props.name}",
                 placeholder: "{props.placeholder.as_deref().unwrap_or(\"\")}",
                 disabled: props.disabled,
+                readonly: props.readonly,
+                value: "{props.value}",
+
+                oninput: move |event| {
+                    if let Some(handler) = &props.on_input {
+                        handler.call(event);
+                    }
+                }
             }
         }
     }

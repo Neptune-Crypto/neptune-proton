@@ -19,3 +19,4 @@ web-sys = { version = "0.3.69", features = [
 # For handling JavaScript Promises in Rust
 wasm-bindgen-futures = "0.4.42"
 gloo-timers = { version = "0.3.0", features = ["futures"] }
+num-traits = "0.2.19"

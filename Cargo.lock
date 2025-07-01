@@ -6919,6 +6919,7 @@ dependencies = [
  "dioxus-web",
  "gloo-timers",
  "neptune-types",
+ "num-traits",
  "qrcode",
  "wasm-bindgen-futures",
  "web-sys",
