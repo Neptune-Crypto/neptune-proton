@@ -1,13 +1,12 @@
 //=============================================================================
 // File: src/screens/receive.rs
 //=============================================================================
+use crate::app_state::AppState;
 use crate::components::pico::{Button, ButtonType, Card, CopyButton};
 use dioxus::prelude::*;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
 use std::rc::Rc;
-use crate::app_state::AppState;
-
 
 #[component]
 pub fn ReceiveScreen() -> Element {

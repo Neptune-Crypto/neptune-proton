@@ -1,10 +1,14 @@
 // In src/screens/send.rs
 
+use crate::app_state::AppState;
 use crate::components::pico::{Button, ButtonType, Card, Grid, Input, Modal};
 use dioxus::prelude::*;
+use neptune_types::address::KeyType;
 
 #[component]
 pub fn SendScreen() -> Element {
+    let network = use_context::<AppState>().network;
+
     // A signal to control the confirmation modal's visibility.
     let mut is_confirm_modal_open = use_signal(|| false);
 
@@ -65,20 +69,20 @@ pub fn SendScreen() -> Element {
                 Input {
                     label: "Recipient Address".to_string(),
                     name: "address".to_string(),
-                    placeholder: "nolga...".to_string()
+                    placeholder: format!("{}...", KeyType::Generation.get_hrp(network)),
                 }
                 Grid {
                     Input {
                         label: "Amount".to_string(),
                         name: "amount".to_string(),
                         input_type: "number".to_string(),
-                        placeholder: "0.001".to_string()
+                        placeholder: "0.0".to_string()
                     }
                     Input {
-                        label: "Fee (sats/vB)".to_string(),
+                        label: "Fee".to_string(),
                         name: "fee".to_string(),
                         input_type: "number".to_string(),
-                        placeholder: "15".to_string()
+                        placeholder: "0.0".to_string()
                     }
                 }
                 // This button now opens the modal for confirmation.
