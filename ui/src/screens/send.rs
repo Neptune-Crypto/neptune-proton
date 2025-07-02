@@ -83,7 +83,6 @@ fn EditableRecipientRow(
         div {
             class: if is_active { "recipient-row active" } else { "recipient-row" },
             style: "border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); padding: 1rem; margin-bottom: 1rem;",
-            onclick: move |_| on_set_active.call(index),
 
             // Address Row
             div {
@@ -105,7 +104,7 @@ fn EditableRecipientRow(
                 // This input is now just a trigger for the actions modal.
                 Input {
                     label: "".to_string(),
-                    name: "address",
+                    name: "address_{index}",
                     placeholder: "Click to paste or scan an address...",
                     value: "{display_address}",
                     readonly: true,
@@ -115,7 +114,6 @@ fn EditableRecipientRow(
                             on_open_address_actions.call(index);
                         }
                     },
-                    // Visual cue that the input is clickable only when active
                     style: if is_active { "cursor: pointer;" } else { "cursor: not-allowed;" }
                 }
             }
@@ -126,29 +124,46 @@ fn EditableRecipientRow(
 
             // Amount Row
             div {
-                label { "Amount" }
-                Input {
-                    label: "".to_string(),
-                    name: "amount",
-                    input_type: "number".to_string(),
-                    placeholder: "0.0",
-                    value: "{recipient.read().amount_str}",
-                    readonly: !is_active,
-                    on_input: move |event: FormEvent| {
-                        if is_active {
-                            recipient.with_mut(|r| {
-                                r.amount_str = event.value().clone();
-                                // Real-time validation
-                                match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
-                                    Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
-                                    _ => r.amount_error = Some("Invalid amount".to_string()),
-                                }
-                            });
+                style: "display: flex; gap: 1rem; align-items: flex-end;",
+                div {
+                    style: "flex-grow: 1;",
+                    label { "Amount" }
+                    Input {
+                        label: "".to_string(),
+                        name: "amount_{index}",
+                        input_type: "number".to_string(),
+                        placeholder: "0.0",
+                        value: "{recipient.read().amount_str}",
+                        readonly: !is_active,
+                        on_input: move |event: FormEvent| {
+                            if is_active {
+                                recipient.with_mut(|r| {
+                                    r.amount_str = event.value().clone();
+                                    // Real-time validation
+                                    match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
+                                        Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
+                                        _ => r.amount_error = Some("Invalid amount".to_string()),
+                                    }
+                                });
+                            }
                         }
                     }
+                    if let Some(err) = &recipient.read().amount_error {
+                        small { style: "color: var(--pico-color-red-500);", "{err}" }
+                    }
                 }
-                if let Some(err) = &recipient.read().amount_error {
-                    small { style: "color: var(--pico-color-red-500);", "{err}" }
+                if !is_active {
+                    div {
+                        Button {
+                           button_type: ButtonType::Secondary,
+                           outline: true,
+                           on_click: move |evt: MouseEvent| {
+                               evt.stop_propagation();
+                               on_set_active.call(index);
+                           },
+                           "Edit"
+                        }
+                    }
                 }
             }
         }
@@ -182,6 +197,8 @@ pub fn SendScreen() -> Element {
     let mut error_modal_message = use_signal(String::new);
     let mut show_duplicate_warning_modal = use_signal(|| false);
     let mut suppress_duplicate_warning = use_signal(|| false);
+    let mut pending_address = use_signal::<Option<String>>(|| None);
+
 
     // --- Validation State ---
     let mut fee_error = use_signal::<Option<String>>(|| None);
@@ -215,7 +232,7 @@ pub fn SendScreen() -> Element {
         }
         let all_recipients_valid = recs.iter().all(|r| r.read().is_valid(network));
         let fee_is_valid =
-            NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
+            fee_str.read().is_empty() || NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
         all_recipients_valid && fee_is_valid
     });
 
@@ -254,10 +271,20 @@ pub fn SendScreen() -> Element {
                                     // Validate before setting
                                     match ReceivingAddress::from_bech32m(&clipboard_text, network) {
                                         Ok(_) => {
-                                            target_recipient.with_mut(|r| {
-                                                r.address_str = clipboard_text;
-                                                r.address_error = None;
+                                            // Check for duplicates before committing the paste
+                                            let is_duplicate = recipients.read().iter().enumerate().any(|(i, r)| {
+                                                if i == index { false } else { r.read().address_str == clipboard_text }
                                             });
+
+                                            if is_duplicate && !suppress_duplicate_warning() {
+                                                pending_address.set(Some(clipboard_text));
+                                                show_duplicate_warning_modal.set(true);
+                                            } else {
+                                                target_recipient.with_mut(|r| {
+                                                    r.address_str = clipboard_text;
+                                                    r.address_error = None;
+                                                });
+                                            }
                                         },
                                         Err(e) => {
                                             error_modal_message.set(format!("Invalid Address: {}", e));
@@ -333,8 +360,17 @@ pub fn SendScreen() -> Element {
                 }
                 Button {
                     on_click: move |_| {
+                        if let (Some(addr), Some(index)) = (pending_address.take(), action_target_index()) {
+                             // Step 1: Get a copy of the signal and release the read lock.
+                             let mut target_recipient = recipients.read()[index];
+
+                             // Step 2: Now that the lock is released, modify the copy.
+                             target_recipient.with_mut(|r| {
+                                r.address_str = addr;
+                                r.address_error = None;
+                            });
+                        }
                         show_duplicate_warning_modal.set(false);
-                        wizard_step.set(WizardStep::Review);
                     },
                     "Proceed Anyway"
                 }
@@ -417,21 +453,9 @@ pub fn SendScreen() -> Element {
                         h4 { style: "margin-top: 1rem; text-align: right;", "Total Spend: {total_spend}" }
                         Button {
                             on_click: move |_| {
-                                if !is_form_fully_valid() { return; }
-
-                                if !suppress_duplicate_warning() {
-                                    let addresses: Vec<String> = recipients.read().iter().map(|r| r.read().address_str.clone()).collect();
-                                    let has_duplicates = {
-                                        let mut unique_addresses = HashSet::new();
-                                        !addresses.into_iter().all(|addr| unique_addresses.insert(addr))
-                                    };
-
-                                    if has_duplicates {
-                                        show_duplicate_warning_modal.set(true);
-                                        return; // Stop, wait for modal
-                                    }
+                                if is_form_fully_valid() {
+                                    wizard_step.set(WizardStep::Review);
                                 }
-                                wizard_step.set(WizardStep::Review);
                             },
                             disabled: !is_form_fully_valid(),
                             "Next: Review"
@@ -451,7 +475,7 @@ pub fn SendScreen() -> Element {
                                     // These unwraps are safe because we validated on the previous screen.
                                     let addr = ReceivingAddress::from_bech32m(&recipient.address_str, network).unwrap();
                                     let amount = NativeCurrencyAmount::coins_from_str(&recipient.amount_str).unwrap();
-                                    rsx!{
+                                    rsx! {
                                         tr {
                                             td { code { "{addr.to_display_bech32m_abbreviated(network).unwrap()}" } }
                                             td { style: "text-align: right;", "{amount}" }
@@ -461,7 +485,14 @@ pub fn SendScreen() -> Element {
                             }
                         }
                         hr {}
-                        p { strong { "Fee: " } "{fee_str()}" }
+                        p {
+                            strong { "Fee: " }
+                            if fee_str().is_empty() {
+                                "0.0"
+                            } else {
+                                "{fee_str()}"
+                            }
+                        }
                         p { strong { "Total Spend: " } "{total_spend}" }
                         footer {
                             style: "display: flex; justify-content: space-between; margin-top: 1rem;",
