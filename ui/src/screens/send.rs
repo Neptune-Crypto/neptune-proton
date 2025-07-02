@@ -65,6 +65,7 @@ fn EditableRecipientRow(
     can_delete: bool,
     is_active: bool,
     on_set_active: EventHandler<usize>,
+    is_active_row_valid: bool,
 ) -> Element {
     let network = use_context::<AppState>().network;
 
@@ -89,13 +90,30 @@ fn EditableRecipientRow(
                 style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
                 label {
                     style: "margin-bottom: 0;",
+                    onclick: move |_| on_set_active.call(index),
                     "Recipient Address"
                 }
-                if can_delete {
-                    CloseButton {
-                        on_click: move |event: MouseEvent| {
-                            event.stop_propagation();
-                            on_delete.call(index);
+                div {
+                    style: "display: flex; gap: 0.5rem; align-items: center;",
+                    if !is_active {
+                        Button {
+                           button_type: ButtonType::Secondary,
+                           outline: true,
+                        //    style: "padding: 0.25rem 0.6rem; line-height: 1.2;",
+                           on_click: move |evt: MouseEvent| {
+                               evt.stop_propagation();
+                               on_set_active.call(index);
+                           },
+                           disabled: !is_active_row_valid,
+                           "Edit"
+                        }
+                    }
+                    if can_delete {
+                        CloseButton {
+                            on_click: move |event: MouseEvent| {
+                                event.stop_propagation();
+                                on_delete.call(index);
+                            }
                         }
                     }
                 }
@@ -114,6 +132,7 @@ fn EditableRecipientRow(
                             on_open_address_actions.call(index);
                         }
                     },
+                    // Visual cue that the input is clickable only when active
                     style: if is_active { "cursor: pointer;" } else { "cursor: not-allowed;" }
                 }
             }
@@ -124,46 +143,32 @@ fn EditableRecipientRow(
 
             // Amount Row
             div {
-                style: "display: flex; gap: 1rem; align-items: flex-end;",
-                div {
-                    style: "flex-grow: 1;",
-                    label { "Amount" }
-                    Input {
-                        label: "".to_string(),
-                        name: "amount_{index}",
-                        input_type: "number".to_string(),
-                        placeholder: "0.0",
-                        value: "{recipient.read().amount_str}",
-                        readonly: !is_active,
-                        on_input: move |event: FormEvent| {
-                            if is_active {
-                                recipient.with_mut(|r| {
-                                    r.amount_str = event.value().clone();
-                                    // Real-time validation
-                                    match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
-                                        Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
-                                        _ => r.amount_error = Some("Invalid amount".to_string()),
-                                    }
-                                });
-                            }
+                label {
+                    onclick: move |_| on_set_active.call(index),
+                    "Amount"
+                }
+                Input {
+                    label: "".to_string(),
+                    name: "amount_{index}",
+                    input_type: "number".to_string(),
+                    placeholder: "0.0",
+                    value: "{recipient.read().amount_str}",
+                    readonly: !is_active,
+                    on_input: move |event: FormEvent| {
+                        if is_active {
+                            recipient.with_mut(|r| {
+                                r.amount_str = event.value().clone();
+                                // Real-time validation
+                                match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
+                                    Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
+                                    _ => r.amount_error = Some("Invalid amount".to_string()),
+                                }
+                            });
                         }
-                    }
-                    if let Some(err) = &recipient.read().amount_error {
-                        small { style: "color: var(--pico-color-red-500);", "{err}" }
                     }
                 }
-                if !is_active {
-                    div {
-                        Button {
-                           button_type: ButtonType::Secondary,
-                           outline: true,
-                           on_click: move |evt: MouseEvent| {
-                               evt.stop_propagation();
-                               on_set_active.call(index);
-                           },
-                           "Edit"
-                        }
-                    }
+                if let Some(err) = &recipient.read().amount_error {
+                    small { style: "color: var(--pico-color-red-500);", "{err}" }
                 }
             }
         }
@@ -198,7 +203,6 @@ pub fn SendScreen() -> Element {
     let mut show_duplicate_warning_modal = use_signal(|| false);
     let mut suppress_duplicate_warning = use_signal(|| false);
     let mut pending_address = use_signal::<Option<String>>(|| None);
-
 
     // --- Validation State ---
     let mut fee_error = use_signal::<Option<String>>(|| None);
@@ -361,10 +365,7 @@ pub fn SendScreen() -> Element {
                 Button {
                     on_click: move |_| {
                         if let (Some(addr), Some(index)) = (pending_address.take(), action_target_index()) {
-                             // Step 1: Get a copy of the signal and release the read lock.
                              let mut target_recipient = recipients.read()[index];
-
-                             // Step 2: Now that the lock is released, modify the copy.
                              target_recipient.with_mut(|r| {
                                 r.address_str = addr;
                                 r.address_error = None;
@@ -410,6 +411,7 @@ pub fn SendScreen() -> Element {
                                     }
                                 },
                                 can_delete: recipients.len() > 1,
+                                is_active_row_valid: is_active_row_valid(),
                             }
                         }
 
@@ -454,6 +456,18 @@ pub fn SendScreen() -> Element {
                         Button {
                             on_click: move |_| {
                                 if is_form_fully_valid() {
+                                    if !suppress_duplicate_warning() {
+                                        let addresses: Vec<String> = recipients.read().iter().map(|r| r.read().address_str.clone()).filter(|s| !s.is_empty()).collect();
+                                        let has_duplicates = {
+                                            let mut unique_addresses = HashSet::new();
+                                            !addresses.into_iter().all(|addr| unique_addresses.insert(addr))
+                                        };
+
+                                        if has_duplicates {
+                                            show_duplicate_warning_modal.set(true);
+                                            return; // Stop, wait for modal
+                                        }
+                                    }
                                     wizard_step.set(WizardStep::Review);
                                 }
                             },
