@@ -133,6 +133,8 @@ pub struct InputProps {
     value: String,
     #[props(optional)]
     on_input: Option<EventHandler<FormEvent>>,
+    #[props(optional)]
+    on_click: Option<EventHandler<MouseEvent>>,
 }
 
 /// A labeled form input field.
@@ -152,7 +154,12 @@ pub fn Input(props: InputProps) -> Element {
                     if let Some(handler) = &props.on_input {
                         handler.call(event);
                     }
-                }
+                },
+                onclick: move |evt| {
+                    if let Some(handler) = &props.on_click {
+                        handler.call(evt);
+                    }
+                },
             }
         }
     }

@@ -1,16 +1,18 @@
 //=============================================================================
 // File: src/screens/send.rs
 //=============================================================================
-use std::rc::Rc;
-use std::str::FromStr;
+use crate::components::pico::{
+    Button, ButtonType, Card, CopyButton, Grid, Input, Modal, NoTitleModal,
+};
+use crate::AppState;
+use dioxus::dioxus_core::SpawnIfAsync;
 use dioxus::prelude::*;
-use crate::components::pico::{Button, ButtonType, Card, CopyButton, Grid, Input, Modal, NoTitleModal};
 use neptune_types::address::{KeyType, ReceivingAddress};
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
-use crate::AppState;
 use num_traits::Zero;
-use dioxus::dioxus_core::SpawnIfAsync;
+use std::rc::Rc;
+use std::str::FromStr;
 
 // --- Data Structures ---
 
@@ -28,6 +30,17 @@ struct EditableRecipient {
     amount_str: String,
     address_error: Option<String>,
     amount_error: Option<String>,
+}
+
+impl EditableRecipient {
+    /// Checks if the current editable data is valid.
+    fn is_valid(&self, network: Network) -> bool {
+        ReceivingAddress::from_bech32m(&self.address_str, network).is_ok()
+            && match NativeCurrencyAmount::coins_from_str(&self.amount_str) {
+                Ok(amt) => amt > NativeCurrencyAmount::zero(),
+                Err(_) => false,
+            }
+    }
 }
 
 impl Default for EditableRecipient {
@@ -49,36 +62,42 @@ fn EditableRecipientRow(
     index: usize,
     mut recipient: Signal<EditableRecipient>,
     on_delete: EventHandler<usize>,
+    on_open_address_actions: EventHandler<usize>,
+    can_delete: bool,
+    is_active: bool,
+    on_set_active: EventHandler<usize>,
 ) -> Element {
     let network = use_context::<AppState>().network;
 
-    let handle_paste_address = move || {
-        spawn(async move {
-            if let Ok(js_text) = wasm_bindgen_futures::JsFuture::from(web_sys::window().unwrap().navigator().clipboard().read_text()).await {
-                let clipboard_text = js_text.as_string().unwrap_or_default();
-                recipient.with_mut(|r| r.address_str = clipboard_text);
-            }
-        });
-    };
+    // Show the abbreviated address if valid, otherwise show the raw input.
+    let display_address = use_memo(move || {
+        let r = recipient.read();
+        match ReceivingAddress::from_bech32m(&r.address_str, network) {
+            Ok(addr) => addr
+                .to_display_bech32m_abbreviated(network)
+                .unwrap_or(r.address_str.clone()),
+            Err(_) => r.address_str.clone(),
+        }
+    });
 
     rsx! {
         div {
-            class: "recipient-row",
+            class: if is_active { "recipient-row active" } else { "recipient-row" },
             style: "border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); padding: 1rem; margin-bottom: 1rem;",
+            onclick: move |_| on_set_active.call(index),
 
             // Address Row
             div {
                 label { "Recipient Address" }
                 div {
-                    role: "group",
+                    // This input is now just a trigger for the actions modal.
                     Input {
                         label: "".to_string(),
                         name: "address",
-                        placeholder: "Paste or scan an address...",
-                        value: "{recipient.read().address_str}",
-                        on_input: move |event: FormEvent| {
-                            recipient.with_mut(|r| r.address_str = event.value().clone());
-                        }
+                        placeholder: "Click to paste or scan an address...",
+                        value: "{display_address}",
+                        readonly: true,
+                        on_click: move |_| on_open_address_actions.call(index),
                     }
                 }
                 if let Some(err) = &recipient.read().address_error {
@@ -86,7 +105,7 @@ fn EditableRecipientRow(
                 }
             }
 
-            // Amount and Delete Row
+            // Amount and Action Buttons Row
             Grid {
                 div {
                     label { "Amount" }
@@ -96,8 +115,18 @@ fn EditableRecipientRow(
                         input_type: "number".to_string(),
                         placeholder: "0.0",
                         value: "{recipient.read().amount_str}",
+                        readonly: !is_active,
                         on_input: move |event: FormEvent| {
-                            recipient.with_mut(|r| r.amount_str = event.value().clone());
+                            if is_active {
+                                recipient.with_mut(|r| {
+                                    r.amount_str = event.value().clone();
+                                    // Real-time validation
+                                    match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
+                                        Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
+                                        _ => r.amount_error = Some("Invalid amount".to_string()),
+                                    }
+                                });
+                            }
                         }
                     }
                     if let Some(err) = &recipient.read().amount_error {
@@ -106,24 +135,26 @@ fn EditableRecipientRow(
                 }
                 div {
                     style: "display: flex; align-items: flex-end; justify-content: flex-end; height: 100%;",
-                    Button {
-                        button_type: ButtonType::Secondary,
-                        outline: true,
-                        on_click: move |_| handle_paste_address(),
-                        "Paste Address"
-                    }
-                    Button {
-                        button_type: ButtonType::Contrast,
-                        outline: true,
-                        on_click: move |_| on_delete.call(index),
-                        "Delete"
+                    if can_delete {
+                        span {
+                            title: "Delete this recipient",
+                            Button {
+                                button_type: ButtonType::Contrast,
+                                outline: true,
+                                on_click: move |event: MouseEvent| {
+                                    // Prevent the row's onclick from firing.
+                                    event.stop_propagation();
+                                    on_delete.call(index);
+                                },
+                                "X"
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
-
 
 #[component]
 pub fn SendScreen() -> Element {
@@ -139,30 +170,56 @@ pub fn SendScreen() -> Element {
     let mut wizard_step = use_signal(|| WizardStep::AddRecipients);
 
     // --- Main State ---
-    // 1. Create the signal for the first row at the top level.
     let first_recipient = use_signal(EditableRecipient::default);
-    // 2. Initialize the list signal with a vector containing the first signal.
     let mut recipients = use_signal(|| vec![first_recipient]);
-
     let mut fee_str = use_signal(String::new);
-    let mut fee_error = use_signal::<Option<String>>(|| None);
     let mut api_response = use_signal::<Option<String>>(|| None);
+    let mut active_row_index = use_signal(|| 0);
+
+    // --- Modal State ---
+    let mut is_address_actions_modal_open = use_signal(|| false);
+    let mut action_target_index = use_signal::<Option<usize>>(|| None);
+
+    // --- Validation State ---
+    let mut fee_error = use_signal::<Option<String>>(|| None);
 
     // --- Derived State ---
     let subtotal = use_memo(move || {
-        recipients.read().iter().fold(NativeCurrencyAmount::zero(), |acc, r| {
-            let amount = NativeCurrencyAmount::coins_from_str(&r.read().amount_str).unwrap_or_else(|_| NativeCurrencyAmount::zero());
-            acc + amount
-        })
+        recipients
+            .read()
+            .iter()
+            .fold(NativeCurrencyAmount::zero(), |acc, r| {
+                let amount = NativeCurrencyAmount::coins_from_str(&r.read().amount_str)
+                    .unwrap_or_else(|_| NativeCurrencyAmount::zero());
+                acc + amount
+            })
     });
     let total_spend = use_memo(move || {
-        let fee = NativeCurrencyAmount::coins_from_str(&fee_str()).unwrap_or_else(|_| NativeCurrencyAmount::zero());
+        let fee = NativeCurrencyAmount::coins_from_str(&fee_str())
+            .unwrap_or_else(|_| NativeCurrencyAmount::zero());
         subtotal() + fee
+    });
+    let is_active_row_valid = use_memo(move || {
+        recipients
+            .read()
+            .get(active_row_index())
+            .map_or(false, |r| r.read().is_valid(network))
+    });
+    let is_form_fully_valid = use_memo(move || {
+        let recs = recipients.read();
+        if recs.is_empty() {
+            return false;
+        }
+        let all_recipients_valid = recs.iter().all(|r| r.read().is_valid(network));
+        let fee_is_valid =
+            NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok() && !fee_str.read().is_empty();
+        all_recipients_valid && fee_is_valid
     });
 
     // --- Event Handlers ---
     let mut reset_screen = move || {
         recipients.set(vec![use_signal(EditableRecipient::default)]);
+        active_row_index.set(0);
         fee_str.set(String::new());
         fee_error.set(None);
         api_response.set(None);
@@ -170,6 +227,56 @@ pub fn SendScreen() -> Element {
     };
 
     rsx! {
+        // --- Modals ---
+        NoTitleModal {
+            is_open: is_address_actions_modal_open,
+            div {
+                style: "display: flex; flex-direction: column; gap: 1rem;",
+                h3 { "Set Address" }
+                p {
+                    if let Some(index) = action_target_index() {
+                        "Choose an action for recipient number {index + 1}."
+                    } else {
+                        "Choose an action."
+                    }
+                }
+                Button {
+                    on_click: move |_| {
+                        if let Some(index) = action_target_index() {
+                            let mut target_recipient = recipients.read()[index];
+                            spawn(async move {
+                                if let Ok(js_text) = wasm_bindgen_futures::JsFuture::from(web_sys::window().unwrap().navigator().clipboard().read_text()).await {
+                                    let clipboard_text = js_text.as_string().unwrap_or_default();
+                                    target_recipient.with_mut(|r| {
+                                        r.address_str = clipboard_text;
+                                        // Real-time validation on paste
+                                        match ReceivingAddress::from_bech32m(&r.address_str, network) {
+                                            Ok(_) => r.address_error = None,
+                                            Err(e) => r.address_error = Some(e.to_string()),
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                        is_address_actions_modal_open.set(false);
+                    },
+                    "Paste Address"
+                }
+                Button {
+                    // TODO: Implement actual QR scanning and update recipient.
+                    on_click: move |_| is_address_actions_modal_open.set(false),
+                    "Scan QR Code"
+                }
+                 Button {
+                    button_type: ButtonType::Secondary,
+                    outline: true,
+                    on_click: move |_| is_address_actions_modal_open.set(false),
+                    "Cancel"
+                }
+            }
+        }
+
+
         // --- Wizard Content ---
         div {
             match wizard_step() {
@@ -181,11 +288,27 @@ pub fn SendScreen() -> Element {
                                 key: "{i}",
                                 index: i,
                                 recipient: *recipient,
+                                is_active: active_row_index() == i,
                                 on_delete: move |index_to_delete: usize| {
                                     if recipients.len() > 1 {
+                                        // If we are deleting the active row, we may need to adjust the active index
+                                        if active_row_index() >= index_to_delete && active_row_index() > 0 {
+                                            active_row_index.set(active_row_index() - 1);
+                                        }
                                         recipients.write().remove(index_to_delete);
                                     }
-                                }
+                                },
+                                on_open_address_actions: move |index: usize| {
+                                    action_target_index.set(Some(index));
+                                    is_address_actions_modal_open.set(true);
+                                },
+                                on_set_active: move |index: usize| {
+                                    // Only allow switching to another row if the current active row is valid
+                                    if is_active_row_valid() {
+                                        active_row_index.set(index);
+                                    }
+                                },
+                                can_delete: recipients.len() > 1,
                             }
                         }
 
@@ -195,8 +318,12 @@ pub fn SendScreen() -> Element {
                                 button_type: ButtonType::Secondary,
                                 outline: true,
                                 on_click: move |_| {
+                                    // Push a new recipient and make it active
+                                    let new_index = recipients.len();
                                     recipients.push(use_signal(EditableRecipient::default));
+                                    active_row_index.set(new_index);
                                 },
+                                disabled: !is_active_row_valid(),
                                 "Add Another Recipient"
                             }
                             if recipients.len() > 1 {
@@ -211,7 +338,15 @@ pub fn SendScreen() -> Element {
                             input_type: "number".to_string(),
                             placeholder: "0.0",
                             value: "{fee_str}",
-                            on_input: move |event: FormEvent| fee_str.set(event.value().clone()),
+                            on_input: move |event: FormEvent| {
+                                fee_str.set(event.value().clone());
+                                // Perform real-time validation for the fee as well
+                                if NativeCurrencyAmount::coins_from_str(&event.value()).is_err() && !event.value().is_empty() {
+                                    fee_error.set(Some("Invalid fee.".to_string()));
+                                } else {
+                                    fee_error.set(None);
+                                }
+                            },
                         }
                         if let Some(err) = fee_error() {
                             small { style: "color: var(--pico-color-red-500);", "{err}" }
@@ -219,39 +354,11 @@ pub fn SendScreen() -> Element {
                         h4 { style: "margin-top: 1rem; text-align: right;", "Total Spend: {total_spend}" }
                         Button {
                             on_click: move |_| {
-                                let mut all_valid = true;
-                                for i in 0..recipients.read().len() {
-                                    let mut r = recipients.read()[i];
-                                    let mut recipient = r.write();
-                                    // Validate Address
-                                    match ReceivingAddress::from_bech32m(&recipient.address_str, network) {
-                                        Ok(_) => recipient.address_error = None,
-                                        Err(e) => {
-                                            recipient.address_error = Some(e.to_string());
-                                            all_valid = false;
-                                        }
-                                    }
-                                    // Validate Amount
-                                    match NativeCurrencyAmount::coins_from_str(&recipient.amount_str) {
-                                        Ok(amt) if amt > NativeCurrencyAmount::zero() => recipient.amount_error = None,
-                                        _ => {
-                                            recipient.amount_error = Some("Invalid amount".to_string());
-                                            all_valid = false;
-                                        }
-                                    }
-                                }
-
-                                if NativeCurrencyAmount::coins_from_str(&fee_str()).is_err() {
-                                    fee_error.set(Some("Invalid fee.".to_string()));
-                                    all_valid = false;
-                                } else {
-                                    fee_error.set(None);
-                                }
-
-                                if all_valid {
+                                if is_form_fully_valid() {
                                     wizard_step.set(WizardStep::Review);
                                 }
                             },
+                            disabled: !is_form_fully_valid(),
                             "Next: Review"
                         }
                     }
@@ -266,6 +373,7 @@ pub fn SendScreen() -> Element {
                             tbody {
                                 {recipients.read().iter().map(|recipient_signal| {
                                     let recipient = recipient_signal.read();
+                                    // These unwraps are safe because we validated on the previous screen.
                                     let addr = ReceivingAddress::from_bech32m(&recipient.address_str, network).unwrap();
                                     let amount = NativeCurrencyAmount::coins_from_str(&recipient.amount_str).unwrap();
                                     rsx!{
