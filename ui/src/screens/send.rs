@@ -95,6 +95,14 @@ pub fn SendScreen() -> Element {
     let mut suppress_duplicate_warning = use_signal(|| false);
     let mut pending_recipient = use_signal::<Option<Recipient>>(|| None);
 
+    // --- Derived State ---
+    // Efficiently calculates the total spend whenever recipients or the fee changes.
+    let total_spend = use_memo(move || {
+        let recipients_total: NativeCurrencyAmount = recipients.read().iter().map(|r| r.amount).sum();
+        let fee = NativeCurrencyAmount::coins_from_str(&current_fee()).unwrap_or_else(|_| NativeCurrencyAmount::zero());
+        recipients_total + fee
+    });
+
 
     // --- Event Handlers ---
 
@@ -204,7 +212,30 @@ pub fn SendScreen() -> Element {
             is_open: is_confirm_modal_open,
             title: "Confirm Transaction".to_string(),
             p { "Please review the details below. This action cannot be undone." }
-            // TODO: Display transaction details here.
+
+            // --- Transaction Details Display ---
+            h5 { style: "margin-top: 1rem;", "Recipients:" }
+            table {
+                role: "grid",
+                tbody {
+                    {recipients.read().iter().map(|recipient| rsx!{
+                        tr {
+                            td { code { "{recipient.address.to_display_bech32m_abbreviated(network).unwrap()}" } }
+                            td { style: "text-align: right;", "{recipient.amount}" }
+                        }
+                    })}
+                }
+            }
+            hr {}
+            p {
+                strong { "Fee: " }
+                "{current_fee()}"
+            }
+            p {
+                strong { "Total Spend: " }
+                "{total_spend}"
+            }
+
             footer {
                 Button {
                     button_type: ButtonType::Secondary,
