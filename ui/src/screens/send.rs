@@ -68,20 +68,34 @@ fn EditableRecipientRow(
     can_delete: bool,
     is_active: bool,
     on_set_active: EventHandler<usize>,
-    is_active_row_valid: bool,
+    on_done_editing: EventHandler<()>,
+    is_any_other_row_active: bool,
 ) -> Element {
     let network = use_context::<AppState>().network;
 
-    let r = recipient.read();
-    let address = ReceivingAddress::from_bech32m(&r.address_str, network).map(|a| Rc::new(a)).ok();
+    // --- Derived State (Optimized) ---
+    // Parse the address string once and reuse the result.
+    let parsed_address = use_memo(move || {
+        ReceivingAddress::from_bech32m(&recipient.read().address_str, network).ok()
+    });
 
-    let addr_clone = address.clone();
+    // Show the abbreviated address if valid, otherwise show the raw input.
+    let display_address = use_memo(move || match parsed_address() {
+        Some(addr) => addr
+            .to_display_bech32m_abbreviated(network)
+            .unwrap_or(recipient.read().address_str.clone()),
+        None => recipient.read().address_str.clone(),
+    });
 
-    let form_address = use_memo(move || {
-        match &addr_clone {
-            Some(addr) => addr.to_display_bech32m_abbreviated(network).unwrap(),
-            None => "".to_string(),
-        }
+    // Check if the entire row is valid based on the parsed address and amount.
+    let is_row_valid = use_memo(move || {
+        let is_address_ok = parsed_address().is_some();
+        let is_amount_ok = match NativeCurrencyAmount::coins_from_str(&recipient.read().amount_str)
+        {
+            Ok(amt) => amt > NativeCurrencyAmount::zero(),
+            Err(_) => false,
+        };
+        is_address_ok && is_amount_ok
     });
 
     rsx! {
@@ -98,7 +112,19 @@ fn EditableRecipientRow(
                 }
                 div {
                     style: "display: flex; gap: 0.5rem; align-items: center;",
-                    if !is_active {
+                    if is_active {
+                        // Show "Done" button when active
+                        Button {
+                           button_type: ButtonType::Primary,
+                           on_click: move |evt: MouseEvent| {
+                               evt.stop_propagation();
+                               on_done_editing.call(());
+                           },
+                           disabled: !is_row_valid(),
+                           "Done"
+                        }
+                    } else {
+                        // Show "Edit" button when inactive
                         Button {
                            button_type: ButtonType::Secondary,
                            outline: true,
@@ -106,7 +132,7 @@ fn EditableRecipientRow(
                                evt.stop_propagation();
                                on_set_active.call(index);
                            },
-                           disabled: !is_active_row_valid,
+                           disabled: is_any_other_row_active,
                            "Edit"
                         }
                     }
@@ -131,7 +157,7 @@ fn EditableRecipientRow(
                             label: "".to_string(),
                             name: "address_{index}",
                             placeholder: "Click to paste or scan an address...",
-                            value: "{form_address}",
+                            value: "{display_address}",
                             readonly: true,
                             on_click: move |event: MouseEvent| {
                                 event.stop_propagation();
@@ -174,9 +200,15 @@ fn EditableRecipientRow(
                 // State: INACTIVE (Static Text)
                 div {
                     key: "inactive-display-{index}",
-                    style: "padding: 0.5rem 0.25rem; cursor: pointer;",
-                    onclick: move |_| on_set_active.call(index),
-                    Address { address: address.unwrap() }
+                    style: "padding: 0.5rem 0.25rem;",
+                    p {
+                        style: "word-break: break-all; margin-bottom: 0.5rem; font-size: 0.9rem",
+                        if let Some(addr) = parsed_address() {
+                             Address { address: Rc::new(addr) }
+                        } else {
+                             code { "{display_address}" }
+                        }
+                    }
                     p {
                         style: "margin-bottom: 0;",
                         strong { "Amount: " }
@@ -205,7 +237,7 @@ pub fn SendScreen() -> Element {
     let mut recipients = use_signal(move || vec![Signal::new(EditableRecipient::default())]);
     let mut fee_str = use_signal(String::new);
     let mut api_response = use_signal::<Option<String>>(|| None);
-    let mut active_row_index = use_signal(|| 0);
+    let mut active_row_index = use_signal::<Option<usize>>(|| Some(0));
 
     // --- Modal State ---
     let mut is_address_actions_modal_open = use_signal(|| false);
@@ -236,12 +268,7 @@ pub fn SendScreen() -> Element {
             .unwrap_or_else(|_| NativeCurrencyAmount::zero());
         subtotal() + fee
     });
-    let is_active_row_valid = use_memo(move || {
-        recipients
-            .read()
-            .get(active_row_index())
-            .map_or(false, |r| r.read().is_valid(network))
-    });
+    let is_any_row_active = use_memo(move || active_row_index().is_some());
     let is_form_fully_valid = use_memo(move || {
         let recs = recipients.read();
         if recs.is_empty() {
@@ -256,7 +283,7 @@ pub fn SendScreen() -> Element {
     // --- Event Handlers ---
     let mut reset_screen = move || {
         recipients.set(vec![Signal::new(EditableRecipient::default())]);
-        active_row_index.set(0);
+        active_row_index.set(Some(0));
         fee_str.set(String::new());
         fee_error.set(None);
         api_response.set(None);
@@ -403,28 +430,30 @@ pub fn SendScreen() -> Element {
                                 key: "{i}",
                                 index: i,
                                 recipient: *recipient,
-                                is_active: active_row_index() == i,
+                                is_active: active_row_index() == Some(i),
                                 on_delete: move |index_to_delete: usize| {
                                     if recipients.len() > 1 {
-                                        if active_row_index() >= index_to_delete && active_row_index() > 0 {
-                                            active_row_index.set(active_row_index() - 1);
+                                        // If we are deleting the active row, deactivate editing.
+                                        if active_row_index() == Some(index_to_delete) {
+                                            active_row_index.set(None);
                                         }
                                         recipients.write().remove(index_to_delete);
                                     }
                                 },
                                 on_open_address_actions: move |index: usize| {
-                                    if active_row_index() == index {
+                                    if active_row_index() == Some(index) {
                                         action_target_index.set(Some(index));
                                         is_address_actions_modal_open.set(true);
                                     }
                                 },
                                 on_set_active: move |index: usize| {
-                                    if is_active_row_valid() {
-                                        active_row_index.set(index);
-                                    }
+                                    active_row_index.set(Some(index));
+                                },
+                                on_done_editing: move |_| {
+                                    active_row_index.set(None);
                                 },
                                 can_delete: recipients.len() > 1,
-                                is_active_row_valid: is_active_row_valid(),
+                                is_any_other_row_active: is_any_row_active() && active_row_index() != Some(i),
                             }
                         }
 
@@ -436,9 +465,9 @@ pub fn SendScreen() -> Element {
                                 on_click: move |_| {
                                     let new_index = recipients.len();
                                     recipients.write().push(Signal::new(EditableRecipient::default()));
-                                    active_row_index.set(new_index);
+                                    active_row_index.set(Some(new_index));
                                 },
-                                disabled: !is_active_row_valid(),
+                                disabled: is_any_row_active(),
                                 "Add Another Recipient"
                             }
                             if recipients.len() > 1 {
@@ -472,7 +501,7 @@ pub fn SendScreen() -> Element {
                                     wizard_step.set(WizardStep::Review);
                                 }
                             },
-                            disabled: !is_form_fully_valid(),
+                            disabled: !is_form_fully_valid() || is_any_row_active(),
                             "Next: Review"
                         }
                     }
@@ -492,7 +521,7 @@ pub fn SendScreen() -> Element {
                                     let amount = NativeCurrencyAmount::coins_from_str(&recipient.amount_str).unwrap();
                                     rsx! {
                                         tr {
-                                            td { Address { address: addr } }
+                                            td { Address { address: addr.clone() } }
                                             td { style: "text-align: right;", "{amount}" }
                                         }
                                     }
