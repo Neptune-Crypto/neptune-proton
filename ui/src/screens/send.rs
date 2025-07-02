@@ -1,6 +1,7 @@
 //=============================================================================
 // File: src/screens/send.rs
 //=============================================================================
+use crate::components::address::Address;
 use crate::components::pico::{
     Button, ButtonType, Card, CloseButton, CopyButton, Grid, Input, Modal, NoTitleModal,
 };
@@ -71,14 +72,15 @@ fn EditableRecipientRow(
 ) -> Element {
     let network = use_context::<AppState>().network;
 
-    // Show the abbreviated address if valid, otherwise show the raw input.
-    let display_address = use_memo(move || {
-        let r = recipient.read();
-        match ReceivingAddress::from_bech32m(&r.address_str, network) {
-            Ok(addr) => addr
-                .to_display_bech32m_abbreviated(network)
-                .unwrap_or(r.address_str.clone()),
-            Err(_) => r.address_str.clone(),
+    let r = recipient.read();
+    let address = ReceivingAddress::from_bech32m(&r.address_str, network).map(|a| Rc::new(a)).ok();
+
+    let addr_clone = address.clone();
+
+    let form_address = use_memo(move || {
+        match &addr_clone {
+            Some(addr) => addr.to_display_bech32m_abbreviated(network).unwrap(),
+            None => "".to_string(),
         }
     });
 
@@ -129,7 +131,7 @@ fn EditableRecipientRow(
                             label: "".to_string(),
                             name: "address_{index}",
                             placeholder: "Click to paste or scan an address...",
-                            value: "{display_address}",
+                            value: "{form_address}",
                             readonly: true,
                             on_click: move |event: MouseEvent| {
                                 event.stop_propagation();
@@ -172,11 +174,9 @@ fn EditableRecipientRow(
                 // State: INACTIVE (Static Text)
                 div {
                     key: "inactive-display-{index}",
-                    style: "padding: 0.5rem 0.25rem;",
-                    p {
-                        style: "word-break: break-all; margin-bottom: 0.5rem; font-size: 0.9rem",
-                        code { "{display_address}" }
-                    }
+                    style: "padding: 0.5rem 0.25rem; cursor: pointer;",
+                    onclick: move |_| on_set_active.call(index),
+                    Address { address: address.unwrap() }
                     p {
                         style: "margin-bottom: 0;",
                         strong { "Amount: " }
@@ -488,11 +488,11 @@ pub fn SendScreen() -> Element {
                                 {recipients.read().iter().map(|recipient_signal| {
                                     let recipient = recipient_signal.read();
                                     // These unwraps are safe because we validated on the previous screen.
-                                    let addr = ReceivingAddress::from_bech32m(&recipient.address_str, network).unwrap();
+                                    let addr = Rc::new(ReceivingAddress::from_bech32m(&recipient.address_str, network).unwrap());
                                     let amount = NativeCurrencyAmount::coins_from_str(&recipient.amount_str).unwrap();
                                     rsx! {
                                         tr {
-                                            td { code { "{addr.to_display_bech32m_abbreviated(network).unwrap()}" } }
+                                            td { Address { address: addr } }
                                             td { style: "text-align: right;", "{amount}" }
                                         }
                                     }
