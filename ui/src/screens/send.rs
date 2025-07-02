@@ -39,26 +39,34 @@ fn RecipientRow(
 
     rsx! {
         tr {
-            td { code { "{abbreviated_address}" } }
-            td { "{recipient.amount}" }
             td {
-                style: "text-align: right;",
                 div {
-                    role: "group",
-                    CopyButton { text_to_copy: full_address }
-                    Button {
-                        button_type: ButtonType::Secondary,
-                        outline: true,
-                        on_click: move |_| on_edit.call(index),
-                        disabled,
-                        "Edit"
+                    style: "display: flex; flex-direction: column; gap: 0.5rem;",
+                    div {
+                        style: "display: flex; justify-content: space-between; align-items: center;",
+                        code { "{abbreviated_address}" }
+                        div {
+                            role: "group",
+                            CopyButton { text_to_copy: full_address }
+                            Button {
+                                button_type: ButtonType::Secondary,
+                                outline: true,
+                                on_click: move |_| on_edit.call(index),
+                                disabled,
+                                "Edit"
+                            }
+                            Button {
+                                button_type: ButtonType::Contrast,
+                                outline: true,
+                                on_click: move |_| on_delete.call(index),
+                                disabled,
+                                "X"
+                            }
+                        }
                     }
-                    Button {
-                        button_type: ButtonType::Contrast,
-                        outline: true,
-                        on_click: move |_| on_delete.call(index),
-                        disabled,
-                        "X"
+                    div {
+                        style: "font-weight: bold;",
+                        "{recipient.amount}"
                     }
                 }
             }
@@ -71,48 +79,50 @@ fn RecipientRow(
 pub fn SendScreen() -> Element {
     let network = use_context::<AppState>().network;
 
+    // --- Wizard State ---
+    #[derive(PartialEq, Clone, Copy)]
+    enum WizardStep {
+        AddRecipients,
+        Review,
+        Status,
+    }
+    let mut wizard_step = use_signal(|| WizardStep::AddRecipients);
+
     // --- Form State ---
-    // Holds the data currently being entered into the form.
     let mut current_address = use_signal::<Option<Rc<ReceivingAddress>>>(|| None);
     let mut current_amount = use_signal(String::new);
     let mut current_fee = use_signal(String::new);
-    // Holds the index of the recipient being edited.
     let mut editing_index = use_signal::<Option<usize>>(|| None);
 
     // --- Validation State ---
-    // Holds error messages for the form fields.
     let mut address_error = use_signal::<Option<String>>(|| None);
     let mut amount_error = use_signal::<Option<String>>(|| None);
     let mut fee_error = use_signal::<Option<String>>(|| None);
 
     // --- Main State ---
-    // The list of recipients that have been added to the transaction.
     let mut recipients = use_signal::<Vec<Recipient>>(Vec::new);
-    // The final API response after sending the transaction.
     let mut api_response = use_signal::<Option<String>>(|| None);
-    // A flag to disable form controls after a successful transaction.
     let mut is_form_disabled = use_signal(|| false);
 
     // --- Modal State ---
     let mut is_confirm_modal_open = use_signal(|| false);
     let mut is_qr_modal_open = use_signal(|| false);
-    // New state for the duplicate address warning feature
     let mut show_duplicate_warning_modal = use_signal(|| false);
     let mut suppress_duplicate_warning = use_signal(|| false);
     let mut pending_recipient = use_signal::<Option<Recipient>>(|| None);
 
     // --- Derived State ---
-    // Efficiently calculates the total spend whenever recipients or the fee changes.
-    let total_spend = use_memo(move || {
-        let recipients_total: NativeCurrencyAmount = recipients.read().iter().map(|r| r.amount).sum();
-        let fee = NativeCurrencyAmount::coins_from_str(&current_fee()).unwrap_or_else(|_| NativeCurrencyAmount::zero());
-        recipients_total + fee
+    let subtotal = use_memo(move || {
+        recipients.read().iter().map(|r| r.amount).sum::<NativeCurrencyAmount>()
     });
-
+    let total_spend = use_memo(move || {
+        let fee = NativeCurrencyAmount::coins_from_str(&current_fee()).unwrap_or_else(|_| NativeCurrencyAmount::zero());
+        subtotal() + fee
+    });
 
     // --- Event Handlers ---
 
-    let handle_paste_address = move |_| {
+    let handle_paste_address = move || {
         spawn(async move {
             let clipboard = web_sys::window().unwrap().navigator().clipboard();
             let promise = clipboard.read_text();
@@ -134,7 +144,6 @@ pub fn SendScreen() -> Element {
         });
     };
 
-    // Resets the form to its initial state.
     let mut clear_form = move || {
         current_address.set(None);
         current_amount.set(String::new());
@@ -143,7 +152,6 @@ pub fn SendScreen() -> Element {
         editing_index.set(None);
     };
 
-    // Resets the entire screen to its initial state.
     let mut reset_screen = move || {
         clear_form();
         recipients.set(Vec::new());
@@ -151,9 +159,9 @@ pub fn SendScreen() -> Element {
         api_response.set(None);
         is_form_disabled.set(false);
         suppress_duplicate_warning.set(false);
+        wizard_step.set(WizardStep::AddRecipients);
     };
 
-    // Helper function to add/update a recipient to avoid duplicated code.
     let mut add_or_update_recipient = move |recipient_to_add: Recipient| {
         if let Some(index) = editing_index() {
             recipients.with_mut(|r| r[index] = recipient_to_add);
@@ -163,12 +171,9 @@ pub fn SendScreen() -> Element {
         clear_form();
     };
 
-
-    // Handles adding a new recipient to the list.
     let mut handle_add_recipient = move || {
         let mut is_valid = true;
 
-        // --- Validation ---
         if current_address().is_none() {
             address_error.set(Some("Address is required.".to_string()));
             is_valid = false;
@@ -192,10 +197,8 @@ pub fn SendScreen() -> Element {
             amount: amount.unwrap(),
         };
 
-        // --- New Duplicate Check Logic ---
         if !suppress_duplicate_warning() {
             let is_duplicate = recipients.read().iter().enumerate().any(|(i, r)| {
-                // Ignore the recipient if it's the one we are currently editing.
                 if Some(i) == editing_index() {
                     false
                 } else {
@@ -204,17 +207,13 @@ pub fn SendScreen() -> Element {
             });
 
             if is_duplicate {
-                // A duplicate was found, show the modal and wait for user action.
                 pending_recipient.set(Some(new_recipient));
                 show_duplicate_warning_modal.set(true);
                 return;
             }
         }
-
-        // If no duplicate is found (or warnings are suppressed), proceed directly.
         add_or_update_recipient(new_recipient);
     };
-
 
     let address_value = if let Some(addr) = current_address() {
         addr.to_display_bech32m_abbreviated(network).unwrap()
@@ -228,8 +227,6 @@ pub fn SendScreen() -> Element {
             is_open: is_confirm_modal_open,
             title: "Confirm Transaction".to_string(),
             p { "Please review the details below. This action cannot be undone." }
-
-            // --- Transaction Details Display ---
             h5 { style: "margin-top: 1rem;", "Recipients:" }
             table {
                 role: "grid",
@@ -243,15 +240,8 @@ pub fn SendScreen() -> Element {
                 }
             }
             hr {}
-            p {
-                strong { "Fee: " }
-                "{current_fee()}"
-            }
-            p {
-                strong { "Total Spend: " }
-                "{total_spend}"
-            }
-
+            p { strong { "Fee: " } "{current_fee()}" }
+            p { strong { "Total Spend: " } "{total_spend}" }
             footer {
                 Button {
                     button_type: ButtonType::Secondary,
@@ -264,11 +254,11 @@ pub fn SendScreen() -> Element {
                         is_confirm_modal_open.set(false);
                         api_response.set(None);
                         spawn(async move {
-                            // TODO: Replace with actual server call `api::send_transaction(...)`
                             let result: Result<String, String> = Ok("Transaction Sent!".to_string());
                             let message = match result {
                                 Ok(msg) => {
                                     is_form_disabled.set(true);
+                                    wizard_step.set(WizardStep::Status);
                                     format!("Success: {}", msg)
                                 },
                                 Err(err) => format!("API Error: {}", err),
@@ -282,11 +272,9 @@ pub fn SendScreen() -> Element {
         }
         NoTitleModal {
             is_open: is_qr_modal_open,
-            // TODO: Implement QR code scanning UI here
             h3 { "QR Scanner Placeholder" }
             p { "The QR scanner would appear here." }
         }
-        // --- New Duplicate Address Warning Modal ---
         Modal {
             is_open: show_duplicate_warning_modal,
             title: "Duplicate Address".to_string(),
@@ -297,9 +285,7 @@ pub fn SendScreen() -> Element {
                     input {
                         r#type: "checkbox",
                         checked: "{suppress_duplicate_warning}",
-                        oninput: move |event| {
-                            suppress_duplicate_warning.set(event.value() == "true")
-                        },
+                        oninput: move |event| suppress_duplicate_warning.set(event.value() == "true"),
                     }
                     "Don't ask me again"
                 }
@@ -310,7 +296,7 @@ pub fn SendScreen() -> Element {
                     outline: true,
                     on_click: move |_| {
                         show_duplicate_warning_modal.set(false);
-                        pending_recipient.set(None); // Important: Clear the pending data
+                        pending_recipient.set(None);
                     },
                     "Cancel"
                 }
@@ -326,161 +312,159 @@ pub fn SendScreen() -> Element {
             }
         }
 
-        // --- Main Content ---
-        Card {
-            h3 { "Send Funds" }
-
-            // --- Recipient Entry Form ---
-            div {
-                // Address Input Area
-                label { "Recipient Address" }
-                div {
-                    role: "group",
-                    // The address is not directly editable, only shown as an abbreviation.
-                    Input {
-                        label: "".to_string(),
-                        name: "address_display".to_string(),
-                        placeholder: "Paste or scan an address...".to_string(),
-                        value: address_value,
-                        readonly: true,
-                    }
-                    Button {
-                        button_type: ButtonType::Secondary,
-                        outline: true,
-                        on_click: handle_paste_address,
-                        disabled: is_form_disabled(),
-                        "Paste"
-                    }
-                    Button {
-                        button_type: ButtonType::Secondary,
-                        outline: true,
-                        on_click: move |_| is_qr_modal_open.set(true),
-                        disabled: is_form_disabled(),
-                        "Scan QR"
-                    }
-                }
-                if let Some(err) = address_error() {
-                    small { style: "color: var(--pico-color-red-500);", "{err}" }
-                }
-
-                // Amount Input
-                Input {
-                    label: "Amount".to_string(),
-                    name: "amount",
-                    input_type: "number".to_string(),
-                    placeholder: "0.0".to_string(),
-                    value: "{current_amount}",
-                    on_input: move |event: FormEvent| current_amount.set(event.value().clone()),
-                    readonly: is_form_disabled(),
-                }
-                if let Some(err) = amount_error() {
-                    small { style: "color: var(--pico-color-red-500);", "{err}" }
-                }
-
-                // "Add Recipient" Button
-                div {
-                    style: "margin-top: 1rem;",
-                    Button {
-                        on_click: move |_| {
-                            handle_add_recipient()
-                        },
-                        disabled: is_form_disabled(),
-                        if editing_index().is_some() { "Update Recipient" } else { "Add Recipient" }
-                    }
-                }
-            }
-        }
-
-        // --- Recipients Grid ---
-        if !recipients.read().is_empty() {
-            Card {
-                h4 { "Recipients" }
-                table {
-                    thead {
-                        tr {
-                            th { "Address" }
-                            th { "Amount" }
-                            th {}
+        // --- Wizard Content ---
+        div {
+            match wizard_step() {
+                WizardStep::AddRecipients => rsx! {
+                    Card {
+                        h3 { "Send Funds" }
+                        div {
+                            label { "Recipient Address" }
+                            div {
+                                role: "group",
+                                Input {
+                                    label: "".to_string(),
+                                    name: "address_display".to_string(),
+                                    placeholder: "Paste or scan an address...".to_string(),
+                                    value: address_value,
+                                    readonly: true,
+                                }
+                                Button {
+                                    button_type: ButtonType::Secondary,
+                                    outline: true,
+                                    on_click: move|_| handle_paste_address(),
+                                    "Paste Address"
+                                }
+                                Button {
+                                    button_type: ButtonType::Secondary,
+                                    outline: true,
+                                    on_click: move |_| is_qr_modal_open.set(true),
+                                    "Scan QR"
+                                }
+                            }
+                            if let Some(err) = address_error() {
+                                small { style: "color: var(--pico-color-red-500);", "{err}" }
+                            }
+                            Input {
+                                label: "Amount".to_string(),
+                                name: "amount",
+                                input_type: "number".to_string(),
+                                placeholder: "0.0".to_string(),
+                                value: "{current_amount}",
+                                on_input: move |event: FormEvent| current_amount.set(event.value().clone()),
+                            }
+                            if let Some(err) = amount_error() {
+                                small { style: "color: var(--pico-color-red-500);", "{err}" }
+                            }
+                            div {
+                                style: "margin-top: 1rem;",
+                                Button {
+                                    on_click: move |_| handle_add_recipient(),
+                                    if editing_index().is_some() { "Update Recipient" } else { "Add Recipient" }
+                                }
+                            }
                         }
                     }
-                    tbody {
-                        {recipients.iter().enumerate().map(|(i, recipient)| rsx!{
-                            RecipientRow {
-                                key: "{i}",
-                                index: i,
-                                recipient: recipient.clone(),
-                                on_delete: move |index| {
-                                    recipients.write().remove(index);
-                                },
-                                on_edit: move |index| {
-                                    let recipient_to_edit: Recipient = Clone::clone(&recipients.read()[index]);
-                                    // let recipient_to_edit: Recipient = recipients.read()[index].clone();
-                                    current_address.set(Some(recipient_to_edit.address));
-                                    current_amount.set(recipient_to_edit.amount.to_string());
-                                    editing_index.set(Some(index));
-                                },
-                                disabled: is_form_disabled(),
+                    if !recipients.read().is_empty() {
+                        Card {
+                            h4 { "Recipients" }
+                            table {
+                                tbody {
+                                    {recipients.iter().enumerate().map(|(i, recipient)| rsx!{
+                                        RecipientRow {
+                                            key: "{i}",
+                                            index: i,
+                                            recipient: recipient.clone(),
+                                            disabled: false,
+                                            on_delete: move |index: usize| { recipients.write().remove(index); },
+                                            on_edit: move |index| {
+                                                let recipient_to_edit: Recipient = Clone::clone(&recipients.read()[index]);
+                                                current_address.set(Some(recipient_to_edit.address));
+                                                current_amount.set(recipient_to_edit.amount.to_string());
+                                                editing_index.set(Some(index));
+                                            }
+                                        }
+                                    })}
+                                }
                             }
-                        })}
+                            if recipients.read().len() > 1 {
+                                hr {}
+                                h5 { style: "text-align: right;", "Subtotal: {subtotal}" }
+                            }
+                        }
                     }
-                }
-            }
-        }
-
-        // --- Fee and Final Send ---
-        Card {
-            // Fee Input (Moved Here)
-            Input {
-                label: "Fee".to_string(),
-                name: "fee",
-                input_type: "number".to_string(),
-                placeholder: "0.0".to_string(),
-                value: "{current_fee}",
-                on_input: move |event: FormEvent| current_fee.set(event.value().clone()),
-                readonly: is_form_disabled(),
-            }
-            if let Some(err) = fee_error() {
-                small { style: "color: var(--pico-color-red-500);", "{err}" }
-            }
-
-            // Display Total Spend above the final button
-            h4 {
-                style: "margin-top: 1rem;",
-                "Total Spend: {total_spend}"
-            }
-
-            Button {
-                on_click: move |_| {
-                    // Final validation before opening confirm modal
-                    let mut is_valid = true;
-                    if recipients.read().is_empty() {
-                        // TODO: Show an error message that at least one recipient is required.
-                        is_valid = false;
-                    }
-                    if NativeCurrencyAmount::coins_from_str(&current_fee()).is_err() {
-                        fee_error.set(Some("Invalid fee.".to_string()));
-                        is_valid = false;
-                    } else {
-                        fee_error.set(None);
-                    }
-
-                    if is_valid {
-                        is_confirm_modal_open.set(true);
+                    Card {
+                        Input {
+                            label: "Fee".to_string(),
+                            name: "fee",
+                            input_type: "number".to_string(),
+                            placeholder: "0.0".to_string(),
+                            value: "{current_fee}",
+                            on_input: move |event: FormEvent| current_fee.set(event.value().clone()),
+                        }
+                        if let Some(err) = fee_error() {
+                            small { style: "color: var(--pico-color-red-500);", "{err}" }
+                        }
+                        h4 { style: "margin-top: 1rem; text-align: right;", "Total Spend: {total_spend}" }
+                        Button {
+                            on_click: move |_| {
+                                let mut is_valid = true;
+                                if recipients.read().is_empty() { is_valid = false; }
+                                if NativeCurrencyAmount::coins_from_str(&current_fee()).is_err() {
+                                    fee_error.set(Some("Invalid fee.".to_string()));
+                                    is_valid = false;
+                                } else { fee_error.set(None); }
+                                if is_valid { wizard_step.set(WizardStep::Review); }
+                            },
+                            "Next: Review"
+                        }
                     }
                 },
-                disabled: is_form_disabled(),
-                "Review Transaction"
-            }
-        }
-
-        // --- API Response Area ---
-        if let Some(response) = api_response() {
-            Card {
-                h3 { "Transaction Status" }
-                p { "{response}" }
-                Button {
-                    on_click: move |_| reset_screen(),
-                    "Send Another Transaction"
+                WizardStep::Review => rsx! {
+                    Card {
+                        h3 { "Review Transaction" }
+                        p { "Please review the details below. This action cannot be undone." }
+                        h5 { style: "margin-top: 1rem;", "Recipients:" }
+                        table {
+                            role: "grid",
+                            tbody {
+                                {recipients.read().iter().map(|recipient| rsx!{
+                                    tr {
+                                        td { code { "{recipient.address.to_display_bech32m_abbreviated(network).unwrap()}" } }
+                                        td { style: "text-align: right;", "{recipient.amount}" }
+                                    }
+                                })}
+                            }
+                        }
+                        hr {}
+                        p { strong { "Fee: " } "{current_fee()}" }
+                        p { strong { "Total Spend: " } "{total_spend}" }
+                        footer {
+                            style: "display: flex; justify-content: space-between; margin-top: 1rem;",
+                            Button {
+                                button_type: ButtonType::Secondary,
+                                outline: true,
+                                on_click: move |_| wizard_step.set(WizardStep::AddRecipients),
+                                "Back"
+                            }
+                            Button {
+                                on_click: move |_| is_confirm_modal_open.set(true),
+                                "Confirm & Send"
+                            }
+                        }
+                    }
+                },
+                WizardStep::Status => rsx! {
+                    if let Some(response) = api_response() {
+                        Card {
+                            h3 { "Transaction Status" }
+                            p { "{response}" }
+                            Button {
+                                on_click: move |_| reset_screen(),
+                                "Send Another Transaction"
+                            }
+                        }
+                    }
                 }
             }
         }
