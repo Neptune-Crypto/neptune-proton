@@ -31,6 +31,8 @@ fn RecipientRow(
     on_delete: EventHandler<usize>,
     // Event handler to notify the parent when the edit button is clicked.
     on_edit: EventHandler<usize>,
+    // Flag to disable the buttons.
+    disabled: bool,
 ) -> Element {
     let full_address = recipient.address.to_bech32m(Network::Main).unwrap();
     let abbreviated_address = recipient.address.to_display_bech32m_abbreviated(Network::Main).unwrap();
@@ -48,12 +50,14 @@ fn RecipientRow(
                         button_type: ButtonType::Secondary,
                         outline: true,
                         on_click: move |_| on_edit.call(index),
+                        disabled,
                         "Edit"
                     }
                     Button {
                         button_type: ButtonType::Contrast,
                         outline: true,
                         on_click: move |_| on_delete.call(index),
+                        disabled,
                         "X"
                     }
                 }
@@ -86,6 +90,8 @@ pub fn SendScreen() -> Element {
     let mut recipients = use_signal::<Vec<Recipient>>(Vec::new);
     // The final API response after sending the transaction.
     let mut api_response = use_signal::<Option<String>>(|| None);
+    // A flag to disable form controls after a successful transaction.
+    let mut is_form_disabled = use_signal(|| false);
 
     // --- Modal State ---
     let mut is_confirm_modal_open = use_signal(|| false);
@@ -135,6 +141,16 @@ pub fn SendScreen() -> Element {
         address_error.set(None);
         amount_error.set(None);
         editing_index.set(None);
+    };
+
+    // Resets the entire screen to its initial state.
+    let mut reset_screen = move || {
+        clear_form();
+        recipients.set(Vec::new());
+        current_fee.set(String::new());
+        api_response.set(None);
+        is_form_disabled.set(false);
+        suppress_duplicate_warning.set(false);
     };
 
     // Helper function to add/update a recipient to avoid duplicated code.
@@ -251,7 +267,10 @@ pub fn SendScreen() -> Element {
                             // TODO: Replace with actual server call `api::send_transaction(...)`
                             let result: Result<String, String> = Ok("Transaction Sent!".to_string());
                             let message = match result {
-                                Ok(msg) => format!("Success: {}", msg),
+                                Ok(msg) => {
+                                    is_form_disabled.set(true);
+                                    format!("Success: {}", msg)
+                                },
                                 Err(err) => format!("API Error: {}", err),
                             };
                             api_response.set(Some(message));
@@ -329,12 +348,14 @@ pub fn SendScreen() -> Element {
                         button_type: ButtonType::Secondary,
                         outline: true,
                         on_click: handle_paste_address,
+                        disabled: is_form_disabled(),
                         "Paste"
                     }
                     Button {
                         button_type: ButtonType::Secondary,
                         outline: true,
                         on_click: move |_| is_qr_modal_open.set(true),
+                        disabled: is_form_disabled(),
                         "Scan QR"
                     }
                 }
@@ -350,6 +371,7 @@ pub fn SendScreen() -> Element {
                     placeholder: "0.0".to_string(),
                     value: "{current_amount}",
                     on_input: move |event: FormEvent| current_amount.set(event.value().clone()),
+                    readonly: is_form_disabled(),
                 }
                 if let Some(err) = amount_error() {
                     small { style: "color: var(--pico-color-red-500);", "{err}" }
@@ -362,6 +384,7 @@ pub fn SendScreen() -> Element {
                         on_click: move |_| {
                             handle_add_recipient()
                         },
+                        disabled: is_form_disabled(),
                         if editing_index().is_some() { "Update Recipient" } else { "Add Recipient" }
                     }
                 }
@@ -395,7 +418,8 @@ pub fn SendScreen() -> Element {
                                     current_address.set(Some(recipient_to_edit.address));
                                     current_amount.set(recipient_to_edit.amount.to_string());
                                     editing_index.set(Some(index));
-                                }
+                                },
+                                disabled: is_form_disabled(),
                             }
                         })}
                     }
@@ -413,6 +437,7 @@ pub fn SendScreen() -> Element {
                 placeholder: "0.0".to_string(),
                 value: "{current_fee}",
                 on_input: move |event: FormEvent| current_fee.set(event.value().clone()),
+                readonly: is_form_disabled(),
             }
             if let Some(err) = fee_error() {
                 small { style: "color: var(--pico-color-red-500);", "{err}" }
@@ -443,6 +468,7 @@ pub fn SendScreen() -> Element {
                         is_confirm_modal_open.set(true);
                     }
                 },
+                disabled: is_form_disabled(),
                 "Review Transaction"
             }
         }
@@ -452,6 +478,10 @@ pub fn SendScreen() -> Element {
             Card {
                 h3 { "Transaction Status" }
                 p { "{response}" }
+                Button {
+                    on_click: move |_| reset_screen(),
+                    "Send Another Transaction"
+                }
             }
         }
     }
