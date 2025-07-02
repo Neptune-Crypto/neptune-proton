@@ -405,19 +405,23 @@ pub fn SendScreen() -> Element {
 
         // --- Fee and Final Send ---
         Card {
-            Grid {
-                Input {
-                    label: "Fee".to_string(),
-                    name: "fee",
-                    input_type: "number".to_string(),
-                    placeholder: "0.0".to_string(),
-                    value: "{current_fee}",
-                    on_input: move |event: FormEvent| current_fee.set(event.value().clone()),
-                }
-                div {}
+            // Fee Input (Moved Here)
+            Input {
+                label: "Fee".to_string(),
+                name: "fee",
+                input_type: "number".to_string(),
+                placeholder: "0.0".to_string(),
+                value: "{current_fee}",
+                on_input: move |event: FormEvent| current_fee.set(event.value().clone()),
             }
             if let Some(err) = fee_error() {
                 small { style: "color: var(--pico-color-red-500);", "{err}" }
+            }
+
+            // Display Total Spend above the final button
+            h4 {
+                style: "margin-top: 1rem;",
+                "Total Spend: {total_spend}"
             }
 
             Button {
