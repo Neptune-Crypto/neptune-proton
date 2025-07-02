@@ -2,7 +2,7 @@
 // File: src/screens/send.rs
 //=============================================================================
 use crate::components::pico::{
-    Button, ButtonType, Card, CopyButton, Grid, Input, Modal, NoTitleModal,
+    Button, ButtonType, Card, CloseButton, CopyButton, Grid, Input, Modal, NoTitleModal,
 };
 use crate::AppState;
 use dioxus::dioxus_core::SpawnIfAsync;
@@ -11,6 +11,7 @@ use neptune_types::address::{KeyType, ReceivingAddress};
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
 use num_traits::Zero;
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -54,8 +55,6 @@ impl Default for EditableRecipient {
     }
 }
 
-// --- Components ---
-
 /// An editable row in the recipient grid.
 #[component]
 fn EditableRecipientRow(
@@ -94,17 +93,10 @@ fn EditableRecipientRow(
                     "Recipient Address"
                 }
                 if can_delete {
-                    span {
-                        title: "Delete this recipient",
-                        Button {
-                            button_type: ButtonType::Contrast,
-                            outline: true,
-                            on_click: move |event: MouseEvent| {
-                                event.stop_propagation();
-                                on_delete.call(index);
-                            },
-                            // Stylized "X"
-                            "\u{2716}"
+                    CloseButton {
+                        on_click: move |event: MouseEvent| {
+                            event.stop_propagation();
+                            on_delete.call(index);
                         }
                     }
                 }
@@ -177,8 +169,7 @@ pub fn SendScreen() -> Element {
     let mut wizard_step = use_signal(|| WizardStep::AddRecipients);
 
     // --- Main State ---
-    let first_recipient = use_signal(EditableRecipient::default);
-    let mut recipients = use_signal(|| vec![first_recipient]);
+    let mut recipients = use_signal(move || vec![Signal::new(EditableRecipient::default())]);
     let mut fee_str = use_signal(String::new);
     let mut api_response = use_signal::<Option<String>>(|| None);
     let mut active_row_index = use_signal(|| 0);
@@ -189,6 +180,8 @@ pub fn SendScreen() -> Element {
     let mut is_qr_modal_open = use_signal(|| false);
     let mut show_error_modal = use_signal(|| false);
     let mut error_modal_message = use_signal(String::new);
+    let mut show_duplicate_warning_modal = use_signal(|| false);
+    let mut suppress_duplicate_warning = use_signal(|| false);
 
     // --- Validation State ---
     let mut fee_error = use_signal::<Option<String>>(|| None);
@@ -222,17 +215,18 @@ pub fn SendScreen() -> Element {
         }
         let all_recipients_valid = recs.iter().all(|r| r.read().is_valid(network));
         let fee_is_valid =
-            NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok() && !fee_str.read().is_empty();
+            NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
         all_recipients_valid && fee_is_valid
     });
 
     // --- Event Handlers ---
     let mut reset_screen = move || {
-        recipients.set(vec![use_signal(EditableRecipient::default)]);
+        recipients.set(vec![Signal::new(EditableRecipient::default())]);
         active_row_index.set(0);
         fee_str.set(String::new());
         fee_error.set(None);
         api_response.set(None);
+        suppress_duplicate_warning.set(false);
         wizard_step.set(WizardStep::AddRecipients);
     };
 
@@ -313,6 +307,39 @@ pub fn SendScreen() -> Element {
                 Button { on_click: move |_| show_error_modal.set(false), "Close" }
             }
         }
+        Modal {
+            is_open: show_duplicate_warning_modal,
+            title: "Duplicate Address".to_string(),
+            p { "This address is already in the recipient list. Do you want to add it again?" }
+            div {
+                style: "margin-top: 1rem; margin-bottom: 1rem;",
+                label {
+                    input {
+                        r#type: "checkbox",
+                        checked: "{suppress_duplicate_warning}",
+                        oninput: move |event| {
+                            suppress_duplicate_warning.set(event.value() == "true")
+                        },
+                    }
+                    "Don't ask me again"
+                }
+            }
+            footer {
+                Button {
+                    button_type: ButtonType::Secondary,
+                    outline: true,
+                    on_click: move |_| show_duplicate_warning_modal.set(false),
+                    "Cancel"
+                }
+                Button {
+                    on_click: move |_| {
+                        show_duplicate_warning_modal.set(false);
+                        wizard_step.set(WizardStep::Review);
+                    },
+                    "Proceed Anyway"
+                }
+            }
+        }
 
 
         // --- Wizard Content ---
@@ -336,8 +363,10 @@ pub fn SendScreen() -> Element {
                                     }
                                 },
                                 on_open_address_actions: move |index: usize| {
-                                    action_target_index.set(Some(index));
-                                    is_address_actions_modal_open.set(true);
+                                    if active_row_index() == index {
+                                        action_target_index.set(Some(index));
+                                        is_address_actions_modal_open.set(true);
+                                    }
                                 },
                                 on_set_active: move |index: usize| {
                                     if is_active_row_valid() {
@@ -355,7 +384,7 @@ pub fn SendScreen() -> Element {
                                 outline: true,
                                 on_click: move |_| {
                                     let new_index = recipients.len();
-                                    recipients.push(use_signal(EditableRecipient::default));
+                                    recipients.write().push(Signal::new(EditableRecipient::default()));
                                     active_row_index.set(new_index);
                                 },
                                 disabled: !is_active_row_valid(),
@@ -388,9 +417,21 @@ pub fn SendScreen() -> Element {
                         h4 { style: "margin-top: 1rem; text-align: right;", "Total Spend: {total_spend}" }
                         Button {
                             on_click: move |_| {
-                                if is_form_fully_valid() {
-                                    wizard_step.set(WizardStep::Review);
+                                if !is_form_fully_valid() { return; }
+
+                                if !suppress_duplicate_warning() {
+                                    let addresses: Vec<String> = recipients.read().iter().map(|r| r.read().address_str.clone()).collect();
+                                    let has_duplicates = {
+                                        let mut unique_addresses = HashSet::new();
+                                        !addresses.into_iter().all(|addr| unique_addresses.insert(addr))
+                                    };
+
+                                    if has_duplicates {
+                                        show_duplicate_warning_modal.set(true);
+                                        return; // Stop, wait for modal
+                                    }
                                 }
+                                wizard_step.set(WizardStep::Review);
                             },
                             disabled: !is_form_fully_valid(),
                             "Next: Review"

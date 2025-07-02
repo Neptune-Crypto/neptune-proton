@@ -55,6 +55,30 @@ pub fn Accordion(props: AccordionProps) -> Element {
 // Interactive Components
 //=============================================================================
 
+#[derive(Props, PartialEq, Clone)]
+pub struct CloseButtonProps {
+    on_click: Option<EventHandler<MouseEvent>>,
+    #[props(default = "".to_string())]
+    title: String,
+}
+
+pub fn CloseButton(props: CloseButtonProps) -> Element {
+    rsx! {
+        button {
+            title: "{props.title}",
+            class: "close",
+            class: "primary",
+            onclick: move |evt| {
+                if let Some(handler) = &props.on_click {
+                    handler.call(evt);
+                }
+            },
+            "\u{2716}" // "✖"
+        }
+    }
+}
+
+
 #[derive(PartialEq, Clone, Default)]
 pub enum ButtonType {
     #[default]
