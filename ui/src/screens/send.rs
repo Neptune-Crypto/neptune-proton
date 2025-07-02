@@ -55,6 +55,8 @@ impl Default for EditableRecipient {
     }
 }
 
+// --- Components ---
+
 /// An editable row in the recipient grid.
 #[component]
 fn EditableRecipientRow(
@@ -85,12 +87,11 @@ fn EditableRecipientRow(
             class: if is_active { "recipient-row active" } else { "recipient-row" },
             style: "border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); padding: 1rem; margin-bottom: 1rem;",
 
-            // Address Row
+            // --- Top Bar: Label and Action Buttons ---
             div {
                 style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
                 label {
                     style: "margin-bottom: 0;",
-                    onclick: move |_| on_set_active.call(index),
                     "Recipient Address"
                 }
                 div {
@@ -99,7 +100,6 @@ fn EditableRecipientRow(
                         Button {
                            button_type: ButtonType::Secondary,
                            outline: true,
-                        //    style: "padding: 0.25rem 0.6rem; line-height: 1.2;",
                            on_click: move |evt: MouseEvent| {
                                evt.stop_propagation();
                                on_set_active.call(index);
@@ -118,57 +118,70 @@ fn EditableRecipientRow(
                     }
                 }
             }
-            div {
-                // This input is now just a trigger for the actions modal.
-                Input {
-                    label: "".to_string(),
-                    name: "address_{index}",
-                    placeholder: "Click to paste or scan an address...",
-                    value: "{display_address}",
-                    readonly: true,
-                    on_click: move |event: MouseEvent| {
-                        if is_active {
-                            event.stop_propagation();
-                            on_open_address_actions.call(index);
+
+            // --- Main Content: Toggles between Static Text and Editable Form ---
+            if is_active {
+                // State: ACTIVE (Editable Form)
+                div {
+                    key: "active-form-{index}",
+                    div {
+                        Input {
+                            label: "".to_string(),
+                            name: "address_{index}",
+                            placeholder: "Click to paste or scan an address...",
+                            value: "{display_address}",
+                            readonly: true,
+                            on_click: move |event: MouseEvent| {
+                                event.stop_propagation();
+                                on_open_address_actions.call(index);
+                            },
+                            style: "cursor: pointer;"
                         }
-                    },
-                    // Visual cue that the input is clickable only when active
-                    style: if is_active { "cursor: pointer;" } else { "cursor: not-allowed;" }
-                }
-            }
-            if let Some(err) = &recipient.read().address_error {
-                small { style: "color: var(--pico-color-red-500);", "{err}" }
-            }
+                    }
+                    if let Some(err) = &recipient.read().address_error {
+                        small { style: "color: var(--pico-color-red-500);", "{err}" }
+                    }
 
-
-            // Amount Row
-            div {
-                label {
-                    onclick: move |_| on_set_active.call(index),
-                    "Amount"
-                }
-                Input {
-                    label: "".to_string(),
-                    name: "amount_{index}",
-                    input_type: "number".to_string(),
-                    placeholder: "0.0",
-                    value: "{recipient.read().amount_str}",
-                    readonly: !is_active,
-                    on_input: move |event: FormEvent| {
-                        if is_active {
-                            recipient.with_mut(|r| {
-                                r.amount_str = event.value().clone();
-                                // Real-time validation
-                                match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
-                                    Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
-                                    _ => r.amount_error = Some("Invalid amount".to_string()),
-                                }
-                            });
+                    div {
+                        style: "margin-top: 0.75rem;",
+                        label { "Amount" }
+                        Input {
+                            label: "".to_string(),
+                            name: "amount_{index}",
+                            input_type: "number".to_string(),
+                            placeholder: "0.0",
+                            value: "{recipient.read().amount_str}",
+                            readonly: false, // is_active is true, so this is editable
+                            on_input: move |event: FormEvent| {
+                                recipient.with_mut(|r| {
+                                    r.amount_str = event.value().clone();
+                                    // Real-time validation
+                                    match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
+                                        Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
+                                        _ => r.amount_error = Some("Invalid amount".to_string()),
+                                    }
+                                });
+                            }
+                        }
+                        if let Some(err) = &recipient.read().amount_error {
+                            small { style: "color: var(--pico-color-red-500);", "{err}" }
                         }
                     }
                 }
-                if let Some(err) = &recipient.read().amount_error {
-                    small { style: "color: var(--pico-color-red-500);", "{err}" }
+            } else {
+                // State: INACTIVE (Static Text)
+                div {
+                    key: "inactive-display-{index}",
+                    style: "padding: 0.5rem 0.25rem;",
+                    p {
+                        style: "word-break: break-all; margin-bottom: 0.5rem; font-size: 0.9rem",
+                        code { "{display_address}" }
+                    }
+                    p {
+                        style: "margin-bottom: 0;",
+                        strong { "Amount: " }
+                        "{recipient.read().amount_str}"
+                    }
                 }
             }
         }
@@ -456,18 +469,6 @@ pub fn SendScreen() -> Element {
                         Button {
                             on_click: move |_| {
                                 if is_form_fully_valid() {
-                                    if !suppress_duplicate_warning() {
-                                        let addresses: Vec<String> = recipients.read().iter().map(|r| r.read().address_str.clone()).filter(|s| !s.is_empty()).collect();
-                                        let has_duplicates = {
-                                            let mut unique_addresses = HashSet::new();
-                                            !addresses.into_iter().all(|addr| unique_addresses.insert(addr))
-                                        };
-
-                                        if has_duplicates {
-                                            show_duplicate_warning_modal.set(true);
-                                            return; // Stop, wait for modal
-                                        }
-                                    }
                                     wizard_step.set(WizardStep::Review);
                                 }
                             },
