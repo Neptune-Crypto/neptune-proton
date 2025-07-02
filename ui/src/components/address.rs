@@ -32,23 +32,27 @@ pub fn Address(props: AddressProps) -> Element {
     });
 
     rsx! {
-        // --- Modal to display the full address ---
+
         NoTitleModal {
             is_open: is_modal_open,
             div {
-                style: "display: flex; flex-direction: column; gap: 1rem; align-items: center;",
-                h4 { "Full Address" }
+                style: "display: flex; flex-direction: column; align-items: center; text-align: center",
+                // This flex container will center the buttons and add a gap between them.
                 div {
-                    style: "align-self: flex-end;",
+                    style: "display: flex; justify-content: center; gap: 0.5rem;",
                     CopyButton { text_to_copy: full_address() }
+                    Button {
+                        on_click: move |_| is_modal_open.set(false),
+                        "Close"
+                    }
+                }
+                h4 {
+                    style: "margin-top: 1rem; margin-bottom: 0rem;",
+                    "Full Address"
                 }
                 code {
-                    style: "word-break: break-all; background-color: var(--pico-muted-background-color); padding: 1rem; border-radius: var(--pico-border-radius);",
+                    style: "text-align: left; word-break: break-all; background-color: var(--pico-muted-background-color); padding: 1rem; border-radius: var(--pico-border-radius); width: 100%; margin-bottom: 1rem;", // Gap after the code block
                     "{full_address}"
-                }
-                Button {
-                    on_click: move |_| is_modal_open.set(false),
-                    "Close"
                 }
             }
         }

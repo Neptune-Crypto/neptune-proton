@@ -5,6 +5,7 @@ use std::net;
 use std::rc::Rc;
 use dioxus::prelude::*;
 use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
+use crate::components::address::Address;
 use neptune_types::address::{KeyType, ReceivingAddress};
 use neptune_types::network::Network;
 use crate::app_state::AppState;
@@ -22,7 +23,6 @@ fn AddressRow(
 
     let key_type = KeyType::from(&*address);
     let key_type_str = key_type.to_string();
-    let addr_abbrev = address.to_display_bech32m_abbreviated(network).unwrap();
 
     rsx! {
         tr {
@@ -33,7 +33,7 @@ fn AddressRow(
             },
 
             td { "{key_type_str}" }
-            td { code { "{addr_abbrev}" } }
+            td { Address { address: address.clone() } }
 
             td {
                 style: "min-width: 150px; text-align: right;",

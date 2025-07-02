@@ -80,11 +80,13 @@ fn EditableRecipientRow(
     });
 
     // Show the abbreviated address if valid, otherwise show the raw input.
-    let display_address = use_memo(move || match parsed_address() {
-        Some(addr) => addr
-            .to_display_bech32m_abbreviated(network)
-            .unwrap_or(recipient.read().address_str.clone()),
-        None => recipient.read().address_str.clone(),
+    let display_address = use_memo(move || {
+        match parsed_address() {
+            Some(addr) => addr
+                .to_display_bech32m_abbreviated(network)
+                .unwrap_or(recipient.read().address_str.clone()),
+            None => recipient.read().address_str.clone(),
+        }
     });
 
     // Check if the entire row is valid based on the parsed address and amount.
@@ -108,7 +110,11 @@ fn EditableRecipientRow(
                 style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
                 label {
                     style: "margin-bottom: 0;",
-                    "Recipient Address"
+                    if is_active {
+                        "Recipient Address"
+                    } else {
+                        "Recipient"
+                    }
                 }
                 div {
                     style: "display: flex; gap: 0.5rem; align-items: center;",
@@ -179,7 +185,7 @@ fn EditableRecipientRow(
                             input_type: "number".to_string(),
                             placeholder: "0.0",
                             value: "{recipient.read().amount_str}",
-                            readonly: false, // is_active is true, so this is editable
+                            readonly: false,
                             on_input: move |event: FormEvent| {
                                 recipient.with_mut(|r| {
                                     r.amount_str = event.value().clone();
@@ -197,21 +203,18 @@ fn EditableRecipientRow(
                     }
                 }
             } else {
-                // State: INACTIVE (Static Text)
+                // State: INACTIVE (Static Text with improved layout)
                 div {
                     key: "inactive-display-{index}",
-                    style: "padding: 0.5rem 0.25rem;",
-                    p {
-                        style: "word-break: break-all; margin-bottom: 0.5rem; font-size: 0.9rem",
+                    style: "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.25rem;",
+                    div {
                         if let Some(addr) = parsed_address() {
                              Address { address: Rc::new(addr) }
                         } else {
                              code { "{display_address}" }
                         }
                     }
-                    p {
-                        style: "margin-bottom: 0;",
-                        strong { "Amount: " }
+                    strong {
                         "{recipient.read().amount_str}"
                     }
                 }
