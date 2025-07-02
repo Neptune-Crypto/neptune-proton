@@ -135,6 +135,8 @@ pub struct InputProps {
     on_input: Option<EventHandler<FormEvent>>,
     #[props(optional)]
     on_click: Option<EventHandler<MouseEvent>>,
+    #[props(optional)]
+    style: Option<String>,
 }
 
 /// A labeled form input field.
@@ -149,6 +151,7 @@ pub fn Input(props: InputProps) -> Element {
                 disabled: props.disabled,
                 readonly: props.readonly,
                 value: "{props.value}",
+                style: "{props.style.as_deref().unwrap_or(\"\")}",
 
                 oninput: move |event| {
                     if let Some(handler) = &props.on_input {

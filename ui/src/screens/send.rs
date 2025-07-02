@@ -88,68 +88,75 @@ fn EditableRecipientRow(
 
             // Address Row
             div {
-                label { "Recipient Address" }
-                div {
-                    // This input is now just a trigger for the actions modal.
-                    Input {
-                        label: "".to_string(),
-                        name: "address",
-                        placeholder: "Click to paste or scan an address...",
-                        value: "{display_address}",
-                        readonly: true,
-                        on_click: move |_| on_open_address_actions.call(index),
-                    }
+                style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
+                label {
+                    style: "margin-bottom: 0;",
+                    "Recipient Address"
                 }
-                if let Some(err) = &recipient.read().address_error {
-                    small { style: "color: var(--pico-color-red-500);", "{err}" }
+                if can_delete {
+                    span {
+                        title: "Delete this recipient",
+                        Button {
+                            button_type: ButtonType::Contrast,
+                            outline: true,
+                            on_click: move |event: MouseEvent| {
+                                event.stop_propagation();
+                                on_delete.call(index);
+                            },
+                            // Stylized "X"
+                            "\u{2716}"
+                        }
+                    }
                 }
             }
-
-            // Amount and Action Buttons Row
-            Grid {
-                div {
-                    label { "Amount" }
-                    Input {
-                        label: "".to_string(),
-                        name: "amount",
-                        input_type: "number".to_string(),
-                        placeholder: "0.0",
-                        value: "{recipient.read().amount_str}",
-                        readonly: !is_active,
-                        on_input: move |event: FormEvent| {
-                            if is_active {
-                                recipient.with_mut(|r| {
-                                    r.amount_str = event.value().clone();
-                                    // Real-time validation
-                                    match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
-                                        Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
-                                        _ => r.amount_error = Some("Invalid amount".to_string()),
-                                    }
-                                });
-                            }
+            div {
+                // This input is now just a trigger for the actions modal.
+                Input {
+                    label: "".to_string(),
+                    name: "address",
+                    placeholder: "Click to paste or scan an address...",
+                    value: "{display_address}",
+                    readonly: true,
+                    on_click: move |event: MouseEvent| {
+                        if is_active {
+                            event.stop_propagation();
+                            on_open_address_actions.call(index);
                         }
-                    }
-                    if let Some(err) = &recipient.read().amount_error {
-                        small { style: "color: var(--pico-color-red-500);", "{err}" }
+                    },
+                    // Visual cue that the input is clickable only when active
+                    style: if is_active { "cursor: pointer;" } else { "cursor: not-allowed;" }
+                }
+            }
+            if let Some(err) = &recipient.read().address_error {
+                small { style: "color: var(--pico-color-red-500);", "{err}" }
+            }
+
+
+            // Amount Row
+            div {
+                label { "Amount" }
+                Input {
+                    label: "".to_string(),
+                    name: "amount",
+                    input_type: "number".to_string(),
+                    placeholder: "0.0",
+                    value: "{recipient.read().amount_str}",
+                    readonly: !is_active,
+                    on_input: move |event: FormEvent| {
+                        if is_active {
+                            recipient.with_mut(|r| {
+                                r.amount_str = event.value().clone();
+                                // Real-time validation
+                                match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
+                                    Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
+                                    _ => r.amount_error = Some("Invalid amount".to_string()),
+                                }
+                            });
+                        }
                     }
                 }
-                div {
-                    style: "display: flex; align-items: flex-end; justify-content: flex-end; height: 100%;",
-                    if can_delete {
-                        span {
-                            title: "Delete this recipient",
-                            Button {
-                                button_type: ButtonType::Contrast,
-                                outline: true,
-                                on_click: move |event: MouseEvent| {
-                                    // Prevent the row's onclick from firing.
-                                    event.stop_propagation();
-                                    on_delete.call(index);
-                                },
-                                "X"
-                            }
-                        }
-                    }
+                if let Some(err) = &recipient.read().amount_error {
+                    small { style: "color: var(--pico-color-red-500);", "{err}" }
                 }
             }
         }
@@ -179,6 +186,9 @@ pub fn SendScreen() -> Element {
     // --- Modal State ---
     let mut is_address_actions_modal_open = use_signal(|| false);
     let mut action_target_index = use_signal::<Option<usize>>(|| None);
+    let mut is_qr_modal_open = use_signal(|| false);
+    let mut show_error_modal = use_signal(|| false);
+    let mut error_modal_message = use_signal(String::new);
 
     // --- Validation State ---
     let mut fee_error = use_signal::<Option<String>>(|| None);
@@ -247,14 +257,19 @@ pub fn SendScreen() -> Element {
                             spawn(async move {
                                 if let Ok(js_text) = wasm_bindgen_futures::JsFuture::from(web_sys::window().unwrap().navigator().clipboard().read_text()).await {
                                     let clipboard_text = js_text.as_string().unwrap_or_default();
-                                    target_recipient.with_mut(|r| {
-                                        r.address_str = clipboard_text;
-                                        // Real-time validation on paste
-                                        match ReceivingAddress::from_bech32m(&r.address_str, network) {
-                                            Ok(_) => r.address_error = None,
-                                            Err(e) => r.address_error = Some(e.to_string()),
+                                    // Validate before setting
+                                    match ReceivingAddress::from_bech32m(&clipboard_text, network) {
+                                        Ok(_) => {
+                                            target_recipient.with_mut(|r| {
+                                                r.address_str = clipboard_text;
+                                                r.address_error = None;
+                                            });
+                                        },
+                                        Err(e) => {
+                                            error_modal_message.set(format!("Invalid Address: {}", e));
+                                            show_error_modal.set(true);
                                         }
-                                    });
+                                    }
                                 }
                             });
                         }
@@ -263,8 +278,10 @@ pub fn SendScreen() -> Element {
                     "Paste Address"
                 }
                 Button {
-                    // TODO: Implement actual QR scanning and update recipient.
-                    on_click: move |_| is_address_actions_modal_open.set(false),
+                    on_click: move |_| {
+                        is_address_actions_modal_open.set(false);
+                        is_qr_modal_open.set(true);
+                    },
                     "Scan QR Code"
                 }
                  Button {
@@ -273,6 +290,27 @@ pub fn SendScreen() -> Element {
                     on_click: move |_| is_address_actions_modal_open.set(false),
                     "Cancel"
                 }
+            }
+        }
+        NoTitleModal {
+            is_open: is_qr_modal_open,
+            h3 { "QR Scanner Placeholder" }
+            p {
+                if let Some(index) = action_target_index() {
+                    "When a QR code is scanned, its value should be set for recipient number {index + 1}."
+                } else {""}
+            }
+            Button {
+                on_click: move |_| is_qr_modal_open.set(false),
+                "Close"
+            }
+        }
+        Modal {
+            is_open: show_error_modal,
+            title: "Error".to_string(),
+            p { "{error_modal_message}" }
+            footer {
+                Button { on_click: move |_| show_error_modal.set(false), "Close" }
             }
         }
 
@@ -291,7 +329,6 @@ pub fn SendScreen() -> Element {
                                 is_active: active_row_index() == i,
                                 on_delete: move |index_to_delete: usize| {
                                     if recipients.len() > 1 {
-                                        // If we are deleting the active row, we may need to adjust the active index
                                         if active_row_index() >= index_to_delete && active_row_index() > 0 {
                                             active_row_index.set(active_row_index() - 1);
                                         }
@@ -303,7 +340,6 @@ pub fn SendScreen() -> Element {
                                     is_address_actions_modal_open.set(true);
                                 },
                                 on_set_active: move |index: usize| {
-                                    // Only allow switching to another row if the current active row is valid
                                     if is_active_row_valid() {
                                         active_row_index.set(index);
                                     }
@@ -318,7 +354,6 @@ pub fn SendScreen() -> Element {
                                 button_type: ButtonType::Secondary,
                                 outline: true,
                                 on_click: move |_| {
-                                    // Push a new recipient and make it active
                                     let new_index = recipients.len();
                                     recipients.push(use_signal(EditableRecipient::default));
                                     active_row_index.set(new_index);
@@ -340,7 +375,6 @@ pub fn SendScreen() -> Element {
                             value: "{fee_str}",
                             on_input: move |event: FormEvent| {
                                 fee_str.set(event.value().clone());
-                                // Perform real-time validation for the fee as well
                                 if NativeCurrencyAmount::coins_from_str(&event.value()).is_err() && !event.value().is_empty() {
                                     fee_error.set(Some("Invalid fee.".to_string()));
                                 } else {
