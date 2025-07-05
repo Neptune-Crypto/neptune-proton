@@ -9,8 +9,11 @@ use crate::AppState;
 use dioxus::dioxus_core::SpawnIfAsync;
 use dioxus::prelude::*;
 use neptune_types::address::{KeyType, ReceivingAddress};
+use neptune_types::change_policy::ChangePolicy;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
+use neptune_types::output_format::OutputFormat;
+use neptune_types::utxo_notification::UtxoNotificationMedium;
 use num_traits::Zero;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -23,6 +26,12 @@ use std::str::FromStr;
 struct Recipient {
     address: Rc<ReceivingAddress>,
     amount: NativeCurrencyAmount,
+}
+
+impl From<Recipient> for OutputFormat {
+    fn from(r: Recipient) -> Self {
+        ((*r.address).clone(), r.amount).into()
+    }
 }
 
 /// A struct to hold the string data for a recipient row while it's being edited.
@@ -80,13 +89,11 @@ fn EditableRecipientRow(
     });
 
     // Show the abbreviated address if valid, otherwise show the raw input.
-    let display_address = use_memo(move || {
-        match parsed_address() {
-            Some(addr) => addr
-                .to_display_bech32m_abbreviated(network)
-                .unwrap_or(recipient.read().address_str.clone()),
-            None => recipient.read().address_str.clone(),
-        }
+    let display_address = use_memo(move || match parsed_address() {
+        Some(addr) => addr
+            .to_display_bech32m_abbreviated(network)
+            .unwrap_or(recipient.read().address_str.clone()),
+        None => recipient.read().address_str.clone(),
     });
 
     // Check if the entire row is valid based on the parsed address and amount.
@@ -552,11 +559,23 @@ pub fn SendScreen() -> Element {
                             Button {
                                 on_click: move |_| {
                                     spawn(async move {
-                                        // TODO: Replace with actual server call `api::send_transaction(...)`
-                                        let result: Result<String, String> = Ok("Transaction Sent!".to_string());
+                                        let outputs: Vec<OutputFormat> = recipients.read().iter().map(|recipient_signal| {
+                                            let recipient = recipient_signal.read();
+                                            // These unwraps are safe because we validated on the previous screen.
+                                            let addr = ReceivingAddress::from_bech32m(&recipient.address_str, network).unwrap();
+                                            let amount = NativeCurrencyAmount::coins_from_str(&recipient.amount_str).unwrap();
+                                            OutputFormat::AddressAndAmount(addr, amount)
+
+                                        }).collect();
+                                        let fee: NativeCurrencyAmount = NativeCurrencyAmount::coins_from_str(&fee_str()).unwrap();
+                                        let change_policy = ChangePolicy::default();
+
+                                        let result = api::send(outputs, change_policy, fee).await;
+
+                                        // let result: Result<String, String> = Ok("Transaction Sent!".to_string());
                                         let message = match result {
-                                            Ok(msg) => format!("Success: {}", msg),
-                                            Err(err) => format!("API Error: {}", err),
+                                            Ok(msg) => format!("Success: {:?}", msg),
+                                            Err(err) => format!("API Error: {:?}", err),
                                         };
                                         api_response.set(Some(message));
                                         wizard_step.set(WizardStep::Status);

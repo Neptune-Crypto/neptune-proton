@@ -145,10 +145,13 @@ dependencies = [
 name = "api"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "dioxus",
+ "dioxus-logger",
  "neptune-cash",
  "neptune-types",
  "serde",
+ "serde-json-wasm",
  "tarpc",
  "tokio",
  "twenty-first 0.50.0",
@@ -5503,6 +5506,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-json-wasm"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f05da0d153dd4595bdffd5099dc0e9ce425b205ee648eb93437ff7302af8c9a5"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "serde-wasm-bindgen"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6921,6 +6933,7 @@ dependencies = [
  "neptune-types",
  "num-traits",
  "qrcode",
+ "serde-json-wasm",
  "wasm-bindgen-futures",
  "web-sys",
 ]
@@ -7214,6 +7227,7 @@ dependencies = [
  "dioxus",
  "dioxus-logger",
  "getrandom 0.3.3",
+ "serde_json",
  "ui",
 ]
 
