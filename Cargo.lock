@@ -6930,6 +6930,7 @@ dependencies = [
  "dioxus-logger",
  "dioxus-web",
  "gloo-timers",
+ "itertools 0.14.0",
  "neptune-types",
  "num-traits",
  "qrcode",

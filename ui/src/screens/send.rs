@@ -18,6 +18,14 @@ use num_traits::Zero;
 use std::collections::HashSet;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::fmt::Display; // Import Display trait
+
+// Assuming these types are available in your crate or from neptune_types
+use neptune_types::transaction_kernel_id::TransactionKernelId;
+use neptune_types::transaction_details::TransactionDetails;
+// use neptune_types::transaction::{TxInputList, TxOutputList};
+// use neptune_types::time::Timestamp;
+use itertools::Itertools; // For .join(", ")
 
 // --- Data Structures ---
 
@@ -244,9 +252,10 @@ pub fn SendScreen() -> Element {
     let mut wizard_step = use_signal(|| WizardStep::AddRecipients);
 
     // --- Main State ---
+    // Updated api_response to hold the actual result or error string
+    let mut api_response = use_signal::<Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>>(|| None);
     let mut recipients = use_signal(move || vec![Signal::new(EditableRecipient::default())]);
     let mut fee_str = use_signal(String::new);
-    let mut api_response = use_signal::<Option<String>>(|| None);
     let mut active_row_index = use_signal::<Option<usize>>(|| Some(0));
 
     // --- Modal State ---
@@ -296,7 +305,7 @@ pub fn SendScreen() -> Element {
         active_row_index.set(Some(0));
         fee_str.set(String::new());
         fee_error.set(None);
-        api_response.set(None);
+        api_response.set(None); // Reset api_response
         suppress_duplicate_warning.set(false);
         wizard_step.set(WizardStep::AddRecipients);
     };
@@ -572,12 +581,8 @@ pub fn SendScreen() -> Element {
 
                                         let result = api::send(outputs, change_policy, fee).await;
 
-                                        // let result: Result<String, String> = Ok("Transaction Sent!".to_string());
-                                        let message = match result {
-                                            Ok(msg) => format!("Success: {:?}", msg),
-                                            Err(err) => format!("API Error: {:?}", err),
-                                        };
-                                        api_response.set(Some(message));
+                                        // Store the actual result, not a formatted string
+                                        api_response.set(Some(result));
                                         wizard_step.set(WizardStep::Status);
                                     });
                                 },
@@ -587,10 +592,85 @@ pub fn SendScreen() -> Element {
                     }
                 },
                 WizardStep::Status => rsx! {
-                    if let Some(response) = api_response() {
+                    if let Some(response_result) = api_response() {
                         Card {
                             h3 { "Transaction Status" }
-                            p { "{response}" }
+                            match response_result {
+                                Ok((kernel_id, details)) => rsx! {
+                                    p {
+                                        "Transaction sent successfully!"
+                                    }
+                                    p {
+                                        strong { "Transaction ID: " }
+                                        a {
+                                            href: "/mempool?txid={kernel_id}",
+                                            "{kernel_id}"
+                                        }
+                                    }
+                                    h4 { "Transaction Details:" }
+                                    table {
+                                        role: "grid",
+                                        tbody {
+                                            tr {
+                                                th { "Timestamp" }
+                                                td { "{details.timestamp.standard_format()}" }
+                                            }
+                                            tr {
+                                                th { "Spend Amount" }
+                                                td { "{details.spend_amount()}" }
+                                            }
+                                            tr {
+                                                th { "Inputs Amount" }
+                                                td { "{details.tx_inputs.total_native_coins()}" }
+                                            }
+                                            tr {
+                                                th { "Outputs Amount" }
+                                                td { "{details.tx_outputs.total_native_coins()}" }
+                                            }
+                                            tr {
+                                                th { "Fee" }
+                                                td { "{details.fee}" }
+                                            }
+                                            tr {
+                                                th { "Coinbase" }
+                                                td { "{details.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}" }
+                                            }
+                                            tr {
+                                                th { "Inputs" }
+                                                td {
+                                                    "{details.tx_inputs.iter().map(|o| o.native_currency_amount()).join(\", \")}"
+                                                }
+                                            }
+                                            tr {
+                                                th { "Outputs" }
+                                                td {
+                                                    "{details.tx_outputs.iter().map(|o| o.native_currency_amount()).join(\", \")}"
+                                                }
+                                            }
+                                            tr {
+                                                th { "Change Outputs" }
+                                                td {
+                                                    "{details.tx_outputs.change_iter().map(|o| o.native_currency_amount()).join(\", \")}"
+                                                }
+                                            }
+                                            tr {
+                                                th { "Owned Outputs" }
+                                                td {
+                                                    "{details.tx_outputs.owned_iter().map(|o| o.native_currency_amount()).join(\", \")}"
+                                                }
+                                            }
+                                            tr {
+                                                th { "Network" }
+                                                td { "{details.network}" }
+                                            }
+                                        }
+                                    }
+                                },
+                                Err(err) => rsx! {
+                                    h4 { style: "color: var(--pico-color-red-500);", "Error Sending Transaction" }
+                                    p { "{err}" }
+                                }
+                            }
                             Button {
                                 on_click: move |_| reset_screen(),
                                 "Send Another Transaction"
