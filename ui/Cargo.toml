@@ -7,6 +7,7 @@ edition = "2021"
 dioxus = { workspace = true, features = ["web", "fullstack", "logger"] }
 dioxus-logger.workspace = true
 api.workspace = true
+twenty-first.workspace = true
 dioxus-web = "0.6.3"
 qrcode = "0.12"
 neptune-types.workspace = true

@@ -14,6 +14,8 @@ use neptune_types::output_format::OutputFormat;
 use neptune_types::change_policy::ChangePolicy;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use dioxus::prelude::server_fn::codec::Json;
+use twenty_first::tip5::Digest;
+use neptune_types::timestamp::Timestamp;
 
 /// Echo the user input on the server.
 #[server(Echo)]
@@ -68,12 +70,16 @@ pub async fn next_receiving_address(key_type: KeyType) -> Result<ReceivingAddres
 
 #[server(SendApi, input = Json, output = Json)]
 pub async fn send(outputs: Vec<OutputFormat>, change_policy: ChangePolicy, fee: NativeCurrencyAmount) -> Result<(TransactionKernelId, TransactionDetails), ServerFnError> {
-
-// pub async fn send(outputs: Vec<(ReceivingAddress, NativeCurrencyAmount)>, change_policy: ChangePolicy, fee: NativeCurrencyAmount) -> Result<TransactionDetails, ServerFnError> {
-// pub async fn send(addresses: Vec<ReceivingAddress>, change_policy: ChangePolicy, fee: NativeCurrencyAmount) -> Result<TransactionDetails, ServerFnError> {
-    // todo!();
-    // let outputs = outputs.into_iter().map(OutputFormat::from).collect();
     neptune_rpc::send(outputs, change_policy, fee).await
+}
+
+#[server(input = Json, output = Json)]
+pub async fn history() -> Result<Vec<(Digest, BlockHeight, Timestamp, NativeCurrencyAmount)>, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let history = client.history(tarpc::context::current(), *token).await??;
+    Ok(history)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

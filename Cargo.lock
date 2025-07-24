@@ -6936,6 +6936,7 @@ dependencies = [
  "num-traits",
  "qrcode",
  "serde-json-wasm",
+ "twenty-first 0.50.0",
  "wasm-bindgen-futures",
  "web-sys",
 ]
