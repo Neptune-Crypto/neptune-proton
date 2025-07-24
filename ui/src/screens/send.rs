@@ -16,13 +16,13 @@ use neptune_types::output_format::OutputFormat;
 use neptune_types::utxo_notification::UtxoNotificationMedium;
 use num_traits::Zero;
 use std::collections::HashSet;
+use std::fmt::Display;
 use std::rc::Rc;
-use std::str::FromStr;
-use std::fmt::Display; // Import Display trait
+use std::str::FromStr; // Import Display trait
 
 // Assuming these types are available in your crate or from neptune_types
-use neptune_types::transaction_kernel_id::TransactionKernelId;
 use neptune_types::transaction_details::TransactionDetails;
+use neptune_types::transaction_kernel_id::TransactionKernelId;
 // use neptune_types::transaction::{TxInputList, TxOutputList};
 // use neptune_types::time::Timestamp;
 use itertools::Itertools; // For .join(", ")
@@ -253,7 +253,9 @@ pub fn SendScreen() -> Element {
 
     // --- Main State ---
     // Updated api_response to hold the actual result or error string
-    let mut api_response = use_signal::<Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>>(|| None);
+    let mut api_response = use_signal::<
+        Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>,
+    >(|| None);
     let mut recipients = use_signal(move || vec![Signal::new(EditableRecipient::default())]);
     let mut fee_str = use_signal(String::new);
     let mut active_row_index = use_signal::<Option<usize>>(|| Some(0));
