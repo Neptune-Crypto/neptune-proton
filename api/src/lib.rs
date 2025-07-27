@@ -10,6 +10,7 @@ use neptune_types::block_height::BlockHeight;
 use neptune_types::network::Network;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::output_format::OutputFormat;
 use neptune_types::change_policy::ChangePolicy;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
@@ -81,6 +82,16 @@ pub async fn history() -> Result<Vec<(Digest, BlockHeight, Timestamp, NativeCurr
     let history = client.history(tarpc::context::current(), *token).await??;
     Ok(history)
 }
+
+#[server(input = Json, output = Json)]
+pub async fn mempool_overview(start_index: usize, number: usize) -> Result<Vec<MempoolTransactionInfo>, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let data = client.mempool_overview(tarpc::context::current(), *token, start_index, number).await??;
+    Ok(data)
+}
+
 
 #[cfg(not(target_arch = "wasm32"))]
 mod neptune_rpc {

@@ -3,6 +3,7 @@ use neptune_types::block_height::BlockHeight;
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::public_announcement::PublicAnnouncement;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
+use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::timestamp::Timestamp;
 use neptune_types::address::KeyType;
 use neptune_types::address::BaseSpendingKey;
@@ -128,11 +129,11 @@ pub trait RPC {
     async fn mempool_size(token: rpc_auth::Token) -> RpcResult<usize>;
 
     /// Return info about the transactions in the mempool
-    // async fn mempool_overview(
-    //     token: rpc_auth::Token,
-    //     start_index: usize,
-    //     number: usize,
-    // ) -> RpcResult<Vec<MempoolTransactionInfo>>;
+    async fn mempool_overview(
+        token: rpc_auth::Token,
+        start_index: usize,
+        number: usize,
+    ) -> RpcResult<Vec<MempoolTransactionInfo>>;
 
     /// Return transaction kernel by id if found in mempool.
     // async fn mempool_tx_kernel(
