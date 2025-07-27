@@ -2,7 +2,8 @@
 // File: src/screens/history.rs
 //=============================================================================
 use crate::components::pico::Card;
-use crate::components::pico::CopyButton;
+use crate::components::block::Block;
+use crate::components::block::BlockProps;
 use dioxus::prelude::*;
 
 use neptune_types::block_height::BlockHeight;
@@ -12,6 +13,7 @@ use neptune_types::timestamp::Timestamp;
 use crate::AppState;
 use num_traits::Zero;
 use itertools::Itertools;
+use std::rc::Rc;
 
 /// A new, self-contained component for rendering a single row in the history table.
 #[component]
@@ -21,11 +23,12 @@ fn HistoryRow(
     timestamp: Timestamp,
     amount: NativeCurrencyAmount,
 ) -> Element {
+    let digest = Rc::new(digest);
     // This component now manages its own hover and copied state locally.
     let mut is_hovered = use_signal(|| false);
 
     let tx_type = if amount > NativeCurrencyAmount::zero() { "Received" } else { "Sent" };
-    let digest_abbrev = truncate_with_ellipsis(&digest.to_hex());
+    let date = timestamp.format("%Y-%m-%d");
 
     rsx! {
         tr {
@@ -33,23 +36,13 @@ fn HistoryRow(
             onmouseenter: move |_| is_hovered.set(true),
             onmouseleave: move |_| is_hovered.set(false),
 
-            td { "{timestamp.standard_format()}" }
+            td {
+                title: "{timestamp.standard_format()}",
+                "{date}"
+            }
             td { "{tx_type}" }
             td { "{amount} NPT" }
-            td { code { "{digest_abbrev}" } }
-            td {
-                style: "min-width: 150px; text-align: right;",
-                if is_hovered() {
-                    // Use Pico's `role="group"` for horizontal button layout.
-                    div {
-                        style: "font-size: 0.8em",
-                        role: "group",
-                        CopyButton {
-                            text_to_copy: digest.to_hex()
-                        }
-                    }
-                }
-            }
+            td { Block{ block_digest: digest.clone() }}
         }
     }
 }
@@ -101,7 +94,6 @@ pub fn HistoryScreen() -> Element {
                                 th { "Type" }
                                 th { "Amount" }
                                 th { "Block" }
-                                th { "" }
                             }}
                             tbody {
 
@@ -124,23 +116,3 @@ pub fn HistoryScreen() -> Element {
     }
 }
 
-/// Truncates a string to the first 4 and last 4 characters, joined by "..."
-/// If the string is 8 characters or fewer, it's returned unchanged.
-fn truncate_with_ellipsis(s: &str) -> String {
-    // First, get the count of characters, which is different from byte length for UTF-8.
-    let char_count = s.chars().count();
-
-    // If the string is not long enough to need truncation, return it as a new String.
-    if char_count <= 8 {
-        return s.to_string();
-    }
-
-    // Get an iterator of the characters, take the first 4, and collect into a String.
-    let first_part: String = s.chars().take(4).collect();
-
-    // To get the last 4, skip the first (char_count - 4) characters.
-    let last_part: String = s.chars().skip(char_count - 4).collect();
-
-    // Use the format! macro to combine the parts.
-    format!("{}...{}", first_part, last_part)
-}

@@ -3,3 +3,4 @@
 //! component  to be used in our app.
 pub mod pico;
 pub mod address;
+pub mod block;
