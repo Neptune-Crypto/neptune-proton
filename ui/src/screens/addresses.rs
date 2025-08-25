@@ -93,7 +93,7 @@ pub fn AddressesScreen() -> Element {
                 let addresses: Vec<_> = keys
                     .into_iter()
                     .rev()
-                    .filter_map(|key| key.to_address())
+                    .filter_map(|key| Some(key.to_address()))
                     .map(Rc::new)
                     .collect();
 

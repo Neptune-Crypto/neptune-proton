@@ -1,13 +1,12 @@
 use neptune_types::network::Network;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::block_selector::BlockSelector;
-use neptune_types::public_announcement::PublicAnnouncement;
+use neptune_types::announcement::Announcement;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::timestamp::Timestamp;
+use neptune_types::address::SpendingKey;
 use neptune_types::address::KeyType;
-use neptune_types::address::BaseSpendingKey;
-use neptune_types::address::BaseKeyType;
 use neptune_types::address::ReceivingAddress;
 use neptune_cash::rpc_auth;
 use neptune_cash::rpc_server::RpcResult;
@@ -54,11 +53,11 @@ pub trait RPC {
     //     block_selector: BlockSelector,
     // ) -> RpcResult<Option<BlockKernel>>;
 
-    /// Return the public announements contained in a specified block.
-    async fn public_announcements_in_block(
+    /// Return the announements contained in a specified block.
+    async fn announcements_in_block(
         token: rpc_auth::Token,
         block_selector: BlockSelector,
-    ) -> RpcResult<Option<Vec<PublicAnnouncement>>>;
+    ) -> RpcResult<Option<Vec<Announcement>>>;
 
     /// Return the digests of known blocks with specified height.
     async fn block_digests_by_height(
@@ -115,13 +114,13 @@ pub trait RPC {
     ) -> RpcResult<ReceivingAddress>;
 
     /// Return all known keys, for every [KeyType]
-    async fn known_keys(token: rpc_auth::Token) -> RpcResult<Vec<BaseSpendingKey>>;
+    async fn known_keys(token: rpc_auth::Token) -> RpcResult<Vec<SpendingKey>>;
 
     /// Return known keys for the provided [KeyType]
     async fn known_keys_by_keytype(
         token: rpc_auth::Token,
-        key_type: BaseKeyType,
-    ) -> RpcResult<Vec<BaseSpendingKey>>;
+        key_type: KeyType,
+    ) -> RpcResult<Vec<SpendingKey>>;
 
     /// Return the number of transactions in the mempool
     async fn mempool_tx_count(token: rpc_auth::Token) -> RpcResult<usize>;

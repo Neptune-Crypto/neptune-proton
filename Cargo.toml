@@ -30,3 +30,8 @@ inherits = "dev"
 
 [profile.android-dev]
 inherits = "dev"
+
+#[patch.crates-io]
+#indexmap = { version = "2.11.0" }
+#indexmap = { git = "https://github.com/bluss/indexmap.git" }
+#indexmap = { git = "ssh://git@github.com/bluss/indexmap.git" }

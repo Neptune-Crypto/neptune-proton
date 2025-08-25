@@ -5,7 +5,7 @@ mod rpc_api;
 use dioxus::prelude::*;
 use neptune_types::address::ReceivingAddress;
 use neptune_types::address::KeyType;
-use neptune_types::address::BaseSpendingKey;
+use neptune_types::address::SpendingKey;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::network::Network;
 use neptune_types::transaction_details::TransactionDetails;
@@ -52,7 +52,7 @@ pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
 }
 
 #[server(input = Json, output = Json)]
-pub async fn known_keys() -> Result<Vec<BaseSpendingKey>, ServerFnError> {
+pub async fn known_keys() -> Result<Vec<SpendingKey>, ServerFnError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
