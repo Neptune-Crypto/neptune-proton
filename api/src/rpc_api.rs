@@ -8,6 +8,8 @@ use neptune_types::timestamp::Timestamp;
 use neptune_types::address::SpendingKey;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
+use neptune_types::transaction_kernel::TransactionKernel;
+use neptune_types::transaction_kernel_id::TransactionKernelId;
 use neptune_cash::rpc_auth;
 use neptune_cash::rpc_server::RpcResult;
 use std::net::SocketAddr;
@@ -135,10 +137,10 @@ pub trait RPC {
     ) -> RpcResult<Vec<MempoolTransactionInfo>>;
 
     /// Return transaction kernel by id if found in mempool.
-    // async fn mempool_tx_kernel(
-    //     token: rpc_auth::Token,
-    //     tx_kernel_id: TransactionKernelId,
-    // ) -> RpcResult<Option<TransactionKernel>>;
+    async fn mempool_tx_kernel(
+         token: rpc_auth::Token,
+         tx_kernel_id: TransactionKernelId,
+    ) -> RpcResult<Option<TransactionKernel>>;
 
     /// Return the information used on the dashboard's overview tab
     // async fn dashboard_overview_data(

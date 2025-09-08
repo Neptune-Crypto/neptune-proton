@@ -10,6 +10,7 @@ use neptune_types::block_height::BlockHeight;
 use neptune_types::network::Network;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::output_format::OutputFormat;
 use neptune_types::change_policy::ChangePolicy;
@@ -92,6 +93,15 @@ pub async fn mempool_overview(start_index: usize, number: usize) -> Result<Vec<M
     Ok(data)
 }
 
+#[server(input = Json, output = Json)]
+pub async fn mempool_tx_kernel(txid: TransactionKernelId) -> Result<Option<TransactionKernel>, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let data = client.mempool_tx_kernel(tarpc::context::current(), *token, txid).await??;
+    Ok(data)
+}
+
 
 #[cfg(not(target_arch = "wasm32"))]
 mod neptune_rpc {
@@ -120,14 +130,14 @@ mod neptune_rpc {
     use tokio::sync::OnceCell;
 
     async fn gen_rpc_client() -> Result<rpc_api::RPCClient, ServerFnError> {
-        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 9799);
+        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 29999);
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await?;
 
         Ok(rpc_api::RPCClient::new(client::Config::default(), transport).spawn())
     }
 
     async fn gen_nc_rpc_client() -> Result<RPCClient, ServerFnError> {
-        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 9799);
+        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 29999);
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await?;
 
         Ok(RPCClient::new(client::Config::default(), transport).spawn())

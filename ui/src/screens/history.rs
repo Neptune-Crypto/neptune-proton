@@ -1,19 +1,19 @@
 //=============================================================================
 // File: src/screens/history.rs
 //=============================================================================
-use crate::components::pico::Card;
 use crate::components::block::Block;
 use crate::components::block::BlockProps;
+use crate::components::pico::Card;
 use dioxus::prelude::*;
 
+use crate::AppState;
+use itertools::Itertools;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
-use twenty_first::tip5::Digest;
 use neptune_types::timestamp::Timestamp;
-use crate::AppState;
 use num_traits::Zero;
-use itertools::Itertools;
 use std::rc::Rc;
+use twenty_first::tip5::Digest;
 
 /// A new, self-contained component for rendering a single row in the history table.
 #[component]
@@ -27,7 +27,11 @@ fn HistoryRow(
     // This component now manages its own hover and copied state locally.
     let mut is_hovered = use_signal(|| false);
 
-    let tx_type = if amount > NativeCurrencyAmount::zero() { "Received" } else { "Sent" };
+    let tx_type = if amount > NativeCurrencyAmount::zero() {
+        "Received"
+    } else {
+        "Sent"
+    };
     let date = timestamp.format("%Y-%m-%d");
 
     rsx! {
@@ -47,16 +51,12 @@ fn HistoryRow(
     }
 }
 
-
 #[allow(non_snake_case)]
 #[component]
 pub fn HistoryScreen() -> Element {
-
     let network = use_context::<AppState>().network;
 
-    let mut history = use_resource(move || async move {
-        api::history().await
-    });
+    let mut history = use_resource(move || async move { api::history().await });
 
     // Vec<(Digest, BlockHeight, Timestamp, NativeCurrencyAmount)
 
@@ -115,4 +115,3 @@ pub fn HistoryScreen() -> Element {
         }
     }
 }
-

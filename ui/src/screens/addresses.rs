@@ -2,14 +2,13 @@ use std::net;
 //=============================================================================
 // File: src/screens/addresses.rs
 //=============================================================================
-use std::rc::Rc;
-use dioxus::prelude::*;
-use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
+use crate::app_state::AppState;
 use crate::components::address::Address;
+use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
+use dioxus::prelude::*;
 use neptune_types::address::{KeyType, ReceivingAddress};
 use neptune_types::network::Network;
-use crate::app_state::AppState;
-
+use std::rc::Rc;
 
 /// A new, self-contained component for rendering a single row in the address table.
 #[component]
@@ -62,13 +61,9 @@ fn AddressRow(
 
 #[component]
 pub fn AddressesScreen() -> Element {
-
     let network = use_context::<AppState>().network;
 
-    let mut known_keys = use_resource(move || async move {
-        api::known_keys().await
-    });
-
+    let mut known_keys = use_resource(move || async move { api::known_keys().await });
 
     rsx! {
         match &*known_keys.read() {

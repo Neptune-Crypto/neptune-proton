@@ -5,6 +5,7 @@ use crate::components::address::Address;
 use crate::components::pico::{
     Button, ButtonType, Card, CloseButton, CopyButton, Grid, Input, Modal, NoTitleModal,
 };
+use crate::Screen;
 use crate::AppState;
 use dioxus::dioxus_core::SpawnIfAsync;
 use dioxus::prelude::*;
@@ -312,6 +313,10 @@ pub fn SendScreen() -> Element {
         wizard_step.set(WizardStep::AddRecipients);
     };
 
+    // --- Get the global screen signal from the context ---
+    // This allows us to change the screen from within this component.
+    let mut active_screen = use_context::<Signal<Screen>>();
+
     rsx! {
         // --- Modals ---
         NoTitleModal {
@@ -370,7 +375,7 @@ pub fn SendScreen() -> Element {
                     },
                     "Scan QR Code"
                 }
-                 Button {
+                    Button {
                     button_type: ButtonType::Secondary,
                     outline: true,
                     on_click: move |_| is_address_actions_modal_open.set(false),
@@ -426,8 +431,8 @@ pub fn SendScreen() -> Element {
                 Button {
                     on_click: move |_| {
                         if let (Some(addr), Some(index)) = (pending_address.take(), action_target_index()) {
-                             let mut target_recipient = recipients.read()[index];
-                             target_recipient.with_mut(|r| {
+                                let mut target_recipient = recipients.read()[index];
+                                target_recipient.with_mut(|r| {
                                 r.address_str = addr;
                                 r.address_error = None;
                             });
@@ -600,71 +605,35 @@ pub fn SendScreen() -> Element {
                             match response_result {
                                 Ok((kernel_id, details)) => rsx! {
                                     p {
+                                        style: "color: var(--pico-color-green-500);",
                                         "Transaction sent successfully!"
                                     }
-                                    p {
-                                        strong { "Transaction ID: " }
-                                        a {
-                                            href: "/mempool?txid={kernel_id}",
-                                            "{kernel_id}"
+
+                                    div {
+                                        style: "display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 1.5rem; padding: 0.75rem; border: 1px solid var(--pico-secondary-border); border-radius: var(--pico-border-radius);",
+                                        strong { "Transaction ID" }
+                                        div {
+                                            style: "display: flex; align-items: center; gap: 0.5rem;",
+                                            code { "{kernel_id}" }
+                                            CopyButton { text_to_copy: kernel_id.to_string() }
                                         }
                                     }
-                                    h4 { "Transaction Details:" }
-                                    table {
-                                        role: "grid",
-                                        tbody {
-                                            tr {
-                                                th { "Timestamp" }
-                                                td { "{details.timestamp.standard_format()}" }
-                                            }
-                                            tr {
-                                                th { "Spend Amount" }
-                                                td { "{details.spend_amount()}" }
-                                            }
-                                            tr {
-                                                th { "Inputs Amount" }
-                                                td { "{details.tx_inputs.total_native_coins()}" }
-                                            }
-                                            tr {
-                                                th { "Outputs Amount" }
-                                                td { "{details.tx_outputs.total_native_coins()}" }
-                                            }
-                                            tr {
-                                                th { "Fee" }
-                                                td { "{details.fee}" }
-                                            }
-                                            tr {
-                                                th { "Coinbase" }
-                                                td { "{details.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}" }
-                                            }
-                                            tr {
-                                                th { "Inputs" }
-                                                td {
-                                                    "{details.tx_inputs.iter().map(|o| o.native_currency_amount()).join(\", \")}"
-                                                }
-                                            }
-                                            tr {
-                                                th { "Outputs" }
-                                                td {
-                                                    "{details.tx_outputs.iter().map(|o| o.native_currency_amount()).join(\", \")}"
-                                                }
-                                            }
-                                            tr {
-                                                th { "Change Outputs" }
-                                                td {
-                                                    "{details.tx_outputs.change_iter().map(|o| o.native_currency_amount()).join(\", \")}"
-                                                }
-                                            }
-                                            tr {
-                                                th { "Owned Outputs" }
-                                                td {
-                                                    "{details.tx_outputs.owned_iter().map(|o| o.native_currency_amount()).join(\", \")}"
-                                                }
-                                            }
-                                            tr {
-                                                th { "Network" }
-                                                td { "{details.network}" }
-                                            }
+
+                                    // --- Action Buttons ---
+                                    div {
+                                        style: "display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;",
+                                        Button {
+                                            button_type: ButtonType::Primary,
+                                            outline: true,
+                                            // --- This is the key change for navigation ---
+                                            on_click: move |_| {
+                                                active_screen.set(Screen::MempoolTx(kernel_id));
+                                            },
+                                            "View in Mempool"
+                                        }
+                                        Button {
+                                            on_click: move |_| reset_screen(),
+                                            "Send Another Transaction"
                                         }
                                     }
                                 },

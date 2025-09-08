@@ -3790,6 +3790,7 @@ dependencies = [
  "rand 0.9.2",
  "regex",
  "serde",
+ "serde_arrays",
  "sha3",
  "strum",
  "thiserror 2.0.16",

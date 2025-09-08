@@ -6,7 +6,6 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn BlockChainScreen() -> Element {
-
     // 1. `use_resource` takes an async block that will be run in the background.
     //    It immediately returns a `Resource` signal.
     let mut height_resource = use_resource(move || async move {

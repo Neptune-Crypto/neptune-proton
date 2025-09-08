@@ -2,18 +2,20 @@
 
 use dioxus::prelude::*;
 
+mod app_state;
 mod components;
 mod screens;
-mod app_state;
 
 use app_state::AppState;
 use neptune_types::network::Network;
+use neptune_types::transaction_kernel_id::TransactionKernelId;
 
 // Use components from our modules.
 use components::pico::{Button, ButtonType, Container};
 use screens::{
     addresses::AddressesScreen, balance::BalanceScreen, blockchain::BlockChainScreen,
-    history::HistoryScreen, mempool::MempoolScreen, receive::ReceiveScreen, send::SendScreen,
+    history::HistoryScreen, mempool::MempoolScreen, mempool_tx::MempoolTxScreen,
+    receive::ReceiveScreen, send::SendScreen,
 };
 
 /// Enum to represent the different screens in our application.
@@ -27,6 +29,7 @@ enum Screen {
     Addresses,
     BlockChain,
     Mempool,
+    MempoolTx(TransactionKernelId),
 }
 
 impl Screen {
@@ -40,6 +43,7 @@ impl Screen {
             Screen::Addresses => "Addresses",
             Screen::BlockChain => "BlockChain",
             Screen::Mempool => "Mempool",
+            Screen::MempoolTx(_) => "Mempool Transaction",
         }
     }
 }
@@ -74,7 +78,15 @@ fn Tabs(active_screen: Signal<Screen>) -> Element {
                     li {
                         a {
                             href: "#",
-                            "aria-current": if *active_screen.read() == screen { "page" } else { "false" },
+                            "aria-current": {
+                                let is_active = match (&*active_screen.read(), &screen) {
+                                    // Highlight "Mempool" tab when viewing a specific tx
+                                    (&Screen::MempoolTx(_), &Screen::Mempool) => true,
+                                    // Otherwise, do a direct comparison
+                                    (ref active, screen) => *active == screen,
+                                };
+                                if is_active { "page" } else { "false" }
+                            },
                             onclick: move |_| active_screen.set(screen.clone()),
                             "{screen.name()}"
                         }
@@ -139,7 +151,6 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
 
 #[allow(non_snake_case)]
 pub fn App() -> Element {
-
     let future = use_server_future(api::network)?;
 
     let content = match &*future.read() {
@@ -159,16 +170,18 @@ pub fn App() -> Element {
     content
 }
 
-
 /// A new component to hold the main part of your app.
 /// This makes the logic cleaner, as it only runs when the data is ready.
 #[component]
 fn LoadedApp(app_state: AppState) -> Element {
-
     use_context_provider(|| app_state);
 
     let mut active_screen = use_signal(Screen::default);
     let mut view_mode = use_signal(ViewMode::default);
+
+    // --- Provide the active_screen signal to the context ---
+    // This allows child components like SendScreen to change the current screen.
+    use_context_provider(|| active_screen);
 
     let responsive_css = r#"
         /* --- Responsive Navigation Logic --- */
@@ -304,6 +317,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                         Screen::Addresses => rsx!{ AddressesScreen {} },
                         Screen::BlockChain => rsx!{ BlockChainScreen {} },
                         Screen::Mempool => rsx!{ MempoolScreen {} },
+                        Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },
                     }
                 }
             }
@@ -334,6 +348,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                             Screen::Addresses => rsx!{ AddressesScreen {} },
                             Screen::BlockChain => rsx!{ BlockChainScreen {} },
                             Screen::Mempool => rsx!{ MempoolScreen {} },
+                            Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },
                         }
                     }
                 }

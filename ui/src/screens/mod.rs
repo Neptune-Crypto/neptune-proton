@@ -5,5 +5,6 @@ pub mod balance;
 pub mod blockchain;
 pub mod history;
 pub mod mempool;
+pub mod mempool_tx;
 pub mod receive;
 pub mod send;

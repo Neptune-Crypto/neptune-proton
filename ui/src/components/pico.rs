@@ -78,7 +78,6 @@ pub fn CloseButton(props: CloseButtonProps) -> Element {
     }
 }
 
-
 #[derive(PartialEq, Clone, Default)]
 pub enum ButtonType {
     #[default]
