@@ -640,11 +640,21 @@ pub fn SendScreen() -> Element {
                                 Err(err) => rsx! {
                                     h4 { style: "color: var(--pico-color-red-500);", "Error Sending Transaction" }
                                     p { "{err}" }
+
+                                    div {
+                                        style: "display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;",
+                                        Button {
+                                            button_type: ButtonType::Secondary,
+                                            outline: true,
+                                            on_click: move |_| wizard_step.set(WizardStep::Review),
+                                            "Back"
+                                        }
+                                        Button {
+                                            on_click: move |_| reset_screen(),
+                                            "Send Another Transaction"
+                                        }
+                                    }
                                 }
-                            }
-                            Button {
-                                on_click: move |_| reset_screen(),
-                                "Send Another Transaction"
                             }
                         }
                     }
