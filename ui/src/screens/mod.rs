@@ -2,6 +2,7 @@
 
 pub mod addresses;
 pub mod balance;
+pub mod block;
 pub mod blockchain;
 pub mod history;
 pub mod mempool;

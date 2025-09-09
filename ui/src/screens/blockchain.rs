@@ -2,6 +2,8 @@
 // File: src/screens/blockchain.rs
 //=============================================================================
 use crate::components::pico::{Card, Grid};
+use neptune_types::block_selector::BlockSelector;
+use crate::Screen;
 use dioxus::prelude::*;
 
 #[component]
@@ -12,6 +14,7 @@ pub fn BlockChainScreen() -> Element {
         // Your async API call goes here.
         api::block_height().await
     });
+    let mut active_screen = use_context::<Signal<Screen>>();
 
     rsx! {
         // 2. The `rsx!` macro reads the current state of the `balance` signal.
@@ -28,13 +31,20 @@ pub fn BlockChainScreen() -> Element {
             }
             // The async task finished successfully.
             Some(Ok(height)) => {
+                let owned_height = *height;
                 rsx! {
                     Card {
                         h3 { "Blockchain" }
                         Grid {
                             div {
                                 h4 { "Current Block Height" }
-                                p { "{height}" }
+                                a {
+                                    href: "#",
+                                    onclick: move |_| {
+                                        active_screen.set(Screen::Block(BlockSelector::Height(owned_height)));
+                                    },
+                                    "{height}"
+                                }
                             }
                             div {
                                 h4 { "Sync Status" }

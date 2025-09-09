@@ -7,10 +7,14 @@ use dioxus::prelude::*;
 use neptune_types::address::ReceivingAddress;
 use std::rc::Rc;
 use twenty_first::tip5::Digest;
+use neptune_types::block_selector::BlockSelector;
+use neptune_types::block_height::BlockHeight;
+use crate::Screen;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct BlockProps {
     pub block_digest: Rc<Digest>,
+    pub height: Rc<BlockHeight>,
 }
 
 impl BlockProps {
@@ -22,44 +26,23 @@ impl BlockProps {
 #[component]
 pub fn Block(props: BlockProps) -> Element {
     let network = use_context::<AppState>().network;
-    let mut is_modal_open = use_signal(|| false);
 
     let props_clone = props.clone();
+    let height = *props_clone.height;
+    let digest = props_clone.block_digest.clone();
     let abbreviated = use_memo(move || props_clone.abbreviated());
-    let full_digest = use_memo(move || props.block_digest.to_hex());
+    let mut active_screen = use_context::<Signal<Screen>>();
 
     rsx! {
-
-        NoTitleModal {
-            is_open: is_modal_open,
-            div {
-                style: "display: flex; flex-direction: column; align-items: center; text-align: center",
-                // This flex container will center the buttons and add a gap between them.
-                div {
-                    style: "display: flex; justify-content: center; gap: 0.5rem;",
-                    CopyButton { text_to_copy: full_digest() }
-                    Button {
-                        on_click: move |_| is_modal_open.set(false),
-                        "Close"
-                    }
-                }
-                h4 {
-                    style: "margin-top: 1rem; margin-bottom: 0rem;",
-                    "Full Block Digest"
-                }
-                code {
-                    style: "text-align: left; word-break: break-all; background-color: var(--pico-muted-background-color); padding: 1rem; border-radius: var(--pico-border-radius); width: 100%; margin-bottom: 1rem;", // Gap after the code block
-                    "{full_digest}"
-                }
-            }
-        }
 
         // --- The clickable abbreviated address display ---
         div {
             style: "cursor: pointer;",
-            title: "Click to view full block digest",
-            onclick: move |_| is_modal_open.set(true),
-            code { "{abbreviated}" }
+            title: "{abbreviated}",
+            onclick: move |_| {
+                active_screen.set(Screen::Block(BlockSelector::Digest(*digest)));
+            },
+            code { "{height}" }
         }
     }
 }

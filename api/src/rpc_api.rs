@@ -1,4 +1,5 @@
 use neptune_types::network::Network;
+use neptune_types::block_info::BlockInfo;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::announcement::Announcement;
@@ -44,10 +45,10 @@ pub trait RPC {
     async fn latest_tip_digests(token: rpc_auth::Token, n: usize) -> RpcResult<Vec<Digest>>;
 
     /// Returns information about the specified block if found
-    // async fn block_info(
-    //     token: rpc_auth::Token,
-    //     block_selector: BlockSelector,
-    // ) -> RpcResult<Option<BlockInfo>>;
+    async fn block_info(
+        token: rpc_auth::Token,
+        block_selector: BlockSelector,
+    ) -> RpcResult<Option<BlockInfo>>;
 
     /// Return the block kernel if block is known.
     // async fn block_kernel(

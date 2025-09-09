@@ -9,6 +9,7 @@ mod screens;
 use app_state::AppState;
 use neptune_types::network::Network;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use neptune_types::block_selector::BlockSelector;
 
 // Use components from our modules.
 use components::pico::{Button, ButtonType, Container};
@@ -16,6 +17,7 @@ use screens::{
     addresses::AddressesScreen, balance::BalanceScreen, blockchain::BlockChainScreen,
     history::HistoryScreen, mempool::MempoolScreen, mempool_tx::MempoolTxScreen,
     receive::ReceiveScreen, send::SendScreen,
+    block::BlockScreen,
 };
 
 /// Enum to represent the different screens in our application.
@@ -30,6 +32,7 @@ enum Screen {
     BlockChain,
     Mempool,
     MempoolTx(TransactionKernelId),
+    Block(BlockSelector),
 }
 
 impl Screen {
@@ -44,6 +47,7 @@ impl Screen {
             Screen::BlockChain => "BlockChain",
             Screen::Mempool => "Mempool",
             Screen::MempoolTx(_) => "Mempool Transaction",
+            Screen::Block(_) => "Block",
         }
     }
 }
@@ -82,6 +86,7 @@ fn Tabs(active_screen: Signal<Screen>) -> Element {
                                 let is_active = match (&*active_screen.read(), &screen) {
                                     // Highlight "Mempool" tab when viewing a specific tx
                                     (&Screen::MempoolTx(_), &Screen::Mempool) => true,
+                                    (&Screen::Block(_), &Screen::BlockChain) => true,
                                     // Otherwise, do a direct comparison
                                     (ref active, screen) => *active == screen,
                                 };
@@ -318,6 +323,15 @@ fn LoadedApp(app_state: AppState) -> Element {
                         Screen::BlockChain => rsx!{ BlockChainScreen {} },
                         Screen::Mempool => rsx!{ MempoolScreen {} },
                         Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },
+                        Screen::Block(selector) => {
+                            let key = std::fmt::format(format_args!("{:?}", selector));
+                            rsx! {
+                                BlockScreen {
+                                    key: "{key}",
+                                    selector: selector.clone()
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -349,6 +363,15 @@ fn LoadedApp(app_state: AppState) -> Element {
                             Screen::BlockChain => rsx!{ BlockChainScreen {} },
                             Screen::Mempool => rsx!{ MempoolScreen {} },
                             Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },
+                            Screen::Block(selector) => {
+                                let key = std::fmt::format(format_args!("{:?}", selector));
+                                rsx! {
+                                    BlockScreen {
+                                        key: "{key}",
+                                        selector: selector.clone()
+                                    }
+                                }
+                            }
                         }
                     }
                 }

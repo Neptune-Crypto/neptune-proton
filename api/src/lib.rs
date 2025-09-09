@@ -7,6 +7,8 @@ use neptune_types::address::ReceivingAddress;
 use neptune_types::address::KeyType;
 use neptune_types::address::SpendingKey;
 use neptune_types::block_height::BlockHeight;
+use neptune_types::block_info::BlockInfo;
+use neptune_types::block_selector::BlockSelector;
 use neptune_types::network::Network;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
@@ -99,6 +101,15 @@ pub async fn mempool_tx_kernel(txid: TransactionKernelId) -> Result<Option<Trans
     let token = neptune_rpc::get_token().await?;
 
     let data = client.mempool_tx_kernel(tarpc::context::current(), *token, txid).await??;
+    Ok(data)
+}
+
+#[server(BlockInfoApi, input = Json, output = Json)]
+pub async fn block_info(selector: BlockSelector) -> Result<Option<BlockInfo>, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let data = client.block_info(tarpc::context::current(), *token, selector).await??;
     Ok(data)
 }
 

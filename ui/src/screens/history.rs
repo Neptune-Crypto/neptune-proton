@@ -24,6 +24,7 @@ fn HistoryRow(
     amount: NativeCurrencyAmount,
 ) -> Element {
     let digest = Rc::new(digest);
+    let height = Rc::new(height);
     // This component now manages its own hover and copied state locally.
     let mut is_hovered = use_signal(|| false);
 
@@ -46,7 +47,7 @@ fn HistoryRow(
             }
             td { "{tx_type}" }
             td { "{amount} NPT" }
-            td { Block{ block_digest: digest.clone() }}
+            td { Block{ block_digest: digest.clone(), height }}
         }
     }
 }
