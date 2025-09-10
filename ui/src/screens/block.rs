@@ -1,19 +1,23 @@
 // src/screens/block.rs
 use crate::components::pico::{Card, CopyButton};
+use crate::Screen;
 use dioxus::prelude::*;
 use neptune_types::{
     block_info::BlockInfo, block_selector::BlockSelector,
     native_currency_amount::NativeCurrencyAmount,
 };
 use twenty_first::tip5::Digest;
-use crate::Screen;
 
 /// A small helper component to display a Digest with a label and copy button.
 #[component]
 fn DigestDisplay(digest: Digest, label: String, is_link: bool) -> Element {
     let mut active_screen = use_context::<Signal<Screen>>();
     let digest_str = digest.to_string();
-    let abbreviated_digest = format!("{}...{}", &digest_str[0..6], &digest_str[digest_str.len() - 4..]);
+    let abbreviated_digest = format!(
+        "{}...{}",
+        &digest_str[0..6],
+        &digest_str[digest_str.len() - 4..]
+    );
 
     rsx! {
         div {

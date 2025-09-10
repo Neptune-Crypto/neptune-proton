@@ -27,7 +27,6 @@ impl Deref for MempoolTransactionInfoReadOnly {
     }
 }
 
-
 /// A new, self-contained component for rendering a single row in the history table.
 #[component]
 fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
@@ -44,7 +43,11 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
 
     // Create an abbreviated version of the tx id for a cleaner display
     let tx_id_str = tx.id.to_string();
-    let abbreviated_tx_id = format!("{}...{}", &tx_id_str[0..6], &tx_id_str[tx_id_str.len() - 4..]);
+    let abbreviated_tx_id = format!(
+        "{}...{}",
+        &tx_id_str[0..6],
+        &tx_id_str[tx_id_str.len() - 4..]
+    );
 
     rsx! {
         tr {
@@ -72,11 +75,11 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
     }
 }
 
-
 #[component]
 pub fn MempoolScreen() -> Element {
     // ... the MempoolScreen component itself does not need any changes ...
-    let mut mempool_overview = use_resource(move || async move { api::mempool_overview(0, 1000).await });
+    let mut mempool_overview =
+        use_resource(move || async move { api::mempool_overview(0, 1000).await });
 
     rsx! {
         match &*mempool_overview.read() {

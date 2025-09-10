@@ -1,21 +1,21 @@
-use neptune_types::network::Network;
-use neptune_types::block_info::BlockInfo;
-use neptune_types::block_height::BlockHeight;
-use neptune_types::block_selector::BlockSelector;
-use neptune_types::announcement::Announcement;
-use neptune_types::native_currency_amount::NativeCurrencyAmount;
-use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
-use neptune_types::timestamp::Timestamp;
-use neptune_types::address::SpendingKey;
-use neptune_types::address::KeyType;
-use neptune_types::address::ReceivingAddress;
-use neptune_types::transaction_kernel::TransactionKernel;
-use neptune_types::transaction_kernel_id::TransactionKernelId;
-use neptune_types::dashboard_overview_data_from_client::DashBoardOverviewDataFromClient;
 use neptune_cash::rpc_auth;
 use neptune_cash::rpc_server::RpcResult;
-use std::net::SocketAddr;
+use neptune_types::address::KeyType;
+use neptune_types::address::ReceivingAddress;
+use neptune_types::address::SpendingKey;
+use neptune_types::announcement::Announcement;
+use neptune_types::block_height::BlockHeight;
+use neptune_types::block_info::BlockInfo;
+use neptune_types::block_selector::BlockSelector;
+use neptune_types::dashboard_overview_data_from_client::DashBoardOverviewDataFromClient;
+use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
+use neptune_types::native_currency_amount::NativeCurrencyAmount;
+use neptune_types::network::Network;
+use neptune_types::timestamp::Timestamp;
+use neptune_types::transaction_kernel::TransactionKernel;
+use neptune_types::transaction_kernel_id::TransactionKernelId;
 use std::net::IpAddr;
+use std::net::SocketAddr;
 
 use twenty_first::prelude::*;
 
@@ -140,8 +140,8 @@ pub trait RPC {
 
     /// Return transaction kernel by id if found in mempool.
     async fn mempool_tx_kernel(
-         token: rpc_auth::Token,
-         tx_kernel_id: TransactionKernelId,
+        token: rpc_auth::Token,
+        tx_kernel_id: TransactionKernelId,
     ) -> RpcResult<Option<TransactionKernel>>;
 
     /// Return the information used on the dashboard's overview tab
@@ -311,5 +311,4 @@ pub trait RPC {
 
     /// Gracious shutdown.
     async fn shutdown(token: rpc_auth::Token) -> RpcResult<bool>;
-
 }

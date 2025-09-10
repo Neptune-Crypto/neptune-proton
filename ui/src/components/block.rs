@@ -3,13 +3,13 @@
 //=============================================================================
 use crate::components::pico::{Button, CopyButton, Modal, NoTitleModal};
 use crate::AppState;
+use crate::Screen;
 use dioxus::prelude::*;
 use neptune_types::address::ReceivingAddress;
+use neptune_types::block_height::BlockHeight;
+use neptune_types::block_selector::BlockSelector;
 use std::rc::Rc;
 use twenty_first::tip5::Digest;
-use neptune_types::block_selector::BlockSelector;
-use neptune_types::block_height::BlockHeight;
-use crate::Screen;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct BlockProps {

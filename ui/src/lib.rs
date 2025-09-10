@@ -7,17 +7,16 @@ mod components;
 mod screens;
 
 use app_state::AppState;
+use neptune_types::block_selector::BlockSelector;
 use neptune_types::network::Network;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
-use neptune_types::block_selector::BlockSelector;
 
 // Use components from our modules.
 use components::pico::{Button, ButtonType, Container};
 use screens::{
-    addresses::AddressesScreen, balance::BalanceScreen, blockchain::BlockChainScreen,
-    history::HistoryScreen, mempool::MempoolScreen, mempool_tx::MempoolTxScreen,
-    receive::ReceiveScreen, send::SendScreen,
-    block::BlockScreen,
+    addresses::AddressesScreen, balance::BalanceScreen, block::BlockScreen,
+    blockchain::BlockChainScreen, history::HistoryScreen, mempool::MempoolScreen,
+    mempool_tx::MempoolTxScreen, receive::ReceiveScreen, send::SendScreen,
 };
 
 /// Enum to represent the different screens in our application.

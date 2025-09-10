@@ -2,9 +2,9 @@
 // File: src/screens/blockchain.rs
 //=============================================================================
 use crate::components::pico::{Card, Grid};
-use neptune_types::block_selector::BlockSelector;
 use crate::Screen;
 use dioxus::prelude::*;
+use neptune_types::block_selector::BlockSelector;
 
 #[component]
 pub fn BlockChainScreen() -> Element {

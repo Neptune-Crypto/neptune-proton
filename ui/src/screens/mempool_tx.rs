@@ -2,18 +2,21 @@
 use crate::components::pico::{Card, CopyButton};
 use dioxus::prelude::*;
 use neptune_types::{
-    native_currency_amount::NativeCurrencyAmount,
+    native_currency_amount::NativeCurrencyAmount, transaction_kernel::TransactionKernel,
     transaction_kernel_id::TransactionKernelId,
-    transaction_kernel::TransactionKernel,
 };
-use twenty_first::tip5::Digest;
 use num_traits::Zero;
+use twenty_first::tip5::Digest;
 
 /// A small helper component to display a Digest with a label and copy button.
 #[component]
 fn DigestDisplay(digest: Digest, label: String) -> Element {
     let digest_str = digest.to_string();
-    let abbreviated_digest = format!("{}...{}", &digest_str[0..6], &digest_str[digest_str.len() - 4..]);
+    let abbreviated_digest = format!(
+        "{}...{}",
+        &digest_str[0..6],
+        &digest_str[digest_str.len() - 4..]
+    );
     rsx! {
         div {
             style: "display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0;",
@@ -31,9 +34,7 @@ fn DigestDisplay(digest: Digest, label: String) -> Element {
 
 #[component]
 pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
-    let mut mempool_tx = use_resource(move || async move {
-        api::mempool_tx_kernel(tx_id).await
-    });
+    let mut mempool_tx = use_resource(move || async move { api::mempool_tx_kernel(tx_id).await });
 
     rsx! {
         match &*mempool_tx.read() {
@@ -119,4 +120,3 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
         }
     }
 }
-

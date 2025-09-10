@@ -5,8 +5,8 @@ use crate::components::address::Address;
 use crate::components::pico::{
     Button, ButtonType, Card, CloseButton, CopyButton, Grid, Input, Modal, NoTitleModal,
 };
-use crate::Screen;
 use crate::AppState;
+use crate::Screen;
 use dioxus::dioxus_core::SpawnIfAsync;
 use dioxus::prelude::*;
 use neptune_types::address::{KeyType, ReceivingAddress};
