@@ -9,4 +9,3 @@ fn main() {
 fn App() -> Element {
     ui::App()
 }
-

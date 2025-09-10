@@ -17,6 +17,7 @@ use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::output_format::OutputFormat;
 use neptune_types::change_policy::ChangePolicy;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
+use neptune_types::dashboard_overview_data_from_client::DashBoardOverviewDataFromClient;
 use dioxus::prelude::server_fn::codec::Json;
 use twenty_first::tip5::Digest;
 use neptune_types::timestamp::Timestamp;
@@ -110,6 +111,15 @@ pub async fn block_info(selector: BlockSelector) -> Result<Option<BlockInfo>, Se
     let token = neptune_rpc::get_token().await?;
 
     let data = client.block_info(tarpc::context::current(), *token, selector).await??;
+    Ok(data)
+}
+
+#[server(input = Json, output = Json)]
+pub async fn dashboard_overview_data() -> Result<DashBoardOverviewDataFromClient, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let data = client.dashboard_overview_data(tarpc::context::current(), *token).await??;
     Ok(data)
 }
 

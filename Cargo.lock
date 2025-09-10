@@ -3783,6 +3783,7 @@ dependencies = [
  "get-size2",
  "getrandom 0.2.16",
  "getrandom 0.3.3",
+ "humantime",
  "itertools 0.14.0",
  "num-bigint",
  "num-rational 0.4.2",

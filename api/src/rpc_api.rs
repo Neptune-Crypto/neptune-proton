@@ -11,6 +11,7 @@ use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use neptune_types::dashboard_overview_data_from_client::DashBoardOverviewDataFromClient;
 use neptune_cash::rpc_auth;
 use neptune_cash::rpc_server::RpcResult;
 use std::net::SocketAddr;
@@ -144,9 +145,9 @@ pub trait RPC {
     ) -> RpcResult<Option<TransactionKernel>>;
 
     /// Return the information used on the dashboard's overview tab
-    // async fn dashboard_overview_data(
-    //     token: rpc_auth::Token,
-    // ) -> RpcResult<DashBoardOverviewDataFromClient>;
+    async fn dashboard_overview_data(
+        token: rpc_auth::Token,
+    ) -> RpcResult<DashBoardOverviewDataFromClient>;
 
     /// Determine whether the user-supplied string is a valid address
     async fn validate_address(
