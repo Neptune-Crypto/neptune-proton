@@ -175,15 +175,20 @@ mod neptune_rpc {
     use tarpc::tokio_serde::formats::Json;
     use tokio::sync::OnceCell;
 
+    fn neptune_core_rpc_port() -> u16 {
+        const DEFAULT_PORT: u16 = 9799;
+        std::env::var("NEPTUNE_CORE_RPC_PORT").unwrap_or("".to_string()).parse().unwrap_or(DEFAULT_PORT)
+    }
+
     async fn gen_rpc_client() -> Result<rpc_api::RPCClient, ServerFnError> {
-        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 29999);
+        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), neptune_core_rpc_port());
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await?;
 
         Ok(rpc_api::RPCClient::new(client::Config::default(), transport).spawn())
     }
 
     async fn gen_nc_rpc_client() -> Result<RPCClient, ServerFnError> {
-        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 29999);
+        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), neptune_core_rpc_port());
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await?;
 
         Ok(RPCClient::new(client::Config::default(), transport).spawn())
