@@ -44,15 +44,18 @@ fn InfoItem(label: String, children: Element) -> Element {
 fn BalanceRow(available: NativeCurrencyAmount, total: NativeCurrencyAmount) -> Element {
     let time_locked = total.checked_sub(&available).unwrap_or_default();
     rsx! {
-        div {
-            class: "balance-row",
-            div {
-                style: "font-size: 0.85rem; color: var(--pico-secondary-foreground); padding-left: 1rem;",
-                p { style: "margin: 0;", "Available: {available}" }
-                if time_locked > NativeCurrencyAmount::zero() {
-                    p { style: "margin: 0;", "Time-locked: {time_locked}" }
-                    p { style: "margin: 0;", "Total: {total}" }
-                }
+        InfoItem{
+            label: "Available".to_string(),
+            span { "{available}" }
+        }
+        if time_locked > NativeCurrencyAmount::zero() {
+            InfoItem{
+                label: "Time-locked".to_string(),
+                span { "{time_locked}" }
+            }
+            InfoItem{
+                label: "Total".to_string(),
+                span { "{total}" }
             }
         }
     }
@@ -69,7 +72,7 @@ pub fn BalanceScreen() -> Element {
         async move {
             loop {
                 // Correct for WASM targets: use a timer from the `gloo` ecosystem.
-                gloo_timers::future::sleep(std::time::Duration::from_secs(5)).await;
+                gloo_timers::future::sleep(std::time::Duration::from_millis(5000)).await;
                 data_resource.restart();
             }
         }
