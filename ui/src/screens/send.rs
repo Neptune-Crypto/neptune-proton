@@ -336,8 +336,7 @@ pub fn SendScreen() -> Element {
                         if let Some(index) = action_target_index() {
                             let mut target_recipient = recipients.read()[index];
                             spawn(async move {
-                                if let Ok(js_text) = wasm_bindgen_futures::JsFuture::from(web_sys::window().unwrap().navigator().clipboard().read_text()).await {
-                                    let clipboard_text = js_text.as_string().unwrap_or_default();
+                                if let Some(clipboard_text) = crate::compat::clipboard_get().await {
                                     // Validate before setting
                                     match ReceivingAddress::from_bech32m(&clipboard_text, network) {
                                         Ok(_) => {

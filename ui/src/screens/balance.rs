@@ -72,7 +72,7 @@ pub fn BalanceScreen() -> Element {
         async move {
             loop {
                 // Correct for WASM targets: use a timer from the `gloo` ecosystem.
-                gloo_timers::future::sleep(std::time::Duration::from_millis(5000)).await;
+                crate::compat::sleep(std::time::Duration::from_millis(5000)).await;
                 data_resource.restart();
             }
         }

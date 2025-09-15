@@ -5,6 +5,7 @@
 
 use dioxus::html::input_data::keyboard_types::Key;
 use dioxus::prelude::*;
+use std::time::Duration;
 
 //=============================================================================
 // Layout Components
@@ -272,21 +273,18 @@ pub fn CopyButton(props: CopyButtonProps) -> Element {
         } else {
             Button {
                 on_click: move |_| {
-                    let text_to_copy = props.text_to_copy.clone();
-                    if let Some(clipboard) = web_sys::window().and_then(|win| Some(win.navigator().clipboard())) {
-                        let promise = clipboard.write_text(&text_to_copy);
-                        wasm_bindgen_futures::spawn_local(async move {
-                            let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-                        });
-                    }
+                    let clipboard_text = props.text_to_copy.clone();
 
-                    // Set the state to "Copied!" and spawn the timer to reset it.
-                    is_copied.set(true);
                     spawn({
                         let mut is_copied = is_copied.clone();
+
                         async move {
-                            gloo_timers::future::TimeoutFuture::new(5000).await;
-                            is_copied.set(false);
+                            if crate::compat::clipboard_set(clipboard_text).await {
+                                // Set the state to "Copied!" and spawn the timer to reset it.
+                                is_copied.set(true);
+                                crate::compat::sleep(Duration::from_millis(5000)).await;
+                                is_copied.set(false);
+                            }
                         }
                     });
                 },

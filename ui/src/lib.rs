@@ -5,6 +5,7 @@ use dioxus::prelude::*;
 mod app_state;
 mod components;
 mod screens;
+pub mod compat;
 
 use app_state::AppState;
 use neptune_types::block_selector::BlockSelector;
