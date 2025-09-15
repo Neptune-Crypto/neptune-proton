@@ -78,7 +78,7 @@ pub fn HistoryScreen() -> Element {
                 }
             },
             Some(Ok(utxos)) => {
-                let iter = utxos.iter().group_by(|(digest, height, timestamp, _)| (digest, height, timestamp));
+                let iter = utxos.iter().rev().group_by(|(digest, height, timestamp, _)| (digest, height, timestamp));
                 let block_summaries = iter.into_iter()
                     .map(|(key, group)| {
                         let (digest, height, timestamp) = key;
