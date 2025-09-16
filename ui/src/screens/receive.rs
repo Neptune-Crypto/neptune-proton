@@ -3,6 +3,7 @@
 //=============================================================================
 use crate::app_state::AppState;
 use crate::components::pico::{Button, ButtonType, Card, CopyButton};
+use crate::components::qr_code::QrCode;
 use dioxus::prelude::*;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
@@ -38,27 +39,11 @@ pub fn ReceiveScreen() -> Element {
                         p{ "Share this address to receive funds." }
                     }
 
-                    figure {
-                        style: "margin-top: 1rem; margin-bottom: 1rem;",
-                        {
-                            use qrcode::QrCode;
-                            use qrcode::render::svg;
-                            let full_address = if KeyType::from(&*address).is_generation() {
-                                address.to_display_bech32m_abbreviated(network).unwrap()
-                            } else {
-                                address.to_display_bech32m(network).unwrap()
-                            };
-                            match QrCode::new(full_address.as_bytes()) {
-                                Ok(code) => {
-                                    let image = code.render::<svg::Color>()
-                                        .min_dimensions(200, 200)
-                                        .build();
-                                    rsx!{ div { dangerous_inner_html: "{image}" } }
-                                },
-                                Err(_) => rsx!{ p { style: "color: red;", "Address too long for QR code" } }
-                            }
-                        }
+                    QrCode {
+                        data: address.to_display_bech32m(network).unwrap().to_uppercase(),
+                        caption: "Scan the QR code to obtain the full address.".to_string()
                     }
+
                     code {
                         style: "word-break: break-all; font-size: 0.9rem;",
                         "{address.to_bech32m_abbreviated(network).unwrap()}"

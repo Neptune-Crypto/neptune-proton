@@ -4,6 +4,7 @@ use std::net;
 //=============================================================================
 use crate::app_state::AppState;
 use crate::components::address::Address;
+use crate::components::qr_code::QrCode;
 use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
 use dioxus::prelude::*;
 use neptune_types::address::{KeyType, ReceivingAddress};
@@ -82,7 +83,7 @@ pub fn AddressesScreen() -> Element {
                 }
             },
             Some(Ok(keys)) => {
-                let mut qr_code_content = use_signal::<Option<(String, String)>>(|| None);
+                let mut qr_code_content = use_signal::<Option<Rc<ReceivingAddress>>>(|| None);
                 let mut qr_modal_is_open = use_signal(|| false);
 
                 let addresses: Vec<_> = keys
@@ -95,12 +96,15 @@ pub fn AddressesScreen() -> Element {
                 rsx! {
                     NoTitleModal {
                         is_open: qr_modal_is_open,
-                        div {
-                            style: "text-align: center;",
-                            if let Some((addr_abbrev, svg_data)) = qr_code_content() {
-                                h3 { "Receiving Address" },
-                                div { dangerous_inner_html: "{svg_data}" }
-                                p { "{addr_abbrev}" }
+
+                        if let Some(address) = qr_code_content() {
+                            div {
+                                style: "display: flex; flex-direction: column; align-items: center; text-align: center",
+
+                                QrCode {
+                                    data: address.to_bech32m(network).unwrap().to_uppercase(),
+                                    caption: address.to_display_bech32m_abbreviated(network).unwrap(),
+                                }
                             }
                         }
                     }
@@ -123,22 +127,8 @@ pub fn AddressesScreen() -> Element {
                                             address: Rc::clone(&address),
                                             network,
                                             on_qr_request: move |address: Rc<ReceivingAddress>| {
-                                                let abbrev_address = address.to_bech32m_abbreviated(network).unwrap();
-                                                let full_address = if KeyType::from(&*address).is_generation() {
-                                                    abbrev_address.clone()
-                                                } else {
-                                                     address.to_bech32m(network).unwrap()
-                                                };
-
-                                                use qrcode::QrCode;
-                                                use qrcode::render::svg;
-                                                if let Ok(code) = QrCode::new(full_address.as_bytes()) {
-                                                    let image = code.render::<svg::Color>().build();
-                                                    qr_code_content.set(Some((abbrev_address, image)));
-                                                    qr_modal_is_open.set(true);
-                                                } else {
-                                                    dioxus_logger::tracing::warn!("QR code could not be created.  data len is: {}", full_address.as_bytes().len());
-                                                }
+                                                qr_code_content.set(Some(address));
+                                                qr_modal_is_open.set(true);
                                             }
                                         }
                                     }

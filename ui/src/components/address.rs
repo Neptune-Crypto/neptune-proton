@@ -2,6 +2,7 @@
 // File: src/components/address.rs
 //=============================================================================
 use crate::components::pico::{Button, CopyButton, Modal, NoTitleModal};
+use crate::components::qr_code::QrCode;
 use crate::AppState;
 use dioxus::prelude::*;
 use neptune_types::address::ReceivingAddress;
@@ -37,9 +38,16 @@ pub fn Address(props: AddressProps) -> Element {
             is_open: is_modal_open,
             div {
                 style: "display: flex; flex-direction: column; align-items: center; text-align: center",
+
+                QrCode {
+                    data: full_address().to_uppercase(),
+                    caption: "Scan the QR code to obtain the full address.".to_string()
+                }
+
                 // This flex container will center the buttons and add a gap between them.
                 div {
                     style: "display: flex; justify-content: center; gap: 0.5rem;",
+
                     CopyButton { text_to_copy: full_address() }
                     Button {
                         on_click: move |_| is_modal_open.set(false),
