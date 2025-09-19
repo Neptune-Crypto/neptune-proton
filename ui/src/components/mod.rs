@@ -5,3 +5,4 @@ pub mod address;
 pub mod block;
 pub mod pico;
 pub mod qr_code;
+pub mod qr_scanner;

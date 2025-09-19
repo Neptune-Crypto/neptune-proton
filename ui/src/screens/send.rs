@@ -5,6 +5,8 @@ use crate::components::address::Address;
 use crate::components::pico::{
     Button, ButtonType, Card, CloseButton, CopyButton, Grid, Input, Modal, NoTitleModal,
 };
+// Add the new QrScanner component
+use crate::components::qr_scanner::QrScanner;
 use crate::AppState;
 use crate::Screen;
 use dioxus::dioxus_core::SpawnIfAsync;
@@ -317,6 +319,36 @@ pub fn SendScreen() -> Element {
     // This allows us to change the screen from within this component.
     let mut active_screen = use_context::<Signal<Screen>>();
 
+    // --- Handler for scanned QR data ---
+    let mut handle_scanned_data = move |scanned_text: String| {
+        if let Some(index) = action_target_index() {
+            let mut target_recipient = recipients.read()[index];
+            // Validate before setting
+            match ReceivingAddress::from_bech32m(&scanned_text, network) {
+                Ok(_) => {
+                    // Check for duplicates before committing
+                    let is_duplicate = recipients.read().iter().enumerate().any(|(i, r)| {
+                        if i == index { false } else { r.read().address_str == scanned_text }
+                    });
+
+                    if is_duplicate && !suppress_duplicate_warning() {
+                        pending_address.set(Some(scanned_text));
+                        show_duplicate_warning_modal.set(true);
+                    } else {
+                        target_recipient.with_mut(|r| {
+                            r.address_str = scanned_text;
+                            r.address_error = None;
+                        });
+                    }
+                },
+                Err(e) => {
+                    error_modal_message.set(format!("Invalid Address from QR: {}", e));
+                    show_error_modal.set(true);
+                }
+            }
+        }
+    };
+
     rsx! {
         // --- Modals ---
         NoTitleModal {
@@ -337,29 +369,7 @@ pub fn SendScreen() -> Element {
                             let mut target_recipient = recipients.read()[index];
                             spawn(async move {
                                 if let Some(clipboard_text) = crate::compat::clipboard_get().await {
-                                    // Validate before setting
-                                    match ReceivingAddress::from_bech32m(&clipboard_text, network) {
-                                        Ok(_) => {
-                                            // Check for duplicates before committing the paste
-                                            let is_duplicate = recipients.read().iter().enumerate().any(|(i, r)| {
-                                                if i == index { false } else { r.read().address_str == clipboard_text }
-                                            });
-
-                                            if is_duplicate && !suppress_duplicate_warning() {
-                                                pending_address.set(Some(clipboard_text));
-                                                show_duplicate_warning_modal.set(true);
-                                            } else {
-                                                target_recipient.with_mut(|r| {
-                                                    r.address_str = clipboard_text;
-                                                    r.address_error = None;
-                                                });
-                                            }
-                                        },
-                                        Err(e) => {
-                                            error_modal_message.set(format!("Invalid Address: {}", e));
-                                            show_error_modal.set(true);
-                                        }
-                                    }
+                                    handle_scanned_data(clipboard_text); // Reuse the same logic
                                 }
                             });
                         }
@@ -384,15 +394,10 @@ pub fn SendScreen() -> Element {
         }
         NoTitleModal {
             is_open: is_qr_modal_open,
-            h3 { "QR Scanner Placeholder" }
-            p {
-                if let Some(index) = action_target_index() {
-                    "When a QR code is scanned, its value should be set for recipient number {index + 1}."
-                } else {""}
-            }
-            Button {
-                on_click: move |_| is_qr_modal_open.set(false),
-                "Close"
+            // Replace the placeholder with the actual component
+            QrScanner {
+                on_scan: handle_scanned_data,
+                on_close: move |_| is_qr_modal_open.set(false),
             }
         }
         Modal {
@@ -662,3 +667,4 @@ pub fn SendScreen() -> Element {
         }
     }
 }
+

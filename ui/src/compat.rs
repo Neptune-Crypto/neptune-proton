@@ -5,7 +5,6 @@ pub use wasm32::*;
 #[cfg(not(target_arch = "wasm32"))]
 pub use non_wasm32::*;
 
-
 #[cfg(target_arch = "wasm32")]
 pub mod wasm32 {
     use std::time::Duration;
