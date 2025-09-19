@@ -15,7 +15,7 @@ pub use self::non_wasm32::*;
 #[cfg(target_arch = "wasm32")]
 mod wasm32 {
     use dioxus::prelude::*;
-    use std::collections::HashMap; // Import HashMap
+    use std::collections::HashMap;
     use wasm_bindgen::prelude::*;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::{
@@ -31,179 +31,144 @@ mod wasm32 {
         let mut is_scanning = use_signal(|| false);
 
         // Platform-specific state
-        let mut video_devices = use_signal(|| Vec::<MediaDeviceInfo>::new());
+        let mut video_devices = use_signal(Vec::<MediaDeviceInfo>::new);
         let mut selected_device_id = use_signal(String::new);
         let mut video_stream = use_signal::<Option<MediaStream>>(|| None);
 
-        // --- NEW: State for animated QR code reassembly ---
+        // --- State for animated QR code reassembly ---
         let mut scanned_parts = use_signal(HashMap::<usize, String>::new);
         let mut total_parts = use_signal(|| 0_usize);
 
-        // --- Web-specific logic to get camera devices (Unchanged) ---
-        use_resource(move || async move {
-            let window = web_sys::window().expect("no global `window` exists");
-            let navigator = window.navigator();
-            let media_devices = match navigator.media_devices() {
-                Ok(md) => md,
-                Err(_) => {
-                    error_message.set(Some("Could not access media devices.".to_string()));
-                    return;
-                }
-            };
-            match JsFuture::from(
-                media_devices
-                    .get_user_media_with_constraints(
-                        web_sys::MediaStreamConstraints::new().video(&JsValue::from(true)),
-                    )
-                    .unwrap(),
-            )
-            .await
-            {
-                Ok(stream) => {
-                    let stream = MediaStream::from(stream);
-                    stream
-                        .get_tracks()
-                        .for_each(&mut |track, _, _| web_sys::MediaStreamTrack::from(track).stop());
-                }
-                Err(_) => {
-                    error_message.set(Some(
-                        "Camera permission denied. Please enable camera access.".to_string(),
-                    ));
-                    return;
-                }
-            };
-            match JsFuture::from(media_devices.enumerate_devices().unwrap()).await {
-                Ok(devices) => {
-                    let devices_array: js_sys::Array = devices.into();
-                    let mut found_devices = Vec::new();
-                    for device in devices_array.iter() {
-                        let device_info = MediaDeviceInfo::from(device);
-                        if device_info.kind() == MediaDeviceKind::Videoinput {
-                            found_devices.push(device_info);
+        // --- REFACTORED: Step 1 - Data fetching is separated from side-effects ---
+        let mut devices_resource = use_resource(move || async move {
+            enumerate_devices().await
+        });
+
+        // --- REFACTORED: Step 2 - A `use_effect` safely handles the result of the resource ---
+        use_effect(move || {
+            if let Some(Ok(devices)) = devices_resource.read().as_ref() {
+                if devices.is_empty() {
+                    error_message.set(Some("No camera devices found.".to_string()));
+                } else {
+                    video_devices.set(devices.clone());
+                    selected_device_id.with_mut(|id| {
+                        if id.is_empty() {
+                            if let Some(first_device) = devices.first() {
+                                *id = first_device.device_id();
+                            }
                         }
-                    }
-                    if found_devices.is_empty() {
-                        error_message.set(Some("No video cameras found.".to_string()));
-                    } else {
-                        if let Some(first_device) = found_devices.first() {
-                            selected_device_id.set(first_device.device_id());
-                        }
-                        video_devices.set(found_devices);
-                    }
+                    });
                 }
-                Err(_) => {
-                    error_message.set(Some("Error enumerating devices.".to_string()));
-                }
+            } else if let Some(Err(_)) = devices_resource.read().as_ref() {
+                error_message.set(Some("Could not get camera devices. Please grant permission.".to_string()));
             }
         });
 
-        // --- FIXED: `use_effect` to remove warning ---
+        // --- REFACTORED: A single, consolidated effect for the camera and scanning loop ---
         use_effect(move || {
-            // The check for `!is_scanning()` has been removed to prevent the read/write warning.
-            // The effect's only job is to react to a change in the selected camera.
-            if !selected_device_id.read().is_empty() {
+            let device_id = selected_device_id.read().clone();
+            if !device_id.is_empty() {
                 spawn(async move {
                     is_scanning.set(true);
-                    match start_video_stream(selected_device_id.read().clone()).await {
-                        Ok(stream) => {
+                    let stream = match start_video_stream(device_id).await {
+                        Ok(s) => {
                             if let Some(video) = get_element_by_id::<HtmlVideoElement>("qr-video") {
-                                video.set_src_object(Some(&stream));
-                            }
-                            // Clean up previous stream before setting new one.
-                            if let Some(old_stream) = video_stream.replace(Some(stream)) {
-                                old_stream.get_tracks().for_each(&mut |track, _, _| {
-                                    web_sys::MediaStreamTrack::from(track).stop();
-                                });
+                                video.set_src_object(Some(&s));
                             }
                             error_message.set(None);
+                            s
                         }
                         Err(e) => {
                             error_message.set(Some(format!("Failed to start camera: {:?}", e)));
                             is_scanning.set(false);
+                            return;
                         }
-                    }
-                });
-            }
-        });
+                    };
 
-        // --- Cleanup effect (Unchanged) ---
-        use_on_unmount(move || {
-            if let Some(stream) = video_stream.read().as_ref() {
-                stream
-                    .get_tracks()
-                    .for_each(&mut |track, _, _| web_sys::MediaStreamTrack::from(track).stop());
-            }
-        });
+                    // Store the stream handle so we can clean it up later.
+                    video_stream.set(Some(stream));
 
-        /// This function is called repeatedly to scan for QR codes.
-        let scan_frame = move || {
-            let video_element: Option<HtmlVideoElement> = get_element_by_id("qr-video");
-            let canvas_element: Option<HtmlCanvasElement> = get_element_by_id("qr-canvas");
+                    // --- The Main Scanning Loop ---
+                    loop {
+                        let video_element: Option<HtmlVideoElement> = get_element_by_id("qr-video");
+                        let canvas_element: Option<HtmlCanvasElement> = get_element_by_id("qr-canvas");
 
-            if let (Some(video), Some(canvas)) = (video_element, canvas_element) {
-                let (width, height) = (video.video_width(), video.video_height());
-                if width == 0 || height == 0 { return; }
+                        if let (Some(video), Some(canvas)) = (video_element, canvas_element) {
+                            let (width, height) = (video.video_width(), video.video_height());
+                            if width > 0 && height > 0 {
+                                canvas.set_width(width);
+                                canvas.set_height(height);
 
-                canvas.set_width(width);
-                canvas.set_height(height);
+                                let ctx = canvas.get_context("2d").unwrap().unwrap().dyn_into::<web_sys::CanvasRenderingContext2d>().unwrap();
+                                ctx.draw_image_with_html_video_element(&video, 0.0, 0.0).unwrap();
 
-                let ctx = canvas.get_context("2d").unwrap().unwrap().dyn_into::<web_sys::CanvasRenderingContext2d>().unwrap();
-                ctx.draw_image_with_html_video_element(&video, 0.0, 0.0).unwrap();
-                let image_data_result = ctx.get_image_data(0.0, 0.0, width as f64, height as f64);
+                                if let Ok(image_data) = ctx.get_image_data(0.0, 0.0, width as f64, height as f64) {
+                                    let luma_data: Vec<u8> = image_data.data().0.chunks_exact(4).map(|p| (p[0] as f32 * 0.299 + p[1] as f32 * 0.587 + p[2] as f32 * 0.114) as u8).collect();
 
-                if let Ok(image_data) = image_data_result {
-                    let luma_data: Vec<u8> = image_data.data().0.chunks_exact(4).map(|p| (p[0] as f32 * 0.299 + p[1] as f32 * 0.587 + p[2] as f32 * 0.114) as u8).collect();
-                    if let Some(image) = image::GrayImage::from_raw(width, height, luma_data) {
-                        let mut img = rqrr::PreparedImage::prepare(image);
-                        let grids = img.detect_grids();
+                                    if let Some(image) = image::GrayImage::from_raw(width, height, luma_data) {
+                                        let mut img = rqrr::PreparedImage::prepare(image);
+                                        if let Some(grid) = img.detect_grids().first() {
+                                            if let Ok((_meta, content)) = grid.decode() {
+                                                if content.is_empty() { continue; }
 
-                        if let Some(grid) = grids.first() {
-                            if let Ok((_meta, content)) = grid.decode() {
-                                if content.is_empty() { return; }
-
-                                // --- SURGICAL FIX: Separated logic for static vs. animated ---
-
-                                // Case 1: Animated Frame Detected
-                                if content.starts_with('P') && content.chars().filter(|&c| c == '/').count() == 2 {
-                                    let parts: Vec<&str> = content.splitn(3, '/').collect();
-                                    if parts.len() == 3 {
-                                        if let (Ok(part_num), Ok(total)) = (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>()) {
-                                            if *total_parts.read() == 0 {
-                                                total_parts.set(total);
-                                            }
-                                            scanned_parts.write().insert(part_num, parts[2].to_string());
-
-                                            if scanned_parts.read().len() == total {
-                                                let mut result = String::new();
-                                                for i in 1..=total {
-                                                    if let Some(chunk) = scanned_parts.read().get(&i) {
-                                                        result.push_str(chunk);
-                                                    } else {
-                                                        error_message.set(Some(format!("Reassembly failed: Missing part {}", i)));
-                                                        return;
+                                                let mut scan_is_complete = false;
+                                                if !content.starts_with('P') || content.chars().filter(|&c| c == '/').count() != 2 {
+                                                    on_scan.call(content);
+                                                    scan_is_complete = true;
+                                                } else {
+                                                    let parts: Vec<&str> = content.splitn(3, '/').collect();
+                                                    if parts.len() == 3 {
+                                                        if let (Ok(part_num), Ok(total)) = (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>()) {
+                                                            if *total_parts.read() == 0 { total_parts.set(total); }
+                                                            scanned_parts.write().entry(part_num).or_insert_with(|| parts[2].to_string());
+                                                            if scanned_parts.read().len() == total {
+                                                                let mut result = String::new();
+                                                                let mut reassembly_ok = true;
+                                                                for i in 1..=total {
+                                                                    if let Some(chunk) = scanned_parts.read().get(&i) {
+                                                                        result.push_str(chunk);
+                                                                    } else {
+                                                                        error_message.set(Some(format!("Reassembly failed: Missing part {}", i)));
+                                                                        reassembly_ok = false;
+                                                                        break;
+                                                                    }
+                                                                }
+                                                                if reassembly_ok {
+                                                                    on_scan.call(result);
+                                                                    scan_is_complete = true;
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
-                                                is_scanning.set(false);
-                                                on_scan.call(result);
-                                                on_close.call(());
+
+                                                if scan_is_complete {
+                                                    on_close.call(());
+                                                    break; // Exit the loop and terminate the task.
+                                                }
                                             }
                                         }
                                     }
                                 }
-                                // Case 2: Static QR Code (YOUR ORIGINAL LOGIC, REORDERED TO FIX PANIC)
-                                else {
-                                    is_scanning.set(false); // Update state BEFORE closing
-                                    on_scan.call(content);
-                                    on_close.call(());     // Close component as the FINAL action
-                                }
                             }
                         }
+                        gloo_timers::future::sleep(std::time::Duration::from_millis(10)).await;
                     }
-                }
-            }
-        };
 
-        // --- UI Rendering (with addition of progress indicator) ---
+                    // --- FIX: Cleanup happens here, after the loop, as you suggested ---
+                    // This code is guaranteed to run when the task ends, either by breaking
+                    // from the loop or by being cancelled when the component unmounts.
+                    if let Some(stream) = video_stream.read().as_ref() {
+                        stream.get_tracks().for_each(&mut |track, _, _| {
+                            web_sys::MediaStreamTrack::from(track).stop();
+                        });
+                    }
+                    is_scanning.set(false);
+                });
+            }
+        });
+
+        // --- UI Rendering ---
         let error_display: Option<Element> = if let Some(err) = error_message() {
             Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
         } else {
@@ -236,16 +201,7 @@ mod wasm32 {
             Some(rsx! {
                 div {
                     style: "position: relative; width: 100%; max-width: 400px; margin: auto; border-radius: var(--pico-border-radius); overflow: hidden; border: 1px solid var(--pico-form-element-border-color);",
-                    video {
-                        id: "qr-video",
-                        autoplay: true,
-                        playsinline: true,
-                        oncanplay: move |_| {
-                            use gloo_timers::callback::Interval;
-                            let scan_interval = Interval::new(250, scan_frame);
-                            scan_interval.forget();
-                        },
-                    }
+                    video { id: "qr-video", autoplay: true, playsinline: true }
                     canvas { id: "qr-canvas", style: "display: none;" }
                 }
             })
@@ -253,7 +209,7 @@ mod wasm32 {
             None
         };
 
-        let device_selector: Option<Element> = if !video_devices.read().is_empty() && !is_scanning() {
+        let device_selector: Option<Element> = if !video_devices.read().is_empty() {
             let devices = video_devices.read();
             let options = devices.iter().enumerate().map(|(i, device)| {
                 let device_id = device.device_id();
@@ -313,6 +269,16 @@ mod wasm32 {
                 }
             }
         }
+    }
+
+    async fn enumerate_devices() -> Result<Vec<MediaDeviceInfo>, JsValue> {
+        let window = web_sys::window().expect("no global `window` exists");
+        let navigator = window.navigator();
+        let media_devices = navigator.media_devices()?;
+        let stream = JsFuture::from(media_devices.get_user_media_with_constraints(MediaStreamConstraints::new().video(&true.into()))?).await?;
+        MediaStream::from(stream).get_tracks().for_each(&mut |track, _, _| { web_sys::MediaStreamTrack::from(track).stop(); });
+        let devices = JsFuture::from(media_devices.enumerate_devices()?).await?;
+        Ok(js_sys::Array::from(&devices).iter().map(MediaDeviceInfo::from).filter(|d| d.kind() == MediaDeviceKind::Videoinput).collect())
     }
 
     fn get_element_by_id<T: wasm_bindgen::JsCast>(id: &str) -> Option<T> {
