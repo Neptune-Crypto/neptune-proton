@@ -15,6 +15,7 @@ pub use self::non_wasm32::*;
 #[cfg(target_arch = "wasm32")]
 mod wasm32 {
     use dioxus::prelude::*;
+    use std::collections::HashMap; // Import HashMap
     use wasm_bindgen::prelude::*;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::{
@@ -34,7 +35,11 @@ mod wasm32 {
         let mut selected_device_id = use_signal(String::new);
         let mut video_stream = use_signal::<Option<MediaStream>>(|| None);
 
-        // --- Web-specific logic to get camera devices ---
+        // --- NEW: State for animated QR code reassembly ---
+        let mut scanned_parts = use_signal(HashMap::<usize, String>::new);
+        let mut total_parts = use_signal(|| 0_usize);
+
+        // --- Web-specific logic to get camera devices (Unchanged) ---
         use_resource(move || async move {
             let window = web_sys::window().expect("no global `window` exists");
             let navigator = window.navigator();
@@ -45,8 +50,6 @@ mod wasm32 {
                     return;
                 }
             };
-
-            // Request permission to get device labels
             match JsFuture::from(
                 media_devices
                     .get_user_media_with_constraints(
@@ -69,7 +72,6 @@ mod wasm32 {
                     return;
                 }
             };
-
             match JsFuture::from(media_devices.enumerate_devices().unwrap()).await {
                 Ok(devices) => {
                     let devices_array: js_sys::Array = devices.into();
@@ -95,18 +97,24 @@ mod wasm32 {
             }
         });
 
-        // --- Web-specific effect to start the video stream ---
+        // --- FIXED: `use_effect` to remove warning ---
         use_effect(move || {
-            if !selected_device_id.read().is_empty() && !is_scanning() {
+            // The check for `!is_scanning()` has been removed to prevent the read/write warning.
+            // The effect's only job is to react to a change in the selected camera.
+            if !selected_device_id.read().is_empty() {
                 spawn(async move {
                     is_scanning.set(true);
                     match start_video_stream(selected_device_id.read().clone()).await {
                         Ok(stream) => {
-                            // Attach the stream to the video element immediately.
                             if let Some(video) = get_element_by_id::<HtmlVideoElement>("qr-video") {
                                 video.set_src_object(Some(&stream));
                             }
-                            video_stream.set(Some(stream)); // Save for cleanup
+                            // Clean up previous stream before setting new one.
+                            if let Some(old_stream) = video_stream.replace(Some(stream)) {
+                                old_stream.get_tracks().for_each(&mut |track, _, _| {
+                                    web_sys::MediaStreamTrack::from(track).stop();
+                                });
+                            }
                             error_message.set(None);
                         }
                         Err(e) => {
@@ -118,7 +126,7 @@ mod wasm32 {
             }
         });
 
-        // --- Cleanup effect using the idiomatic `use_on_unmount` hook ---
+        // --- Cleanup effect (Unchanged) ---
         use_on_unmount(move || {
             if let Some(stream) = video_stream.take() {
                 stream
@@ -129,85 +137,65 @@ mod wasm32 {
 
         /// This function is called repeatedly to scan for QR codes.
         let scan_frame = move || {
-            let video_element: Option<HtmlVideoElement> =
-                get_element_by_id("qr-video");
-            let canvas_element: Option<HtmlCanvasElement> =
-                get_element_by_id("qr-canvas");
+            let video_element: Option<HtmlVideoElement> = get_element_by_id("qr-video");
+            let canvas_element: Option<HtmlCanvasElement> = get_element_by_id("qr-canvas");
 
             if let (Some(video), Some(canvas)) = (video_element, canvas_element) {
-                let width = video.video_width();
-                let height = video.video_height();
-
-                if width == 0 || height == 0 {
-                    return;
-                } // Video not ready
+                let (width, height) = (video.video_width(), video.video_height());
+                if width == 0 || height == 0 { return; }
 
                 canvas.set_width(width);
                 canvas.set_height(height);
 
-                let ctx = canvas
-                    .get_context("2d")
-                    .unwrap()
-                    .unwrap()
-                    .dyn_into::<web_sys::CanvasRenderingContext2d>()
-                    .unwrap();
-
-                ctx.draw_image_with_html_video_element(&video, 0.0, 0.0)
-                    .unwrap();
-
-                // Get image data from canvas
-                let image_data_result =
-                    ctx.get_image_data(0.0, 0.0, width as f64, height as f64);
+                let ctx = canvas.get_context("2d").unwrap().unwrap().dyn_into::<web_sys::CanvasRenderingContext2d>().unwrap();
+                ctx.draw_image_with_html_video_element(&video, 0.0, 0.0).unwrap();
+                let image_data_result = ctx.get_image_data(0.0, 0.0, width as f64, height as f64);
 
                 if let Ok(image_data) = image_data_result {
-                    // Convert RGBA to grayscale for rqrr
-                    let mut luma_data: Vec<u8> = image_data
-                        .data()
-                        .0
-                        .chunks_exact(4)
-                        .map(|pixel| {
-                            // Using a standard luma conversion formula
-                            (pixel[0] as f32 * 0.299
-                                + pixel[1] as f32 * 0.587
-                                + pixel[2] as f32 * 0.114) as u8
-                        })
-                        .collect();
+                    let luma_data: Vec<u8> = image_data.data().0.chunks_exact(4).map(|p| (p[0] as f32 * 0.299 + p[1] as f32 * 0.587 + p[2] as f32 * 0.114) as u8).collect();
+                    if let Some(image) = image::GrayImage::from_raw(width, height, luma_data) {
+                        let mut img = rqrr::PreparedImage::prepare(image);
+                        let grids = img.detect_grids();
 
-                    // --- NEW: Contrast Enhancement Logic ---
-                    // Find the min and max brightness values in the current frame.
-                    let mut min_luma = 255u8;
-                    let mut max_luma = 0u8;
-                    for &pixel in &luma_data {
-                        if pixel < min_luma { min_luma = pixel; }
-                        if pixel > max_luma { max_luma = pixel; }
-                    }
+                        if let Some(grid) = grids.first() {
+                            if let Ok((_meta, content)) = grid.decode() {
+                                if content.is_empty() { return; }
 
-                    // If the contrast is low (i.e., the range of brightness is small),
-                    // stretch the contrast to the full 0-255 range.
-                    let luma_range = max_luma.saturating_sub(min_luma);
-                    if luma_range > 0 && luma_range < 200 { // Heuristic threshold
-                        let scale = 255.0 / luma_range as f32;
-                        for pixel in &mut luma_data {
-                            // Apply the formula: new_pixel = (old_pixel - min) * scale
-                            let new_val = ((*pixel as f32 - min_luma as f32) * scale).round() as u8;
-                            *pixel = new_val;
-                        }
-                    }
-                    // --- End of new logic ---
+                                // --- SURGICAL FIX: Separated logic for static vs. animated ---
 
+                                // Case 1: Animated Frame Detected
+                                if content.starts_with('P') && content.chars().filter(|&c| c == '/').count() == 2 {
+                                    let parts: Vec<&str> = content.splitn(3, '/').collect();
+                                    if parts.len() == 3 {
+                                        if let (Ok(part_num), Ok(total)) = (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>()) {
+                                            if *total_parts.read() == 0 {
+                                                total_parts.set(total);
+                                            }
+                                            scanned_parts.write().insert(part_num, parts[2].to_string());
 
-                    // Use rqrr to decode the image
-                    let mut img = rqrr::PreparedImage::prepare(
-                        image::GrayImage::from_raw(width, height, luma_data).unwrap(),
-                    );
-                    let grids = img.detect_grids();
-
-                    if let Some(grid) = grids.first() {
-                        if let Ok((_meta, content)) = grid.decode() {
-                            if !content.is_empty() {
-                                on_scan.call(content);
-                                is_scanning.set(false);
-                                on_close.call(());
+                                            if scanned_parts.read().len() == total {
+                                                let mut result = String::new();
+                                                for i in 1..=total {
+                                                    if let Some(chunk) = scanned_parts.read().get(&i) {
+                                                        result.push_str(chunk);
+                                                    } else {
+                                                        error_message.set(Some(format!("Reassembly failed: Missing part {}", i)));
+                                                        return;
+                                                    }
+                                                }
+                                                is_scanning.set(false);
+                                                on_scan.call(result);
+                                                on_close.call(());
+                                            }
+                                        }
+                                    }
+                                }
+                                // Case 2: Static QR Code (YOUR ORIGINAL LOGIC, REORDERED TO FIX PANIC)
+                                else {
+                                    is_scanning.set(false); // Update state BEFORE closing
+                                    on_scan.call(content);
+                                    on_close.call(());     // Close component as the FINAL action
+                                }
                             }
                         }
                     }
@@ -215,12 +203,33 @@ mod wasm32 {
             }
         };
 
-        // --- Pre-build conditional UI elements to simplify the main rsx! macro ---
-
+        // --- UI Rendering (with addition of progress indicator) ---
         let error_display: Option<Element> = if let Some(err) = error_message() {
             Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
         } else {
-            None // Render nothing if no error
+            None
+        };
+
+        let progress_indicator: Option<Element> = if is_scanning() {
+            Some( if *total_parts.read() > 0 {
+                rsx! {
+                    div {
+                        style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
+                        label { "Scan Progress: {scanned_parts.read().len()} of {total_parts.read()}" },
+                        progress { max: "{total_parts.read()}", value: "{scanned_parts.read().len()}" }
+                    }
+                }
+            } else {
+                rsx! {
+                     div {
+                        style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
+                        label { "Aim camera at QR code..." },
+                        progress {}
+                    }
+                }
+            })
+        } else {
+            None
         };
 
         let scanner_display: Option<Element> = if is_scanning() {
@@ -234,7 +243,7 @@ mod wasm32 {
                         oncanplay: move |_| {
                             use gloo_timers::callback::Interval;
                             let scan_interval = Interval::new(250, scan_frame);
-                            scan_interval.forget(); // Leak to keep it running
+                            scan_interval.forget();
                         },
                     }
                     canvas { id: "qr-canvas", style: "display: none;" }
@@ -249,12 +258,10 @@ mod wasm32 {
             let options = devices.iter().enumerate().map(|(i, device)| {
                 let device_id = device.device_id();
                 let is_selected = *selected_device_id.read() == device_id;
-
                 let mut label = device.label();
                 if label.is_empty() {
                     label = format!("Camera {}", i + 1);
                 }
-
                 rsx! {
                     option {
                         key: "{device_id}",
@@ -264,7 +271,6 @@ mod wasm32 {
                     }
                 }
             });
-
             Some(rsx! {
                select {
                    aria_label: "Select Camera",
@@ -278,17 +284,14 @@ mod wasm32 {
             None
         };
 
-
         rsx! {
             div {
                 style: "display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: auto;",
                 h3 { "Scan QR Code" }
-
                 {error_display}
+                {progress_indicator}
                 {scanner_display}
                 {device_selector}
-
-                // --- Action Buttons ---
                 div {
                     style: "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;",
                     button {
@@ -312,49 +315,29 @@ mod wasm32 {
         }
     }
 
-    /// A private helper function to get a DOM element by its ID. This function
-    /// only exists in the wasm32 module as it is a web-only concept.
     fn get_element_by_id<T: wasm_bindgen::JsCast>(id: &str) -> Option<T> {
-        web_sys::window()?
-            .document()?
-            .get_element_by_id(id)
-            .and_then(|element| element.dyn_into::<T>().ok())
+        web_sys::window()?.document()?.get_element_by_id(id).and_then(|element| element.dyn_into::<T>().ok())
     }
 
-    /// Helper function to start the video stream on web.
     async fn start_video_stream(device_id: String) -> Result<MediaStream, JsValue> {
         let window = web_sys::window().expect("no global `window` exists");
         let navigator = window.navigator();
         let media_devices = navigator.media_devices()?;
-
         let mut constraints = MediaStreamConstraints::new();
         let mut video_constraints = web_sys::MediaTrackConstraints::new();
-
         if !device_id.is_empty() {
             video_constraints.device_id(&device_id.into());
         }
-
-        // --- FIX: Correctly build the nested JS object for advanced constraints ---
         let advanced_constraint = js_sys::Object::new();
-
-        // Build width object: { ideal: 4096 }
         let width_constraint = js_sys::Object::new();
         js_sys::Reflect::set(&width_constraint, &"ideal".into(), &4096.into())?;
-
-        // Build height object: { ideal: 2160 }
         let height_constraint = js_sys::Object::new();
         js_sys::Reflect::set(&height_constraint, &"ideal".into(), &2160.into())?;
-
-        // Set properties on the main advanced constraint object
         js_sys::Reflect::set(&advanced_constraint, &"width".into(), &width_constraint)?;
         js_sys::Reflect::set(&advanced_constraint, &"height".into(), &height_constraint)?;
-
         video_constraints.advanced(&js_sys::Array::of1(&advanced_constraint));
-
-
         constraints.video(&video_constraints.into());
         constraints.audio(&JsValue::from(false));
-
         let stream_promise = media_devices.get_user_media_with_constraints(&constraints)?;
         let stream = JsFuture::from(stream_promise).await?;
         Ok(MediaStream::from(stream))
@@ -365,36 +348,21 @@ mod wasm32 {
 #[cfg(not(target_arch = "wasm32"))]
 mod non_wasm32 {
     use dioxus::prelude::*;
-
-    /// A component that provides multiple methods for scanning a QR code.
-    /// On desktop, this is currently a placeholder.
     #[component]
     pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> Element {
-        // Mark `on_scan` as used to prevent the compiler from renaming it with a
-        // leading underscore, which would break the component's public API on
-        // the `send` screen.
         let _ = on_scan;
-
         let mut error_message = use_signal(|| None::<String>);
-
-        // By building the optional error message element outside the main rsx! block,
-        // we simplify the code that the macro needs to parse.
         let error_display: Option<Element> = if let Some(err) = error_message() {
             Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
         } else {
             None
         };
-
         rsx! {
             div {
                 style: "display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: auto;",
                 h3 { "Scan QR Code" }
-
-                // Render the pre-built error element here
                 {error_display}
-
                 p { "Desktop camera access is not yet implemented." }
-
                 div {
                     style: "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;",
                     button {
