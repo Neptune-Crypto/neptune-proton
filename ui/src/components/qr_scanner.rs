@@ -128,7 +128,7 @@ mod wasm32 {
 
         // --- Cleanup effect (Unchanged) ---
         use_on_unmount(move || {
-            if let Some(stream) = video_stream.take() {
+            if let Some(stream) = video_stream.read().as_ref() {
                 stream
                     .get_tracks()
                     .for_each(&mut |track, _, _| web_sys::MediaStreamTrack::from(track).stop());
