@@ -3,12 +3,6 @@ name = "ui"
 version = "0.1.0"
 edition = "2021"
 
-#[features]
-#default = []
-# Ensure image and rqrr are part of the desktop feature
-#desktop = ["dioxus-desktop", "rqrr", "image"] 
-#web = ["dioxus-web"]
-
 [dependencies]
 dioxus = { workspace = true, features = ["web", "fullstack", "logger"] }
 dioxus-logger.workspace = true
@@ -44,6 +38,11 @@ itertools = "0.14.0"
 tokio = { version = "1.47.1", features = ["time"] }
 dioxus-clipboard = "0.2.0"
 rqrr = "0.10"
-image = "0.25"
 js-sys = "0.3.69"
 anyhow = "1.0.100"
+image = { version = "0.25", features = ["jpeg"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+camera_capture = "0.5.0"
+# For native camera access
+base64 = "0.22"

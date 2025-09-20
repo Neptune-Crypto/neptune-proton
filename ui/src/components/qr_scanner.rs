@@ -294,22 +294,151 @@ mod wasm32 {
 #[cfg(not(target_arch = "wasm32"))]
 mod non_wasm32 {
     use dioxus::prelude::*;
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+
+    use base64::engine::{general_purpose::STANDARD as BASE64_STANDARD, Engine};
+
     #[component]
     pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> Element {
-        let _ = on_scan;
-        let error_message = use_signal(|| None::<String>);
+        let mut error_message = use_signal(|| None::<String>);
+        let mut is_scanning = use_signal(|| false);
+        let mut frame_data_uri = use_signal(String::new);
+        let mut scanned_parts = use_signal(HashMap::<usize, String>::new);
+        let mut total_parts = use_signal(|| 0_usize);
 
-        let error_display: Option<Element> = if let Some(err) = error_message.read().as_ref() {
-            Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
-        } else {
-            None
-        };
+        let mut stop_signal = use_signal(|| Arc::new(Mutex::new(false)));
+
+        use_effect(move || {
+            let on_scan_owned = on_scan.to_owned();
+            let on_close_owned = on_close.to_owned();
+            let stop_signal_clone = stop_signal.read().clone();
+
+            spawn(async move {
+                is_scanning.set(true);
+                error_message.set(None);
+
+                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+                // Use tokio::task::spawn_blocking for the long-running, CPU-bound camera process.
+                // This will run on a dedicated thread pool, so it won't block the main async loop.
+                let _blocking_task = tokio::task::spawn_blocking(move || {
+                    let cam_result = camera_capture::create(0)
+                        .and_then(|builder| builder.fps(15.0).unwrap().start());
+
+                    let cam = match cam_result {
+                        Ok(c) => c,
+                        Err(e) => {
+                            let _ = tx.send(Message::Error(e.to_string()));
+                            return;
+                        }
+                    };
+
+                    for frame in cam {
+                        if *stop_signal_clone.lock().unwrap() {
+                            break;
+                        }
+
+                        // Send image data to the main thread
+                        let (width, height) = (frame.width(), frame.height());
+                        let raw_pixels: Vec<u8> = frame.to_vec();
+                        let modern_buffer = image::ImageBuffer::<image::Rgb<u8>, _>::from_raw(width, height, raw_pixels)
+                            .expect("Failed to create modern image buffer from raw pixels");
+                        let dyn_image = image::DynamicImage::ImageRgb8(modern_buffer);
+
+                        let mut buf = vec![];
+                        dyn_image.write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Jpeg).unwrap();
+                        let b64 = BASE64_STANDARD.encode(&buf);
+                        let _ = tx.send(Message::Frame(format!("data:image/jpeg;base64,{}", b64)));
+
+                        // QR code detection
+                        let luma_data = dyn_image.to_luma8();
+                        let (w, h) = luma_data.dimensions();
+                        if let Some(image) = image::GrayImage::from_raw(w, h, luma_data.into_raw()) {
+                            let mut img = rqrr::PreparedImage::prepare(image);
+                            if let Some(grid) = img.detect_grids().first() {
+                                if let Ok((_meta, content)) = grid.decode() {
+                                    if !content.is_empty() {
+                                        let _ = tx.send(Message::Content(content));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    let _ = tx.send(Message::Done);
+                });
+
+                // The Tokio task on the main thread receives messages from the worker thread.
+                while let Some(msg) = rx.recv().await {
+                    match msg {
+                        Message::Error(e) => {
+                            error_message.set(Some(format!("Failed to start camera: {}", e)));
+                            is_scanning.set(false);
+                            on_close_owned.call(());
+                            break;
+                        },
+                        Message::Frame(uri) => {
+                            frame_data_uri.set(uri);
+                        },
+                        Message::Content(content) => {
+                            // Handle QR code content and update signals
+                            if !content.starts_with('P') || content.chars().filter(|&c| c == '/').count() != 2 {
+                                on_scan_owned.call(content);
+                                break;
+                            } else {
+                                let parts: Vec<&str> = content.splitn(3, '/').collect();
+                                if parts.len() == 3 {
+                                    if let (Ok(part_num), Ok(total)) = (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>()) {
+                                        if *total_parts.read() == 0 { total_parts.set(total); }
+                                        scanned_parts.write().entry(part_num).or_insert_with(|| parts[2].to_string());
+                                        if scanned_parts.read().len() == *total_parts.read() {
+                                            let mut result = String::new();
+                                            let reassembly_ok = (1..=*total_parts.read()).all(|i| {
+                                                scanned_parts.read().get(&i).map(|chunk| result.push_str(chunk)).is_some()
+                                            });
+                                            if reassembly_ok {
+                                                on_scan_owned.call(result);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        Message::Done => {
+                            on_close_owned.call(());
+                            is_scanning.set(false);
+                            break;
+                        }
+                    }
+                }
+            });
+        });
+
+        // Communication message enum
+        enum Message {
+            Frame(String),
+            Content(String),
+            Error(String),
+            Done,
+        }
+
+        use_drop(move || {
+            *stop_signal.write().lock().unwrap() = true;
+        });
+
+        // --- UI Rendering ---
+        let error_display = if let Some(err) = error_message.read().as_ref() { Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } }) } else { None };
+        let progress_indicator = if *is_scanning.read() { Some( if *total_parts.read() > 0 { rsx! { div { style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;", label { "Scan Progress: {scanned_parts.read().len()} of {total_parts.read()}" }, progress { max: "{total_parts.read()}", value: "{scanned_parts.read().len()}" } } } } else { rsx! { div { style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;", label { "Aim camera at QR code..." }, progress {} } } }) } else { None };
+        let scanner_display = if *is_scanning.read() && !frame_data_uri.read().is_empty() { Some(rsx! { div { style: "position: relative; width: 100%; max-width: 400px; margin: auto; border-radius: var(--pico-border-radius); overflow: hidden; border: 1px solid var(--pico-form-element-border-color);", img { src: "{frame_data_uri.read()}", style: "width: 100%; height: auto; display: block;" } } }) } else { None };
+
         rsx! {
             div {
                 style: "display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: auto;",
                 h3 { "Scan QR Code" }
                 {error_display}
-                p { "Desktop camera access is not yet implemented." }
+                {progress_indicator}
+                {scanner_display}
                 div {
                     style: "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;",
                     button {
