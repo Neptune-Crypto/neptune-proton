@@ -7440,6 +7440,7 @@ dependencies = [
  "camera_capture",
  "dioxus",
  "dioxus-clipboard",
+ "dioxus-desktop",
  "dioxus-logger",
  "dioxus-web",
  "gloo-timers",

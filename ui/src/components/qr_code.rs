@@ -1,12 +1,11 @@
-
-
-
 //=============================================================================
 // File: src/components/qr_code.rs
 //=============================================================================
 use dioxus::prelude::*;
 use qrcode::{QrCode, EcLevel};
 use qrcode::render::svg;
+use crate::compat::interval::Interval;
+use std::time::Duration;
 
 #[derive(Props, Clone, PartialEq)]
 pub struct QrCodeProps {
@@ -20,14 +19,14 @@ pub struct QrCodeProps {
 #[allow(non_snake_case)]
 pub fn QrCode(props: QrCodeProps) -> Element {
     // The maximum number of alphanumeric characters for a simple, scannable QR code.
-    // Version 10, Level L is a good target.
+    // Version 10, Level H is a good target.
     const CHUNK_SIZE: usize = 120;
 
     let uppercased_data = props.data.to_uppercase();
 
     // If the data is small enough, render a single static QR code.
     if uppercased_data.len() <= CHUNK_SIZE {
-        match QrCode::with_error_correction_level(uppercased_data.as_bytes(), EcLevel::L) {
+        match QrCode::with_error_correction_level(uppercased_data.as_bytes(), EcLevel::H) {
             Ok(code) => {
                 let image = code.render::<svg::Color>()
                     .min_dimensions(200, 200)
@@ -63,7 +62,8 @@ pub fn QrCode(props: QrCodeProps) -> Element {
         rsx! {
             AnimatedQrCode {
                 data: uppercased_data,
-                tooltip: props.tooltip.clone()
+                tooltip: props.tooltip.clone(),
+                caption: props.caption.clone()
             }
         }
     }
@@ -74,18 +74,22 @@ pub fn QrCode(props: QrCodeProps) -> Element {
 struct AnimatedQrCodeProps {
     data: String,
     tooltip: Option<String>,
+    caption: Option<String>,
 }
 
 #[allow(non_snake_case)]
 fn AnimatedQrCode(props: AnimatedQrCodeProps) -> Element {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
     const CHUNK_SIZE: usize = 120;
     let mut current_frame = use_signal(|| 0);
-    // A signal to hold the timer interval so we can clean it up later.
-    let mut interval_handle = use_signal::<Option<gloo_timers::callback::Interval>>(|| None);
+    // `use_hook` is the correct hook in Dioxus 0.6.3 to initialize a
+    // persistent, non-reactive value once.
+    let stop_flag = use_hook(|| Arc::new(AtomicBool::new(false)));
 
     let data = props.data.clone();
 
-    // use_memo will chunk the data and create the formatted frames once.
     let frames = use_memo(move || {
         let chunks: Vec<_> = props.data.chars().collect::<Vec<char>>()
             .chunks(CHUNK_SIZE)
@@ -95,33 +99,46 @@ fn AnimatedQrCode(props: AnimatedQrCodeProps) -> Element {
         let total_parts = chunks.len();
 
         chunks.into_iter().enumerate().map(|(i, chunk)| {
-            // Format: P<part_num>/<total_parts>/<data_chunk>
-            // Part numbers are 1-based for user readability.
             format!("P{}/{}/{}", i + 1, total_parts, chunk)
         }).collect::<Vec<String>>()
     });
 
-    // This effect runs once to set up the timer.
-    use_effect(move || {
-        let new_interval = gloo_timers::callback::Interval::new(300, move || {
-            let total_frames = frames.read().len();
-            if total_frames > 0 {
-                current_frame.with_mut(|frame| {
-                    *frame = (*frame + 1) % total_frames;
-                });
-            }
-        });
-        // Store the interval's handle in our signal.
-        interval_handle.set(Some(new_interval));
+    // This effect runs once on mount to start the background timer.
+    use_effect({
+        let stop_flag = stop_flag.clone();
+        move || {
+            let frames = frames.to_owned();
+
+            let stop_flag = stop_flag.clone();
+            spawn(async move {
+                loop {
+                    // Check if the component has been unmounted.
+                    if stop_flag.load(Ordering::Relaxed) {
+                        break;
+                    }
+
+                    // Use a standard async sleep.
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+
+                    let total_frames = frames.read().len();
+                    if total_frames > 0 {
+                        current_frame.with_mut(|frame| {
+                            *frame = (*frame + 1) % total_frames;
+                        });
+                    }
+                }
+            });
+        }
     });
 
-    // This hook runs when the component is unmounted.
-    use_on_unmount(move || {
-        // Taking the value from the signal causes the Interval to be dropped,
-        // which automatically stops and cleans up the timer.
-        interval_handle.take();
+    // This runs when the component is unmounted.
+    use_on_unmount({
+        let stop_flag = stop_flag.clone();
+        move || {
+            // Signal the background task to stop. This does not trigger a rerender.
+            stop_flag.store(true, Ordering::Relaxed);
+        }
     });
-
 
     let frame_data = &frames.read()[*current_frame.read()];
 
@@ -132,7 +149,8 @@ fn AnimatedQrCode(props: AnimatedQrCodeProps) -> Element {
                 .build();
 
             let tooltip_text = props.tooltip.as_deref().unwrap_or(&data);
-            let caption_text = format!("Part {} of {}", *current_frame.read() + 1, frames.read().len());
+            let caption_text = props.caption.as_deref().unwrap_or(&data);
+            let frame_text = format!("Part {} of {}", *current_frame.read() + 1, frames.read().len());
 
             rsx! {
                 figure {
@@ -145,6 +163,10 @@ fn AnimatedQrCode(props: AnimatedQrCodeProps) -> Element {
                         style: "text-align: center; font-size: 14px; margin-top: 8px;",
                         "{caption_text}"
                     }
+                    figcaption {
+                        style: "text-align: center; font-size: 14px; margin-top: 8px;",
+                        "{frame_text}"
+                    }
                 }
             }
         },
@@ -156,4 +178,3 @@ fn AnimatedQrCode(props: AnimatedQrCodeProps) -> Element {
         }
     }
 }
-

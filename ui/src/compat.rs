@@ -11,6 +11,43 @@ pub mod wasm32 {
     use wasm_bindgen_futures::JsFuture;
     use web_sys::{self, Navigator, Window, Clipboard};
 
+    pub mod interval {
+
+        pub struct Interval {
+            inner: Option<gloo_timers::callback::Interval>,
+            rx: Arc<Mutex<mpsc::Receiver<()>>>,
+        }
+
+        impl Interval {
+            pub fn new(duration: Duration) -> Self {
+                let (tx, rx) = mpsc::unbounded_channel();
+
+                let tx_clone = tx.clone();
+                let gloo_interval =  gloo_timers::callback::Interval::new(duration.as_millis() as u32, move || {
+                    let _ = tx_clone.send(());
+                });
+
+                Self {
+                    inner: Some(gloo_interval),
+                    rx: Arc::new(Mutex::new(rx)),
+                }
+            }
+
+            pub async fn tick(&mut self) {
+                let mut rx_lock = self.rx.lock().await;
+                let _ = rx_lock.recv().await;
+            }
+        }
+
+        impl Drop for Interval {
+            fn drop(&mut self) {
+                if let Some(inner) = self.inner.take() {
+                    drop(inner);
+                }
+            }
+        }
+    }
+
     pub async fn sleep(duration: Duration) {
         gloo_timers::future::sleep(duration).await;
     }
@@ -39,6 +76,26 @@ pub mod non_wasm32 {
     use std::time::Duration;
     use dioxus::prelude::*;
     use dioxus_clipboard::prelude::*;
+
+    pub mod interval {
+        use tokio::time::{self, Duration};
+
+        pub struct Interval {
+            inner: tokio::time::Interval,
+        }
+
+        impl Interval {
+            pub fn new(duration: Duration) -> Self {
+                let mut interval = time::interval(duration);
+                interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+                Self { inner: interval }
+            }
+
+            pub async fn tick(&mut self) {
+                self.inner.tick().await;
+            }
+        }
+    }
 
     pub async fn sleep(duration: Duration) {
         tokio::time::sleep(duration).await;

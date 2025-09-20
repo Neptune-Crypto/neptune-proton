@@ -342,7 +342,8 @@ pub fn SendScreen() -> Element {
                     }
                 },
                 Err(e) => {
-                    error_modal_message.set(format!("Invalid Address from QR: {}", e));
+                    error_modal_message.set(format!("Invalid Address from QR: {}.  found: {}", e, scanned_text));
+                    // error_modal_message.set(format!("Invalid Address from QR: {}", e));
                     show_error_modal.set(true);
                 }
             }

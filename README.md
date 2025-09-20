@@ -59,6 +59,9 @@ As of 2025-07-09:
 2. Dioxus 0.6 -- [Instructions](https://dioxuslabs.com/learn/0.6/getting_started/)
 3. neptune-core -- [Instructions](https://github.com/Neptune-Crypto/neptune-core/)
 
+for desktop platform:
+* libv4l-dev  ubuntu: apt install libv4l-dev
+
 ### Start neptune-core
 
 start neptune-core, if not already running, listening on the default RPC port. In this example we will use the regtest network, which generates transactions and blocks quickly.
