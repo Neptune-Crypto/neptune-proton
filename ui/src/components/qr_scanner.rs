@@ -87,7 +87,7 @@ mod wasm32 {
                 let _stream_guard = StreamGuard(stream);
 
                 loop {
-                    crate::compat::sleep(std::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                     let video_element: Option<HtmlVideoElement> = get_element_by_id("qr-video");
                     let canvas_element: Option<HtmlCanvasElement> = get_element_by_id("qr-canvas");
 
@@ -346,11 +346,13 @@ mod desktop {
     // This code block will only be compiled if the `desktop` feature is enabled.
     use base64::engine::{general_purpose::STANDARD as BASE64_STANDARD, Engine};
     use dioxus::prelude::*;
+    use futures::StreamExt;
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
     use dioxus_desktop::use_window;
 
+    #[derive(Debug)]
     enum Message {
         Frame((Vec<u8>, u32, u32)),
         Content(String),
@@ -363,8 +365,12 @@ mod desktop {
         stop_signal: Arc<Mutex<bool>>,
     ) {
         std::thread::spawn(move || {
-            let cam_result = camera_capture::create(0)
-                .and_then(|builder| builder.fps(15.0).unwrap().start());
+            let cam_result = camera_capture::create(0).map_err(|e| e.into()).and_then(|builder| {
+                builder
+                    .fps(15.0)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+                    .and_then(|b| b.start().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))))
+            });
 
             let cam = match cam_result {
                 Ok(c) => c,
@@ -390,6 +396,7 @@ mod desktop {
 
                 // Only perform expensive QR detection on a timer.
                 if last_scan_time.elapsed() >= scan_interval {
+                    last_scan_time = Instant::now();
                     let luma_data: Vec<u8> = raw_pixels
                         .chunks_exact(3)
                         .map(|p| {
@@ -409,7 +416,6 @@ mod desktop {
                             }
                         }
                     }
-                    last_scan_time = Instant::now();
                 }
             }
             let _ = tx.send(Message::Done);
@@ -422,34 +428,23 @@ mod desktop {
         let mut is_scanning = use_signal(|| false);
         let mut scanned_parts = use_signal(HashMap::<usize, String>::new);
         let mut total_parts = use_signal(|| 0_usize);
-        let mut stop_signal = use_signal(|| Arc::new(Mutex::new(false)));
+        let stop_signal = use_hook(|| Arc::new(Mutex::new(false)));
+        let stop_signal2 = stop_signal.clone();
+        let stop_signal3 = stop_signal.clone();
         let mut frame_dims = use_signal(|| (0u32, 0u32));
-        let mut js_to_run = use_signal(String::new);
+
         let window = use_window();
 
-        // This effect runs on the main UI thread whenever `js_to_run` changes.
-        use_effect(move || {
-            let code = js_to_run.read().clone();
-            if !code.is_empty() {
-                // It is safe to call window methods here.
-                // The correct method is `evaluate_script` on the `webview` field.
-                let _ = window.webview.evaluate_script(&code);
-            }
-        });
+        // This coroutine runs on the main thread and handles all state updates.
+        let state_updater = use_coroutine(move |mut rx: futures_channel::mpsc::UnboundedReceiver<Message>| {
+            // Clone the Arcs/handles needed for the async block inside.
+            let window = window.clone();
+            let on_scan = on_scan.clone();
+            let on_close = on_close.clone();
+            let stop_signal = stop_signal.clone();
 
-        // This effect manages the background camera thread.
-        use_effect(move || {
-            let on_scan_owned = on_scan.to_owned();
-            let on_close_owned = on_close.to_owned();
-            let stop_signal_clone = stop_signal.read().clone();
-
-            spawn(async move {
-                is_scanning.set(true);
-                error_message.set(None);
-                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-                start_camera_thread(tx, stop_signal_clone.clone());
-
-                while let Some(msg) = rx.recv().await {
+            async move {
+                while let Some(msg) = rx.next().await {
                     match msg {
                         Message::Error(e) => {
                             error_message.set(Some(e));
@@ -491,16 +486,14 @@ mod desktop {
                                 }}
                                 "#,
                             );
-
-                            // Set the signal to trigger the effect on the main thread.
-                            js_to_run.set(js_code);
+                            let _ = window.webview.evaluate_script(&js_code);
                         }
                         Message::Content(content) => {
                             if !content.starts_with('P')
                                 || content.chars().filter(|&c| c == '/').count() != 2
                             {
-                                on_scan_owned.call(content);
-                                *stop_signal_clone.lock().unwrap() = true;
+                                on_scan.call(content);
+                                *stop_signal.lock().unwrap() = true;
                             } else {
                                 let parts: Vec<&str> = content.splitn(3, '/').collect();
                                 if parts.len() == 3 {
@@ -526,8 +519,8 @@ mod desktop {
                                                         .is_some()
                                                 });
                                             if reassembly_ok {
-                                                on_scan_owned.call(result);
-                                                *stop_signal_clone.lock().unwrap() = true;
+                                                on_scan.call(result);
+                                                *stop_signal.lock().unwrap() = true;
                                             }
                                         }
                                     }
@@ -535,17 +528,38 @@ mod desktop {
                             }
                         }
                         Message::Done => {
-                            on_close_owned.call(());
+                            on_close.call(());
                             is_scanning.set(false);
                             break;
                         }
                     }
                 }
+            }
+        });
+
+        // This effect manages the background camera thread. Its only job
+        // is to forward messages to the state_updater coroutine.
+        use_effect(move || {
+            let state_updater_clone = state_updater.clone();
+            let stop_signal_clone = stop_signal2.clone();
+
+            spawn(async move {
+                is_scanning.set(true);
+                error_message.set(None);
+                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+                start_camera_thread(tx, stop_signal_clone);
+
+                while let Some(msg) = rx.recv().await {
+                    state_updater_clone.send(msg);
+                }
             });
         });
 
-        use_drop(move || {
-            *stop_signal.write().lock().unwrap() = true;
+        use_drop({
+            let stop_signal = stop_signal3.clone();
+            move || {
+                *stop_signal.lock().unwrap() = true;
+            }
         });
 
         let error_display = if let Some(err) = error_message.read().as_ref() {

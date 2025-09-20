@@ -47,6 +47,8 @@ camera_capture = "0.5.0"
 # For native camera access
 base64 = "0.22"
 dioxus-desktop = { version = "0.6.3", optional = true }
+futures = "0.3.31"
+futures-channel = "0.3.31"
 
 #[features]
 # This links the optional dioxus-desktop dependency to the existing "desktop"

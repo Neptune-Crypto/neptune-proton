@@ -7443,6 +7443,8 @@ dependencies = [
  "dioxus-desktop",
  "dioxus-logger",
  "dioxus-web",
+ "futures",
+ "futures-channel",
  "gloo-timers",
  "image 0.25.8",
  "itertools 0.14.0",
