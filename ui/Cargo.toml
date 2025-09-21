@@ -49,6 +49,7 @@ base64 = "0.22"
 dioxus-desktop = { version = "0.6.3", optional = true }
 futures = "0.3.31"
 futures-channel = "0.3.31"
+rfd = { version = "0.14.1", default-features = false, features = ["tokio"] }
 
 #[features]
 # This links the optional dioxus-desktop dependency to the existing "desktop"
