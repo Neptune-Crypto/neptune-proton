@@ -93,7 +93,10 @@ fn Tabs(active_screen: Signal<Screen>) -> Element {
                                 };
                                 if is_active { "page" } else { "false" }
                             },
-                            onclick: move |_| active_screen.set(screen.clone()),
+                            onclick: move |event| {
+                                event.prevent_default();
+                                active_screen.set(screen.clone());
+                            },
                             "{screen.name()}"
                         }
                     }
@@ -128,7 +131,8 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                         a {
                             class: if *active_screen.read() == screen { "custom-dropdown-item active-tab" } else { "custom-dropdown-item" },
                             href: "#",
-                            onclick: move |_| {
+                            onclick: move |event| {
+                                event.prevent_default();
                                 active_screen.set(screen.clone());
                                 is_open.set(false);
                             },
@@ -139,7 +143,8 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                     a {
                         class: "custom-dropdown-item",
                         href: "#",
-                        onclick: move |_| {
+                        onclick: move |event| {
+                            event.prevent_default();
                             view_mode.set(ViewMode::Desktop);
                             is_open.set(false);
                         },
