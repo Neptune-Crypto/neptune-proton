@@ -6,6 +6,9 @@
 #[cfg(target_arch = "wasm32")]
 pub use self::wasm32::*;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use self::server::*;
+
 #[cfg(feature = "dioxus-desktop")]
 pub use self::desktop::*;
 
@@ -88,7 +91,7 @@ mod wasm32 {
                 let _stream_guard = StreamGuard(stream);
 
                 loop {
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    crate::compat::sleep(std::time::Duration::from_millis(100)).await;
                     let video_element: Option<HtmlVideoElement> = get_element_by_id("qr-video");
                     let canvas_element: Option<HtmlCanvasElement> = get_element_by_id("qr-canvas");
 
@@ -499,6 +502,18 @@ mod desktop {
         }
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+mod server {
+    use dioxus::prelude::*;
+
+    #[component]
+    #[allow(unused_variables)]
+    pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> Element {
+        unimplemented!()
+    }
+}
+
 
 /// Contains the QR scanner implementation for mobile platforms.
 #[cfg(any(target_os = "android", target_os = "ios"))]

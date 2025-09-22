@@ -319,13 +319,6 @@ pub fn SendScreen() -> Element {
                     "Upload QR Image"
                 },
                 Button {
-                    on_click: move |_| {
-                        error_modal_message.set("Paste QR from clipboard not yet implemented.".to_string());
-                        show_error_modal.set(true);
-                    },
-                    "Paste QR image from Clipboard"
-                },
-                Button {
                     button_type: ButtonType::Secondary,
                     outline: true,
                     on_click: move |_| is_address_actions_modal_open.set(false),
