@@ -6,3 +6,5 @@ pub mod block;
 pub mod pico;
 pub mod qr_code;
 pub mod qr_scanner;
+pub mod qr_processor;
+pub mod qr_uploader;

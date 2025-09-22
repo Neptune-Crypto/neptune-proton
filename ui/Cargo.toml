@@ -42,6 +42,13 @@ js-sys = "0.3.69"
 anyhow = "1.0.100"
 image = { version = "0.25", features = ["jpeg"] }
 
+# for upload and read SVG QR files.
+resvg = "0.41.0"
+usvg = "0.41.0"
+tiny-skia = "0.11.4"
+quick-xml = "0.31.0"
+# end SVG QR files
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 camera_capture = "0.5.0"
 # For native camera access

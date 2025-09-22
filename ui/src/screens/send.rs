@@ -5,8 +5,8 @@ use crate::components::address::Address;
 use crate::components::pico::{
     Button, ButtonType, Card, CloseButton, CopyButton, Grid, Input, Modal, NoTitleModal,
 };
-// Add the new QrScanner component
 use crate::components::qr_scanner::QrScanner;
+use crate::components::qr_uploader::QrUploader;
 use crate::AppState;
 use crate::Screen;
 use dioxus::dioxus_core::SpawnIfAsync;
@@ -16,36 +16,23 @@ use neptune_types::change_policy::ChangePolicy;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
 use neptune_types::output_format::OutputFormat;
+use neptune_types::transaction_details::TransactionDetails;
+use neptune_types::transaction_kernel_id::TransactionKernelId;
 use neptune_types::utxo_notification::UtxoNotificationMedium;
 use num_traits::Zero;
 use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
-use std::str::FromStr; // Import Display trait
+use std::str::FromStr;
 
-// Assuming these types are available in your crate or from neptune_types
-use neptune_types::transaction_details::TransactionDetails;
-use neptune_types::transaction_kernel_id::TransactionKernelId;
-// use neptune_types::transaction::{TxInputList, TxOutputList};
-// use neptune_types::time::Timestamp;
-use itertools::Itertools; // For .join(", ")
-
-// --- Data Structures ---
-
-/// A struct to hold the data for a single recipient with validated data.
 #[derive(Clone, PartialEq)]
 struct Recipient {
     address: Rc<ReceivingAddress>,
     amount: NativeCurrencyAmount,
 }
-
 impl From<Recipient> for OutputFormat {
-    fn from(r: Recipient) -> Self {
-        ((*r.address).clone(), r.amount).into()
-    }
+    fn from(r: Recipient) -> Self { ((*r.address).clone(), r.amount).into() }
 }
-
-/// A struct to hold the string data for a recipient row while it's being edited.
 #[derive(Clone, PartialEq, Debug)]
 struct EditableRecipient {
     address_str: String,
@@ -53,9 +40,7 @@ struct EditableRecipient {
     address_error: Option<String>,
     amount_error: Option<String>,
 }
-
 impl EditableRecipient {
-    /// Checks if the current editable data is valid.
     fn is_valid(&self, network: Network) -> bool {
         ReceivingAddress::from_bech32m(&self.address_str, network).is_ok()
             && match NativeCurrencyAmount::coins_from_str(&self.amount_str) {
@@ -64,7 +49,6 @@ impl EditableRecipient {
             }
     }
 }
-
 impl Default for EditableRecipient {
     fn default() -> Self {
         Self {
@@ -76,9 +60,6 @@ impl Default for EditableRecipient {
     }
 }
 
-// --- Components ---
-
-/// An editable row in the recipient grid.
 #[component]
 fn EditableRecipientRow(
     index: usize,
@@ -92,22 +73,15 @@ fn EditableRecipientRow(
     is_any_other_row_active: bool,
 ) -> Element {
     let network = use_context::<AppState>().network;
-
-    // --- Derived State (Optimized) ---
-    // Parse the address string once and reuse the result.
     let parsed_address = use_memo(move || {
         ReceivingAddress::from_bech32m(&recipient.read().address_str, network).ok()
     });
-
-    // Show the abbreviated address if valid, otherwise show the raw input.
     let display_address = use_memo(move || match parsed_address() {
         Some(addr) => addr
             .to_display_bech32m_abbreviated(network)
             .unwrap_or(recipient.read().address_str.clone()),
         None => recipient.read().address_str.clone(),
     });
-
-    // Check if the entire row is valid based on the parsed address and amount.
     let is_row_valid = use_memo(move || {
         let is_address_ok = parsed_address().is_some();
         let is_amount_ok = match NativeCurrencyAmount::coins_from_str(&recipient.read().amount_str)
@@ -122,22 +96,15 @@ fn EditableRecipientRow(
         div {
             class: if is_active { "recipient-row active" } else { "recipient-row" },
             style: "border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); padding: 1rem; margin-bottom: 1rem;",
-
-            // --- Top Bar: Label and Action Buttons ---
             div {
                 style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
                 label {
                     style: "margin-bottom: 0;",
-                    if is_active {
-                        "Recipient Address"
-                    } else {
-                        "Recipient"
-                    }
+                    if is_active { "Recipient Address" } else { "Recipient" }
                 }
                 div {
                     style: "display: flex; gap: 0.5rem; align-items: center;",
                     if is_active {
-                        // Show "Done" button when active
                         Button {
                            button_type: ButtonType::Primary,
                            on_click: move |evt: MouseEvent| {
@@ -148,7 +115,6 @@ fn EditableRecipientRow(
                            "Done"
                         }
                     } else {
-                        // Show "Edit" button when inactive
                         Button {
                            button_type: ButtonType::Secondary,
                            outline: true,
@@ -170,10 +136,7 @@ fn EditableRecipientRow(
                     }
                 }
             }
-
-            // --- Main Content: Toggles between Static Text and Editable Form ---
             if is_active {
-                // State: ACTIVE (Editable Form)
                 div {
                     key: "active-form-{index}",
                     div {
@@ -193,7 +156,6 @@ fn EditableRecipientRow(
                     if let Some(err) = &recipient.read().address_error {
                         small { style: "color: var(--pico-color-red-500);", "{err}" }
                     }
-
                     div {
                         style: "margin-top: 0.75rem;",
                         label { "Amount" }
@@ -207,7 +169,6 @@ fn EditableRecipientRow(
                             on_input: move |event: FormEvent| {
                                 recipient.with_mut(|r| {
                                     r.amount_str = event.value().clone();
-                                    // Real-time validation
                                     match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
                                         Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
                                         _ => r.amount_error = Some("Invalid amount".to_string()),
@@ -221,7 +182,6 @@ fn EditableRecipientRow(
                     }
                 }
             } else {
-                // State: INACTIVE (Static Text with improved layout)
                 div {
                     key: "inactive-display-{index}",
                     style: "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.25rem;",
@@ -232,9 +192,7 @@ fn EditableRecipientRow(
                              code { "{display_address}" }
                         }
                     }
-                    strong {
-                        "{recipient.read().amount_str}"
-                    }
+                    strong { "{recipient.read().amount_str}" }
                 }
             }
         }
@@ -245,92 +203,63 @@ fn EditableRecipientRow(
 pub fn SendScreen() -> Element {
     let network = use_context::<AppState>().network;
 
-    // --- Wizard State ---
     #[derive(PartialEq, Clone, Copy)]
-    enum WizardStep {
-        AddRecipients,
-        Review,
-        Status,
-    }
+    enum WizardStep { AddRecipients, Review, Status }
     let mut wizard_step = use_signal(|| WizardStep::AddRecipients);
-
-    // --- Main State ---
-    // Updated api_response to hold the actual result or error string
-    let mut api_response = use_signal::<
-        Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>,
-    >(|| None);
+    let mut api_response = use_signal::<Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>>(|| None);
     let mut recipients = use_signal(move || vec![Signal::new(EditableRecipient::default())]);
     let mut fee_str = use_signal(String::new);
     let mut active_row_index = use_signal::<Option<usize>>(|| Some(0));
-
-    // --- Modal State ---
     let mut is_address_actions_modal_open = use_signal(|| false);
     let mut action_target_index = use_signal::<Option<usize>>(|| None);
-    let mut is_qr_modal_open = use_signal(|| false);
+    let mut is_qr_scanner_modal_open = use_signal(|| false);
+    let mut is_qr_upload_modal_open = use_signal(|| false);
     let mut show_error_modal = use_signal(|| false);
     let mut error_modal_message = use_signal(String::new);
     let mut show_duplicate_warning_modal = use_signal(|| false);
     let mut suppress_duplicate_warning = use_signal(|| false);
     let mut pending_address = use_signal::<Option<String>>(|| None);
-
-    // --- Validation State ---
     let mut fee_error = use_signal::<Option<String>>(|| None);
 
-    // --- Derived State ---
     let subtotal = use_memo(move || {
-        recipients
-            .read()
-            .iter()
-            .fold(NativeCurrencyAmount::zero(), |acc, r| {
-                let amount = NativeCurrencyAmount::coins_from_str(&r.read().amount_str)
-                    .unwrap_or_else(|_| NativeCurrencyAmount::zero());
-                acc + amount
-            })
+        recipients.read().iter().fold(NativeCurrencyAmount::zero(), |acc, r| {
+            let amount = NativeCurrencyAmount::coins_from_str(&r.read().amount_str).unwrap_or_else(|_| NativeCurrencyAmount::zero());
+            acc + amount
+        })
     });
     let total_spend = use_memo(move || {
-        let fee = NativeCurrencyAmount::coins_from_str(&fee_str())
-            .unwrap_or_else(|_| NativeCurrencyAmount::zero());
+        let fee = NativeCurrencyAmount::coins_from_str(&fee_str()).unwrap_or_else(|_| NativeCurrencyAmount::zero());
         subtotal() + fee
     });
     let is_any_row_active = use_memo(move || active_row_index().is_some());
     let is_form_fully_valid = use_memo(move || {
         let recs = recipients.read();
-        if recs.is_empty() {
-            return false;
-        }
+        if recs.is_empty() { return false; }
         let all_recipients_valid = recs.iter().all(|r| r.read().is_valid(network));
-        let fee_is_valid =
-            fee_str.read().is_empty() || NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
+        let fee_is_valid = fee_str.read().is_empty() || NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
         all_recipients_valid && fee_is_valid
     });
 
-    // --- Event Handlers ---
     let mut reset_screen = move || {
         recipients.set(vec![Signal::new(EditableRecipient::default())]);
         active_row_index.set(Some(0));
         fee_str.set(String::new());
         fee_error.set(None);
-        api_response.set(None); // Reset api_response
+        api_response.set(None);
         suppress_duplicate_warning.set(false);
         wizard_step.set(WizardStep::AddRecipients);
     };
 
-    // --- Get the global screen signal from the context ---
-    // This allows us to change the screen from within this component.
     let mut active_screen = use_context::<Signal<Screen>>();
 
-    // --- Handler for scanned QR data ---
     let mut handle_scanned_data = move |scanned_text: String| {
         if let Some(index) = action_target_index() {
             let mut target_recipient = recipients.read()[index];
-            // Validate before setting
             match ReceivingAddress::from_bech32m(&scanned_text, network) {
                 Ok(_) => {
-                    // Check for duplicates before committing
                     let is_duplicate = recipients.read().iter().enumerate().any(|(i, r)| {
                         if i == index { false } else { r.read().address_str == scanned_text }
                     });
-
                     if is_duplicate && !suppress_duplicate_warning() {
                         pending_address.set(Some(scanned_text));
                         show_duplicate_warning_modal.set(true);
@@ -343,7 +272,6 @@ pub fn SendScreen() -> Element {
                 },
                 Err(e) => {
                     error_modal_message.set(format!("Invalid Address from QR: {}.  found: {}", e, scanned_text));
-                    // error_modal_message.set(format!("Invalid Address from QR: {}", e));
                     show_error_modal.set(true);
                 }
             }
@@ -351,54 +279,52 @@ pub fn SendScreen() -> Element {
     };
 
     rsx! {
-        // --- Modals ---
         NoTitleModal {
             is_open: is_address_actions_modal_open,
             div {
                 style: "display: flex; flex-direction: column; gap: 1rem;",
-                h3 { "Set Address" }
+                h3 { "Set Address" },
                 p {
                     if let Some(index) = action_target_index() {
                         "Choose an action for recipient number {index + 1}."
                     } else {
                         "Choose an action."
                     }
-                }
+                },
                 Button {
                     on_click: move |_| {
                         if let Some(index) = action_target_index() {
-                            let mut target_recipient = recipients.read()[index];
                             spawn(async move {
                                 if let Some(clipboard_text) = crate::compat::clipboard_get().await {
-                                    handle_scanned_data(clipboard_text); // Reuse the same logic
+                                    handle_scanned_data(clipboard_text);
                                 }
                             });
                         }
                         is_address_actions_modal_open.set(false);
                     },
                     "Paste Address"
-                }
+                },
                 Button {
                     on_click: move |_| {
                         is_address_actions_modal_open.set(false);
-                        is_qr_modal_open.set(true);
+                        is_qr_scanner_modal_open.set(true);
                     },
                     "Scan QR Code"
-                }
+                },
                 Button {
                     on_click: move |_| {
-                        error_modal_message.set("QR upload not yet implemented.".to_string());
-                        show_error_modal.set(true);
+                        is_address_actions_modal_open.set(false);
+                        is_qr_upload_modal_open.set(true);
                     },
                     "Upload QR Image"
-                }
+                },
                 Button {
                     on_click: move |_| {
                         error_modal_message.set("Paste QR from clipboard not yet implemented.".to_string());
                         show_error_modal.set(true);
                     },
                     "Paste QR image from Clipboard"
-                }
+                },
                 Button {
                     button_type: ButtonType::Secondary,
                     outline: true,
@@ -406,27 +332,37 @@ pub fn SendScreen() -> Element {
                     "Cancel"
                 }
             }
-        }
+        },
         NoTitleModal {
-            is_open: is_qr_modal_open,
-            // Replace the placeholder with the actual component
+            is_open: is_qr_scanner_modal_open,
             QrScanner {
-                on_scan: handle_scanned_data,
-                on_close: move |_| is_qr_modal_open.set(false),
+                on_scan: move |data| {
+                    handle_scanned_data(data);
+                    is_qr_scanner_modal_open.set(false);
+                },
+                on_close: move |_| is_qr_scanner_modal_open.set(false),
             }
-        }
+        },
+        NoTitleModal {
+            is_open: is_qr_upload_modal_open,
+            QrUploader {
+                on_scan: move |data| {
+                    handle_scanned_data(data);
+                    is_qr_upload_modal_open.set(false);
+                },
+                on_close: move |_| is_qr_upload_modal_open.set(false),
+            }
+        },
         Modal {
             is_open: show_error_modal,
             title: "Error".to_string(),
-            p { "{error_modal_message}" }
-            footer {
-                Button { on_click: move |_| show_error_modal.set(false), "Close" }
-            }
-        }
+            p { "{error_modal_message}" },
+            footer { Button { on_click: move |_| show_error_modal.set(false), "Close" } }
+        },
         Modal {
             is_open: show_duplicate_warning_modal,
             title: "Duplicate Address".to_string(),
-            p { "This address is already in the recipient list. Do you want to add it again?" }
+            p { "This address is already in the recipient list. Do you want to add it again?" },
             div {
                 style: "margin-top: 1rem; margin-bottom: 1rem;",
                 label {
@@ -439,14 +375,14 @@ pub fn SendScreen() -> Element {
                     }
                     "Don't ask me again"
                 }
-            }
+            },
             footer {
                 Button {
                     button_type: ButtonType::Secondary,
                     outline: true,
                     on_click: move |_| show_duplicate_warning_modal.set(false),
                     "Cancel"
-                }
+                },
                 Button {
                     on_click: move |_| {
                         if let (Some(addr), Some(index)) = (pending_address.take(), action_target_index()) {
@@ -461,15 +397,12 @@ pub fn SendScreen() -> Element {
                     "Proceed Anyway"
                 }
             }
-        }
-
-
-        // --- Wizard Content ---
+        },
         div {
             match wizard_step() {
                 WizardStep::AddRecipients => rsx! {
                     Card {
-                        h3 { "Add Recipients" }
+                        h3 { "Add Recipients" },
                         for (i, recipient) in recipients.iter().enumerate() {
                             EditableRecipientRow {
                                 key: "{i}",
@@ -478,7 +411,6 @@ pub fn SendScreen() -> Element {
                                 is_active: active_row_index() == Some(i),
                                 on_delete: move |index_to_delete: usize| {
                                     if recipients.len() > 1 {
-                                        // If we are deleting the active row, deactivate editing.
                                         if active_row_index() == Some(index_to_delete) {
                                             active_row_index.set(None);
                                         }
@@ -500,8 +432,7 @@ pub fn SendScreen() -> Element {
                                 can_delete: recipients.len() > 1,
                                 is_any_other_row_active: is_any_row_active() && active_row_index() != Some(i),
                             }
-                        }
-
+                        },
                         div {
                             style: "display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;",
                             Button {
@@ -514,12 +445,12 @@ pub fn SendScreen() -> Element {
                                 },
                                 disabled: is_any_row_active(),
                                 "Add Another Recipient"
-                            }
+                            },
                             if recipients.len() > 1 {
                                 h5 { "Subtotal: {subtotal}" }
                             }
                         }
-                    }
+                    },
                     Card {
                         Input {
                             label: "Fee".to_string(),
@@ -535,11 +466,11 @@ pub fn SendScreen() -> Element {
                                     fee_error.set(None);
                                 }
                             },
-                        }
+                        },
                         if let Some(err) = fee_error() {
                             small { style: "color: var(--pico-color-red-500);", "{err}" }
-                        }
-                        h4 { style: "margin-top: 1rem; text-align: right;", "Total Spend: {total_spend}" }
+                        },
+                        h4 { style: "margin-top: 1rem; text-align: right;", "Total Spend: {total_spend}" },
                         Button {
                             on_click: move |_| {
                                 if is_form_fully_valid() {
@@ -553,15 +484,14 @@ pub fn SendScreen() -> Element {
                 },
                 WizardStep::Review => rsx! {
                     Card {
-                        h3 { "Review Transaction" }
-                        p { "Please review the details below. This action cannot be undone." }
-                        h5 { style: "margin-top: 1rem;", "Recipients:" }
+                        h3 { "Review Transaction" },
+                        p { "Please review the details below. This action cannot be undone." },
+                        h5 { style: "margin-top: 1rem;", "Recipients:" },
                         table {
                             role: "grid",
                             tbody {
                                 {recipients.read().iter().map(|recipient_signal| {
                                     let recipient = recipient_signal.read();
-                                    // These unwraps are safe because we validated on the previous screen.
                                     let addr = Rc::new(ReceivingAddress::from_bech32m(&recipient.address_str, network).unwrap());
                                     let amount = NativeCurrencyAmount::coins_from_str(&recipient.amount_str).unwrap();
                                     rsx! {
@@ -572,17 +502,13 @@ pub fn SendScreen() -> Element {
                                     }
                                 })}
                             }
-                        }
-                        hr {}
+                        },
+                        hr {},
                         p {
-                            strong { "Fee: " }
-                            if fee_str().is_empty() {
-                                "0.0"
-                            } else {
-                                "{fee_str()}"
-                            }
-                        }
-                        p { strong { "Total Spend: " } "{total_spend}" }
+                            strong { "Fee: " },
+                            if fee_str().is_empty() { "0.0" } else { "{fee_str()}" }
+                        },
+                        p { strong { "Total Spend: " }, "{total_spend}" },
                         footer {
                             style: "display: flex; justify-content: space-between; margin-top: 1rem;",
                             Button {
@@ -590,24 +516,19 @@ pub fn SendScreen() -> Element {
                                 outline: true,
                                 on_click: move |_| wizard_step.set(WizardStep::AddRecipients),
                                 "Back"
-                            }
+                            },
                             Button {
                                 on_click: move |_| {
                                     spawn(async move {
                                         let outputs: Vec<OutputFormat> = recipients.read().iter().map(|recipient_signal| {
                                             let recipient = recipient_signal.read();
-                                            // These unwraps are safe because we validated on the previous screen.
                                             let addr = ReceivingAddress::from_bech32m(&recipient.address_str, network).unwrap();
                                             let amount = NativeCurrencyAmount::coins_from_str(&recipient.amount_str).unwrap();
                                             OutputFormat::AddressAndAmount(addr, amount)
-
                                         }).collect();
-                                        let fee: NativeCurrencyAmount = NativeCurrencyAmount::coins_from_str(&fee_str()).unwrap();
+                                        let fee: NativeCurrencyAmount = NativeCurrencyAmount::coins_from_str(&fee_str()).unwrap_or_default();
                                         let change_policy = ChangePolicy::default();
-
                                         let result = api::send(outputs, change_policy, fee).await;
-
-                                        // Store the actual result, not a formatted string
                                         api_response.set(Some(result));
                                         wizard_step.set(WizardStep::Status);
                                     });
@@ -620,36 +541,32 @@ pub fn SendScreen() -> Element {
                 WizardStep::Status => rsx! {
                     if let Some(response_result) = api_response() {
                         Card {
-                            h3 { "Transaction Status" }
+                            h3 { "Transaction Status" },
                             match response_result {
-                                Ok((kernel_id, details)) => rsx! {
+                                Ok((kernel_id, _details)) => rsx! {
                                     p {
                                         style: "color: var(--pico-color-green-500);",
                                         "Transaction sent successfully!"
-                                    }
-
+                                    },
                                     div {
                                         style: "display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 1.5rem; padding: 0.75rem; border: 1px solid var(--pico-secondary-border); border-radius: var(--pico-border-radius);",
-                                        strong { "Transaction ID" }
+                                        strong { "Transaction ID" },
                                         div {
                                             style: "display: flex; align-items: center; gap: 0.5rem;",
-                                            code { "{kernel_id}" }
+                                            code { "{kernel_id}" },
                                             CopyButton { text_to_copy: kernel_id.to_string() }
                                         }
-                                    }
-
-                                    // --- Action Buttons ---
+                                    },
                                     div {
                                         style: "display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;",
                                         Button {
                                             button_type: ButtonType::Primary,
                                             outline: true,
-                                            // --- This is the key change for navigation ---
                                             on_click: move |_| {
                                                 active_screen.set(Screen::MempoolTx(kernel_id));
                                             },
                                             "View in Mempool"
-                                        }
+                                        },
                                         Button {
                                             on_click: move |_| reset_screen(),
                                             "Send Another Transaction"
@@ -657,9 +574,8 @@ pub fn SendScreen() -> Element {
                                     }
                                 },
                                 Err(err) => rsx! {
-                                    h4 { style: "color: var(--pico-color-red-500);", "Error Sending Transaction" }
-                                    p { "{err}" }
-
+                                    h4 { style: "color: var(--pico-color-red-500);", "Error Sending Transaction" },
+                                    p { "{err}" },
                                     div {
                                         style: "display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;",
                                         Button {
@@ -667,7 +583,7 @@ pub fn SendScreen() -> Element {
                                             outline: true,
                                             on_click: move |_| wizard_step.set(WizardStep::Review),
                                             "Back"
-                                        }
+                                        },
                                         Button {
                                             on_click: move |_| reset_screen(),
                                             "Send Another Transaction"
@@ -682,4 +598,3 @@ pub fn SendScreen() -> Element {
         }
     }
 }
-
