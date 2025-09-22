@@ -2,11 +2,14 @@
 // File: src/components/qr_scanner.rs
 //=============================================================================
 
+// todo:  we should fix Cargo.toml features, so we have features
+// for desktop, web-wasm, web-server, mobile, mobile-android, mobile-ios
+
 // Conditionally export the correct module based on the target platform.
 #[cfg(target_arch = "wasm32")]
 pub use self::wasm32::*;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "dioxus-desktop")))]
 pub use self::server::*;
 
 #[cfg(feature = "dioxus-desktop")]
@@ -399,7 +402,7 @@ mod desktop {
                                 let luma_data: Vec<u8> = rgb_pixels.chunks_exact(3).map(|p| {
                                     ((p[0] as f32 * 0.299) + (p[1] as f32 * 0.587) + (p[2] as f32 * 0.114)) as u8
                                 }).collect();
-                                
+
                                 if let Some(image) = image::GrayImage::from_raw(width, height, luma_data) {
                                     match qr_processor.write().process_image(image) {
                                         QrProcessResult::Complete(data) => {

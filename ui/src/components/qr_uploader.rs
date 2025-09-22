@@ -149,7 +149,7 @@ pub fn QrUploader(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> 
                 };
                 match processor.process_image(pixel_buffer) {
                     QrProcessResult::Complete(data) => { on_scan.call(data); return; }
-                    QrProcessResult::Incomplete(_, _) => { compat::sleep(std::time::Duration::from_millis(10)).await; }
+                    QrProcessResult::Incomplete(_, _) => { compat::sleep(std::time::Duration::from_millis(1)).await; }
                     QrProcessResult::Error(_) => {}
                 }
             }
