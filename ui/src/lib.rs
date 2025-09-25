@@ -3,13 +3,12 @@
 use dioxus::prelude::*;
 
 mod app_state;
+pub mod compat;
 mod components;
 mod screens;
-pub mod compat;
 
 use app_state::AppState;
 use neptune_types::block_selector::BlockSelector;
-use neptune_types::network::Network;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
 
 // Use components from our modules.
@@ -187,7 +186,7 @@ pub fn App() -> Element {
 fn LoadedApp(app_state: AppState) -> Element {
     use_context_provider(|| app_state);
 
-    let mut active_screen = use_signal(Screen::default);
+    let active_screen = use_signal(Screen::default);
     let mut view_mode = use_signal(ViewMode::default);
 
     // --- Provide the active_screen signal to the context ---

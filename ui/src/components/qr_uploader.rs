@@ -1,18 +1,18 @@
 //=============================================================================
 // File: src/components/qr_uploader.rs
 //=============================================================================
-use crate::components::pico::{Button, Modal};
-use crate::components::qr_processor::{QrProcessResult, QrProcessor};
 use crate::compat;
+use crate::components::pico::Button;
+use crate::components::qr_processor::{QrProcessResult, QrProcessor};
 use dioxus::prelude::*;
 
 mod svg_reader {
     use image::GrayImage;
-    use resvg::tiny_skia;
-    use usvg::{fontdb, Tree, Transform};
-    use quick_xml::Reader;
     use quick_xml::events::Event;
+    use quick_xml::Reader;
     use quick_xml::Writer;
+    use resvg::tiny_skia;
+    use usvg::{fontdb, Transform, Tree};
 
     /// Extracts the viewBox and the visual data for each frame from our SVG format.
     pub fn extract_svg_details(svg_data: &str) -> Result<(String, Vec<String>), String> {
@@ -31,13 +31,21 @@ mod svg_reader {
 
         loop {
             match reader.read_event_into(&mut buf) {
-                Ok(Event::Start(e)) if e.name().as_ref() == b"g" && e.attributes().any(|a| a.map_or(false, |a| a.key.as_ref() == b"class" && a.value.as_ref() == b"qr-frame")) => {
+                Ok(Event::Start(e))
+                    if e.name().as_ref() == b"g"
+                        && e.attributes().any(|a| {
+                            a.map_or(false, |a| {
+                                a.key.as_ref() == b"class" && a.value.as_ref() == b"qr-frame"
+                            })
+                        }) =>
+                {
                     is_in_frame = true;
                     writer.get_mut().clear();
                 }
                 Ok(Event::End(e)) if e.name().as_ref() == b"g" && is_in_frame => {
                     is_in_frame = false;
-                    let frame_str = String::from_utf8(writer.get_mut().to_vec()).map_err(|e| e.to_string())?;
+                    let frame_str =
+                        String::from_utf8(writer.get_mut().to_vec()).map_err(|e| e.to_string())?;
                     frames.push(frame_str);
                 }
                 Ok(Event::Eof) => break,
@@ -46,13 +54,19 @@ mod svg_reader {
                         writer.write_event(&event).map_err(|e| e.to_string())?;
                     }
                 }
-                Err(e) => return Err(format!("XML Error at position {}: {:?}", reader.buffer_position(), e)),
+                Err(e) => {
+                    return Err(format!(
+                        "XML Error at position {}: {:?}",
+                        reader.buffer_position(),
+                        e
+                    ))
+                }
             }
             buf.clear();
         }
 
         if frames.is_empty() {
-             if let Some(path_start) = svg_data.find("<path") {
+            if let Some(path_start) = svg_data.find("<path") {
                 if let Some(end_svg) = svg_data.rfind("</svg>") {
                     frames.push(svg_data[path_start..end_svg].to_string());
                 }
@@ -60,7 +74,7 @@ mod svg_reader {
         }
 
         if frames.is_empty() {
-             Err("No valid QR frames found in the SVG file.".to_string())
+            Err("No valid QR frames found in the SVG file.".to_string())
         } else {
             Ok((view_box, frames))
         }
@@ -73,8 +87,7 @@ mod svg_reader {
                 <rect width="100%" height="100%" fill="white"/>
                 {}
             </svg>"#,
-            view_box,
-            frame_svg_content
+            view_box, frame_svg_content
         );
 
         let fontdb = fontdb::Database::new();
@@ -85,11 +98,7 @@ mod svg_reader {
         let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())
             .ok_or_else(|| "Failed to create pixmap".to_string())?;
 
-        resvg::render(
-            &rtree,
-            Transform::identity(),
-            &mut pixmap.as_mut(),
-        );
+        resvg::render(&rtree, Transform::identity(), &mut pixmap.as_mut());
 
         let luma_data: Vec<u8> = pixmap
             .data()
@@ -98,7 +107,7 @@ mod svg_reader {
             .collect();
 
         GrayImage::from_raw(pixmap.width(), pixmap.height(), luma_data)
-             .ok_or_else(|| "Failed to create GrayImage from buffer".to_string())
+            .ok_or_else(|| "Failed to create GrayImage from buffer".to_string())
     }
 }
 
@@ -113,7 +122,10 @@ pub fn QrUploader(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> 
         spawn(async move {
             let file_content = match compat::read_file("svg").await {
                 Ok(Some(content)) => content,
-                Ok(None) => { on_close.call(()); return; }
+                Ok(None) => {
+                    on_close.call(());
+                    return;
+                }
                 Err(e) => {
                     upload_error.set(Some(format!("Failed to read file: {}", e)));
                     return;
@@ -148,14 +160,21 @@ pub fn QrUploader(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> 
                     }
                 };
                 match processor.process_image(pixel_buffer) {
-                    QrProcessResult::Complete(data) => { on_scan.call(data); return; }
-                    QrProcessResult::Incomplete(_, _) => { compat::sleep(std::time::Duration::from_millis(1)).await; }
+                    QrProcessResult::Complete(data) => {
+                        on_scan.call(data);
+                        return;
+                    }
+                    QrProcessResult::Incomplete(_, _) => {
+                        compat::sleep(std::time::Duration::from_millis(1)).await;
+                    }
                     QrProcessResult::Error(_) => {}
                 }
             }
 
             if !processor.is_complete() {
-                 upload_error.set(Some("Scanned all frames, but the QR code is still incomplete.".to_string()));
+                upload_error.set(Some(
+                    "Scanned all frames, but the QR code is still incomplete.".to_string(),
+                ));
             }
             is_processing.set(false);
         });

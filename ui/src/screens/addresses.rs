@@ -1,11 +1,10 @@
-use std::net;
 //=============================================================================
 // File: src/screens/addresses.rs
 //=============================================================================
 use crate::app_state::AppState;
 use crate::components::address::Address;
-use crate::components::qr_code::QrCode;
 use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
+use crate::components::qr_code::QrCode;
 use dioxus::prelude::*;
 use neptune_types::address::{KeyType, ReceivingAddress};
 use neptune_types::network::Network;

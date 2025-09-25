@@ -2,11 +2,9 @@
 // File: src/screens/history.rs
 //=============================================================================
 use crate::components::block::Block;
-use crate::components::block::BlockProps;
 use crate::components::pico::Card;
 use dioxus::prelude::*;
 
-use crate::AppState;
 use itertools::Itertools;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
@@ -55,8 +53,6 @@ fn HistoryRow(
 #[allow(non_snake_case)]
 #[component]
 pub fn HistoryScreen() -> Element {
-    let network = use_context::<AppState>().network;
-
     let mut history = use_resource(move || async move { api::history().await });
 
     // Vec<(Digest, BlockHeight, Timestamp, NativeCurrencyAmount)
@@ -78,7 +74,7 @@ pub fn HistoryScreen() -> Element {
                 }
             },
             Some(Ok(utxos)) => {
-                let iter = utxos.iter().rev().group_by(|(digest, height, timestamp, _)| (digest, height, timestamp));
+                let iter = utxos.iter().rev().chunk_by(|(digest, height, timestamp, _)| (digest, height, timestamp));
                 let block_summaries = iter.into_iter()
                     .map(|(key, group)| {
                         let (digest, height, timestamp) = key;

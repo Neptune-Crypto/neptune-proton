@@ -5,6 +5,7 @@ use image::GrayImage;
 use std::collections::HashMap;
 
 /// The result of processing a single QR image frame.
+#[allow(dead_code)]
 pub enum QrProcessResult {
     /// The QR code is part of an animation and is not yet complete.
     /// Provides (parts_found, parts_total).
@@ -58,10 +59,14 @@ impl QrProcessor {
         // Case 2: Animated QR code part
         let parts: Vec<&str> = content.splitn(3, '/').collect();
         if parts.len() != 3 {
-            return QrProcessResult::Error(format!("Invalid animated QR frame format: {}", content));
+            return QrProcessResult::Error(format!(
+                "Invalid animated QR frame format: {}",
+                content
+            ));
         }
 
-        let (Ok(part_num), Ok(total)) = (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>()) else {
+        let (Ok(part_num), Ok(total)) = (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>())
+        else {
             return QrProcessResult::Error(format!("Invalid part/total in frame: {}", content));
         };
 
@@ -71,7 +76,9 @@ impl QrProcessor {
         }
 
         // Insert the part if we haven't seen it before
-        self.scanned_parts.entry(part_num).or_insert_with(|| parts[2].to_string());
+        self.scanned_parts
+            .entry(part_num)
+            .or_insert_with(|| parts[2].to_string());
 
         let num_scanned = self.scanned_parts.len();
         let total_expected = self.total_parts.unwrap_or(0);
@@ -84,7 +91,10 @@ impl QrProcessor {
                     result.push_str(chunk);
                 } else {
                     // This case is rare but possible if a part is missed
-                    return QrProcessResult::Error(format!("Reassembly failed: Missing part {}", i));
+                    return QrProcessResult::Error(format!(
+                        "Reassembly failed: Missing part {}",
+                        i
+                    ));
                 }
             }
             self.is_complete = true;

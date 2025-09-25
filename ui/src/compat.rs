@@ -8,10 +8,10 @@ pub use non_wasm32::*;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm32 {
     use std::time::Duration;
+    use tokio::sync::oneshot;
     use wasm_bindgen::prelude::*;
     use wasm_bindgen_futures::JsFuture;
     use web_sys::{self, Clipboard, FileReader, HtmlElement, HtmlInputElement, Navigator, Window};
-    use tokio::sync::oneshot;
 
     pub mod interval {
         use std::sync::{Arc, Mutex};
@@ -86,15 +86,15 @@ pub mod wasm32 {
             .map_err(|_| "Failed to cast to HtmlInputElement".to_string())?;
         input.set_type("file");
         input.set_accept(&format!(".{}", extension));
-/*
-        input
-            .dyn_ref::<HtmlElement>()
-            .expect("input is not an HtmlElement")
-            .style()
-            .set_property("display", "none")
-            .map_err(|e| e.as_string().unwrap_or_default())?;
-*/
-        
+        /*
+                input
+                    .dyn_ref::<HtmlElement>()
+                    .expect("input is not an HtmlElement")
+                    .style()
+                    .set_property("display", "none")
+                    .map_err(|e| e.as_string().unwrap_or_default())?;
+        */
+
         let onchange_closure = Closure::once(move |event: web_sys::Event| {
             let input: HtmlInputElement = event.target().unwrap().dyn_into().unwrap();
             if let Some(file) = input.files().and_then(|files| files.get(0)) {
@@ -113,10 +113,12 @@ pub mod wasm32 {
         });
         input.set_onchange(Some(onchange_closure.as_ref().unchecked_ref()));
         onchange_closure.forget();
-        
-        body.append_child(&input).map_err(|e| e.as_string().unwrap_or_default())?;
+
+        body.append_child(&input)
+            .map_err(|e| e.as_string().unwrap_or_default())?;
         input.click();
-        body.remove_child(&input).map_err(|e| e.as_string().unwrap_or_default())?;
+        body.remove_child(&input)
+            .map_err(|e| e.as_string().unwrap_or_default())?;
 
         rx.await.map_err(|e| e.to_string())?
     }
@@ -124,9 +126,8 @@ pub mod wasm32 {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod non_wasm32 {
-    use std::time::Duration;
-    use dioxus::prelude::*;
     use dioxus_clipboard::prelude::*;
+    use std::time::Duration;
 
     pub mod interval {
         use tokio::time::{self, Duration, MissedTickBehavior};

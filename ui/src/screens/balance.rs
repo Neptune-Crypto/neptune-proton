@@ -1,12 +1,8 @@
 use crate::components::block::Block;
-use crate::components::block::BlockProps;
 use crate::components::pico::Card;
 use crate::AppState;
 use dioxus::prelude::*;
-use neptune_types::{
-    dashboard_overview_data_from_client::DashBoardOverviewDataFromClient,
-    native_currency_amount::NativeCurrencyAmount,
-};
+use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use num_traits::CheckedSub;
 use num_traits::Zero;
 use std::rc::Rc;

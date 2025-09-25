@@ -1,7 +1,7 @@
 //=============================================================================
 // File: src/components/address.rs
 //=============================================================================
-use crate::components::pico::{Button, CopyButton, Modal, NoTitleModal};
+use crate::components::pico::{Button, CopyButton, NoTitleModal};
 use crate::components::qr_code::QrCode;
 use crate::AppState;
 use dioxus::prelude::*;

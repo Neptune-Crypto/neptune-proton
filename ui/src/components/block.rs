@@ -1,11 +1,8 @@
 //=============================================================================
 // File: src/components/address.rs
 //=============================================================================
-use crate::components::pico::{Button, CopyButton, Modal, NoTitleModal};
-use crate::AppState;
 use crate::Screen;
 use dioxus::prelude::*;
-use neptune_types::address::ReceivingAddress;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::block_selector::BlockSelector;
 use std::rc::Rc;
@@ -25,8 +22,6 @@ impl BlockProps {
 
 #[component]
 pub fn Block(props: BlockProps) -> Element {
-    let network = use_context::<AppState>().network;
-
     let props_clone = props.clone();
     let height = *props_clone.height;
     let digest = props_clone.block_digest.clone();

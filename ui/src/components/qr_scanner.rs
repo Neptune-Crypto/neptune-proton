@@ -103,11 +103,31 @@ mod wasm32 {
                         if width > 0 && height > 0 {
                             canvas.set_width(width);
                             canvas.set_height(height);
-                            let ctx = canvas.get_context("2d").unwrap().unwrap().dyn_into::<web_sys::CanvasRenderingContext2d>().unwrap();
-                            ctx.draw_image_with_html_video_element(&video, 0.0, 0.0).unwrap();
-                            if let Ok(image_data) = ctx.get_image_data(0.0, 0.0, width as f64, height as f64) {
-                                let luma_data: Vec<u8> = image_data.data().0.chunks_exact(4).map(|p| (p[0] as f32 * 0.299 + p[1] as f32 * 0.587 + p[2] as f32 * 0.114) as u8).collect();
-                                if let Some(image) = image::GrayImage::from_raw(width, height, luma_data) {
+                            let ctx = canvas
+                                .get_context("2d")
+                                .unwrap()
+                                .unwrap()
+                                .dyn_into::<web_sys::CanvasRenderingContext2d>()
+                                .unwrap();
+                            ctx.draw_image_with_html_video_element(&video, 0.0, 0.0)
+                                .unwrap();
+                            if let Ok(image_data) =
+                                ctx.get_image_data(0.0, 0.0, width as f64, height as f64)
+                            {
+                                let luma_data: Vec<u8> = image_data
+                                    .data()
+                                    .0
+                                    .chunks_exact(4)
+                                    .map(|p| {
+                                        (p[0] as f32 * 0.299
+                                            + p[1] as f32 * 0.587
+                                            + p[2] as f32 * 0.114)
+                                            as u8
+                                    })
+                                    .collect();
+                                if let Some(image) =
+                                    image::GrayImage::from_raw(width, height, luma_data)
+                                {
                                     match qr_processor.write().process_image(image) {
                                         QrProcessResult::Complete(data) => {
                                             on_scan.call(data);
@@ -116,7 +136,8 @@ mod wasm32 {
                                         QrProcessResult::Incomplete(found, total) => {
                                             scan_progress.set((found, total));
                                         }
-                                        QrProcessResult::Error(_) => { /* Ignore and try next frame */ }
+                                        QrProcessResult::Error(_) => { /* Ignore and try next frame */
+                                        }
                                     }
                                 }
                             }
@@ -221,11 +242,11 @@ mod wasm32 {
         let window = web_sys::window().expect("no global `window` exists");
         let navigator = window.navigator();
         let media_devices = navigator.media_devices()?;
-        let stream = JsFuture::from(
-            media_devices
-                .get_user_media_with_constraints(MediaStreamConstraints::new().video(&true.into()))?,
-        )
-        .await?;
+        let stream =
+            JsFuture::from(media_devices.get_user_media_with_constraints(
+                MediaStreamConstraints::new().video(&true.into()),
+            )?)
+            .await?;
         MediaStream::from(stream)
             .get_tracks()
             .for_each(&mut |track, _, _| {
@@ -260,16 +281,8 @@ mod wasm32 {
         js_sys::Reflect::set(&width_constraint, &"ideal".into(), &4096.into())?;
         let height_constraint = js_sys::Object::new();
         js_sys::Reflect::set(&height_constraint, &"ideal".into(), &2160.into())?;
-        js_sys::Reflect::set(
-            &advanced_constraint,
-            &"width".into(),
-            &width_constraint,
-        )?;
-        js_sys::Reflect::set(
-            &advanced_constraint,
-            &"height".into(),
-            &height_constraint,
-        )?;
+        js_sys::Reflect::set(&advanced_constraint, &"width".into(), &width_constraint)?;
+        js_sys::Reflect::set(&advanced_constraint, &"height".into(), &height_constraint)?;
         video_constraints.advanced(&js_sys::Array::of1(&advanced_constraint));
         constraints.video(&video_constraints.into());
         constraints.audio(&JsValue::from(false));
@@ -302,12 +315,20 @@ mod desktop {
         stop_signal: Arc<Mutex<bool>>,
     ) {
         std::thread::spawn(move || {
-            let cam_result = camera_capture::create(0).map_err(|e| e.into()).and_then(|builder| {
-                builder
-                    .fps(15.0)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
-                    .and_then(|b| b.start().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))))
-            });
+            let cam_result = camera_capture::create(0)
+                .map_err(|e| e.into())
+                .and_then(|builder| {
+                    builder
+                        .fps(15.0)
+                        .map_err(|e| {
+                            std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))
+                        })
+                        .and_then(|b| {
+                            b.start().map_err(|e| {
+                                std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))
+                            })
+                        })
+                });
 
             let cam = match cam_result {
                 Ok(c) => c,
@@ -341,37 +362,39 @@ mod desktop {
         let mut qr_processor = use_signal(QrProcessor::new);
         let mut scan_progress = use_signal(|| (0, 0));
 
-        let state_updater = use_coroutine(move |mut rx: futures_channel::mpsc::UnboundedReceiver<Message>| {
-            let window = window.clone();
-            let on_scan = on_scan.clone();
-            let on_close = on_close.clone();
-            let stop_signal = stop_signal.clone();
-            let mut last_scan_time = std::time::Instant::now();
-            let scan_interval = Duration::from_millis(100);
+        let state_updater = use_coroutine(
+            move |mut rx: futures_channel::mpsc::UnboundedReceiver<Message>| {
+                let window = window.clone();
+                let on_scan = on_scan.clone();
+                let on_close = on_close.clone();
+                let stop_signal = stop_signal.clone();
+                let mut last_scan_time = std::time::Instant::now();
+                let scan_interval = Duration::from_millis(100);
 
-            async move {
-                while let Some(msg) = rx.next().await {
-                    match msg {
-                        Message::Error(e) => {
-                            error_message.set(Some(e));
-                            is_scanning.set(false);
-                        }
-                        Message::Frame((rgb_pixels, width, height)) => {
-                            if frame_dims.read().0 != width || frame_dims.read().1 != height {
-                                frame_dims.set((width, height));
+                async move {
+                    while let Some(msg) = rx.next().await {
+                        match msg {
+                            Message::Error(e) => {
+                                error_message.set(Some(e));
+                                is_scanning.set(false);
                             }
-                            let mut rgba_pixels = Vec::with_capacity((width * height * 4) as usize);
-                            for chunk in rgb_pixels.chunks_exact(3) {
-                                rgba_pixels.push(chunk[0]); // R
-                                rgba_pixels.push(chunk[1]); // G
-                                rgba_pixels.push(chunk[2]); // B
-                                rgba_pixels.push(255);      // A
-                            }
-                            let base64_frame = BASE64_STANDARD.encode(&rgba_pixels);
+                            Message::Frame((rgb_pixels, width, height)) => {
+                                if frame_dims.read().0 != width || frame_dims.read().1 != height {
+                                    frame_dims.set((width, height));
+                                }
+                                let mut rgba_pixels =
+                                    Vec::with_capacity((width * height * 4) as usize);
+                                for chunk in rgb_pixels.chunks_exact(3) {
+                                    rgba_pixels.push(chunk[0]); // R
+                                    rgba_pixels.push(chunk[1]); // G
+                                    rgba_pixels.push(chunk[2]); // B
+                                    rgba_pixels.push(255); // A
+                                }
+                                let base64_frame = BASE64_STANDARD.encode(&rgba_pixels);
 
-                            // --- CORRECTED JAVASCRIPT ---
-                            let js_code = format!(
-                                r#"
+                                // --- CORRECTED JAVASCRIPT ---
+                                let js_code = format!(
+                                    r#"
                                 try {{
                                     const canvas = document.getElementById('qr-canvas');
                                     if (canvas) {{
@@ -391,41 +414,51 @@ mod desktop {
                                     console.error("Failed to render frame:", e);
                                 }}
                                 "#,
-                                base64_frame = base64_frame,
-                                width = width,
-                                height = height
-                            );
-                            let _ = window.webview.evaluate_script(&js_code);
+                                    base64_frame = base64_frame,
+                                    width = width,
+                                    height = height
+                                );
+                                let _ = window.webview.evaluate_script(&js_code);
 
-                            if last_scan_time.elapsed() >= scan_interval {
-                                last_scan_time = std::time::Instant::now();
-                                let luma_data: Vec<u8> = rgb_pixels.chunks_exact(3).map(|p| {
-                                    ((p[0] as f32 * 0.299) + (p[1] as f32 * 0.587) + (p[2] as f32 * 0.114)) as u8
-                                }).collect();
+                                if last_scan_time.elapsed() >= scan_interval {
+                                    last_scan_time = std::time::Instant::now();
+                                    let luma_data: Vec<u8> = rgb_pixels
+                                        .chunks_exact(3)
+                                        .map(|p| {
+                                            ((p[0] as f32 * 0.299)
+                                                + (p[1] as f32 * 0.587)
+                                                + (p[2] as f32 * 0.114))
+                                                as u8
+                                        })
+                                        .collect();
 
-                                if let Some(image) = image::GrayImage::from_raw(width, height, luma_data) {
-                                    match qr_processor.write().process_image(image) {
-                                        QrProcessResult::Complete(data) => {
-                                            on_scan.call(data);
-                                            *stop_signal.lock().unwrap() = true;
+                                    if let Some(image) =
+                                        image::GrayImage::from_raw(width, height, luma_data)
+                                    {
+                                        match qr_processor.write().process_image(image) {
+                                            QrProcessResult::Complete(data) => {
+                                                on_scan.call(data);
+                                                *stop_signal.lock().unwrap() = true;
+                                            }
+                                            QrProcessResult::Incomplete(found, total) => {
+                                                scan_progress.set((found, total));
+                                            }
+                                            QrProcessResult::Error(_) => { /* Ignore and try next frame */
+                                            }
                                         }
-                                        QrProcessResult::Incomplete(found, total) => {
-                                            scan_progress.set((found, total));
-                                        }
-                                        QrProcessResult::Error(_) => { /* Ignore and try next frame */ }
                                     }
                                 }
                             }
-                        }
-                        Message::Done => {
-                            on_close.call(());
-                            is_scanning.set(false);
-                            break;
+                            Message::Done => {
+                                on_close.call(());
+                                is_scanning.set(false);
+                                break;
+                            }
                         }
                     }
                 }
-            }
-        });
+            },
+        );
 
         use_effect(move || {
             let state_updater_clone = state_updater.clone();
@@ -443,12 +476,16 @@ mod desktop {
 
         use_drop({
             let stop_signal = stop_signal3.clone();
-            move || { *stop_signal.lock().unwrap() = true; }
+            move || {
+                *stop_signal.lock().unwrap() = true;
+            }
         });
 
         let error_display = if let Some(err) = error_message.read().as_ref() {
             Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
-        } else { None };
+        } else {
+            None
+        };
 
         let progress_indicator = if *is_scanning.read() {
             let (found, total) = *scan_progress.read();
@@ -469,7 +506,9 @@ mod desktop {
                     }
                 }
             })
-        } else { None };
+        } else {
+            None
+        };
 
         let (width, height) = *frame_dims.read();
         let scanner_display = if *is_scanning.read() || (width > 0 && height > 0) {
@@ -484,7 +523,9 @@ mod desktop {
                     }
                 }
             })
-        } else { None };
+        } else {
+            None
+        };
 
         rsx! {
             div {
@@ -516,7 +557,6 @@ mod server {
         unimplemented!()
     }
 }
-
 
 /// Contains the QR scanner implementation for mobile platforms.
 #[cfg(any(target_os = "android", target_os = "ios"))]

@@ -150,6 +150,7 @@ pub async fn dashboard_overview_data() -> Result<DashBoardOverviewDataFromClient
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(dead_code)]
 mod neptune_rpc {
     use super::rpc_api;
     use dioxus::prelude::ServerFnError;
@@ -160,7 +161,6 @@ mod neptune_rpc {
     use std::net::SocketAddr;
 
     use neptune_cash::rpc_auth;
-    use neptune_cash::rpc_server::error::RpcError;
     use neptune_cash::rpc_server::RPCClient;
 
     use neptune_types::change_policy::ChangePolicy;
@@ -177,18 +177,27 @@ mod neptune_rpc {
 
     fn neptune_core_rpc_port() -> u16 {
         const DEFAULT_PORT: u16 = 9799;
-        std::env::var("NEPTUNE_CORE_RPC_PORT").unwrap_or("".to_string()).parse().unwrap_or(DEFAULT_PORT)
+        std::env::var("NEPTUNE_CORE_RPC_PORT")
+            .unwrap_or("".to_string())
+            .parse()
+            .unwrap_or(DEFAULT_PORT)
     }
 
     async fn gen_rpc_client() -> Result<rpc_api::RPCClient, ServerFnError> {
-        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), neptune_core_rpc_port());
+        let server_socket = SocketAddr::new(
+            std::net::IpAddr::V4(Ipv4Addr::LOCALHOST),
+            neptune_core_rpc_port(),
+        );
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await?;
 
         Ok(rpc_api::RPCClient::new(client::Config::default(), transport).spawn())
     }
 
     async fn gen_nc_rpc_client() -> Result<RPCClient, ServerFnError> {
-        let server_socket = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), neptune_core_rpc_port());
+        let server_socket = SocketAddr::new(
+            std::net::IpAddr::V4(Ipv4Addr::LOCALHOST),
+            neptune_core_rpc_port(),
+        );
         let transport = tarpc::serde_transport::tcp::connect(server_socket, Json::default).await?;
 
         Ok(RPCClient::new(client::Config::default(), transport).spawn())
@@ -228,7 +237,6 @@ mod neptune_rpc {
 
     async fn get_network() -> Result<Network, ServerFnError> {
         let client = rpc_client().await?;
-        let token = get_token().await?;
         let network = client.network(tarpc::context::current()).await??;
         Ok(network)
     }
@@ -249,10 +257,6 @@ mod neptune_rpc {
         change_policy: ChangePolicy,
         fee: NativeCurrencyAmount,
     ) -> Result<(TransactionKernelId, TransactionDetails), ServerFnError> {
-        use neptune_cash::api::export::ChangePolicy;
-        use neptune_cash::api::export::NativeCurrencyAmount;
-        use neptune_cash::api::export::OutputFormat;
-
         let serialized = bincode::serialize(&outputs).unwrap();
         let nc_outputs: Vec<neptune_cash::api::export::OutputFormat> =
             bincode::deserialize(&serialized).unwrap();

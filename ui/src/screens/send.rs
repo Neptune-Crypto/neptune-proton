@@ -3,27 +3,22 @@
 //=============================================================================
 use crate::components::address::Address;
 use crate::components::pico::{
-    Button, ButtonType, Card, CloseButton, CopyButton, Grid, Input, Modal, NoTitleModal,
+    Button, ButtonType, Card, CloseButton, CopyButton, Input, Modal, NoTitleModal,
 };
 use crate::components::qr_scanner::QrScanner;
 use crate::components::qr_uploader::QrUploader;
 use crate::AppState;
 use crate::Screen;
-use dioxus::dioxus_core::SpawnIfAsync;
 use dioxus::prelude::*;
-use neptune_types::address::{KeyType, ReceivingAddress};
+use neptune_types::address::ReceivingAddress;
 use neptune_types::change_policy::ChangePolicy;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
 use neptune_types::output_format::OutputFormat;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
-use neptune_types::utxo_notification::UtxoNotificationMedium;
 use num_traits::Zero;
-use std::collections::HashSet;
-use std::fmt::Display;
 use std::rc::Rc;
-use std::str::FromStr;
 
 #[derive(Clone, PartialEq)]
 struct Recipient {
@@ -31,7 +26,9 @@ struct Recipient {
     amount: NativeCurrencyAmount,
 }
 impl From<Recipient> for OutputFormat {
-    fn from(r: Recipient) -> Self { ((*r.address).clone(), r.amount).into() }
+    fn from(r: Recipient) -> Self {
+        ((*r.address).clone(), r.amount).into()
+    }
 }
 #[derive(Clone, PartialEq, Debug)]
 struct EditableRecipient {
@@ -204,9 +201,15 @@ pub fn SendScreen() -> Element {
     let network = use_context::<AppState>().network;
 
     #[derive(PartialEq, Clone, Copy)]
-    enum WizardStep { AddRecipients, Review, Status }
+    enum WizardStep {
+        AddRecipients,
+        Review,
+        Status,
+    }
     let mut wizard_step = use_signal(|| WizardStep::AddRecipients);
-    let mut api_response = use_signal::<Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>>(|| None);
+    let mut api_response = use_signal::<
+        Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>,
+    >(|| None);
     let mut recipients = use_signal(move || vec![Signal::new(EditableRecipient::default())]);
     let mut fee_str = use_signal(String::new);
     let mut active_row_index = use_signal::<Option<usize>>(|| Some(0));
@@ -222,21 +225,29 @@ pub fn SendScreen() -> Element {
     let mut fee_error = use_signal::<Option<String>>(|| None);
 
     let subtotal = use_memo(move || {
-        recipients.read().iter().fold(NativeCurrencyAmount::zero(), |acc, r| {
-            let amount = NativeCurrencyAmount::coins_from_str(&r.read().amount_str).unwrap_or_else(|_| NativeCurrencyAmount::zero());
-            acc + amount
-        })
+        recipients
+            .read()
+            .iter()
+            .fold(NativeCurrencyAmount::zero(), |acc, r| {
+                let amount = NativeCurrencyAmount::coins_from_str(&r.read().amount_str)
+                    .unwrap_or_else(|_| NativeCurrencyAmount::zero());
+                acc + amount
+            })
     });
     let total_spend = use_memo(move || {
-        let fee = NativeCurrencyAmount::coins_from_str(&fee_str()).unwrap_or_else(|_| NativeCurrencyAmount::zero());
+        let fee = NativeCurrencyAmount::coins_from_str(&fee_str())
+            .unwrap_or_else(|_| NativeCurrencyAmount::zero());
         subtotal() + fee
     });
     let is_any_row_active = use_memo(move || active_row_index().is_some());
     let is_form_fully_valid = use_memo(move || {
         let recs = recipients.read();
-        if recs.is_empty() { return false; }
+        if recs.is_empty() {
+            return false;
+        }
         let all_recipients_valid = recs.iter().all(|r| r.read().is_valid(network));
-        let fee_is_valid = fee_str.read().is_empty() || NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
+        let fee_is_valid =
+            fee_str.read().is_empty() || NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
         all_recipients_valid && fee_is_valid
     });
 
@@ -258,7 +269,11 @@ pub fn SendScreen() -> Element {
             match ReceivingAddress::from_bech32m(&scanned_text, network) {
                 Ok(_) => {
                     let is_duplicate = recipients.read().iter().enumerate().any(|(i, r)| {
-                        if i == index { false } else { r.read().address_str == scanned_text }
+                        if i == index {
+                            false
+                        } else {
+                            r.read().address_str == scanned_text
+                        }
                     });
                     if is_duplicate && !suppress_duplicate_warning() {
                         pending_address.set(Some(scanned_text));
@@ -269,9 +284,12 @@ pub fn SendScreen() -> Element {
                             r.address_error = None;
                         });
                     }
-                },
+                }
                 Err(e) => {
-                    error_modal_message.set(format!("Invalid Address from QR: {}.  found: {}", e, scanned_text));
+                    error_modal_message.set(format!(
+                        "Invalid Address from QR: {}.  found: {}",
+                        e, scanned_text
+                    ));
                     show_error_modal.set(true);
                 }
             }
@@ -293,7 +311,7 @@ pub fn SendScreen() -> Element {
                 },
                 Button {
                     on_click: move |_| {
-                        if let Some(index) = action_target_index() {
+                        if let Some(_index) = action_target_index() {
                             spawn(async move {
                                 if let Some(clipboard_text) = crate::compat::clipboard_get().await {
                                     handle_scanned_data(clipboard_text);

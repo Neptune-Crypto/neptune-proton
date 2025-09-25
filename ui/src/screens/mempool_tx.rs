@@ -2,8 +2,7 @@
 use crate::components::pico::{Card, CopyButton};
 use dioxus::prelude::*;
 use neptune_types::{
-    native_currency_amount::NativeCurrencyAmount, transaction_kernel::TransactionKernel,
-    transaction_kernel_id::TransactionKernelId,
+    native_currency_amount::NativeCurrencyAmount, transaction_kernel_id::TransactionKernelId,
 };
 use num_traits::Zero;
 use twenty_first::tip5::Digest;
@@ -34,19 +33,40 @@ fn DigestDisplay(digest: Digest, label: String) -> Element {
 
 #[component]
 pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
-    let mut mempool_tx = use_resource(move || async move { api::mempool_tx_kernel(tx_id).await });
+    let mempool_tx = use_resource(move || async move { api::mempool_tx_kernel(tx_id).await });
 
     rsx! {
         match &*mempool_tx.read() {
+            // Case 1: The resource is still loading
             None => rsx! {
-                // ... same as before
+                div {
+                    style: "text-align: center; padding: 2rem;",
+                    h4 { "Loading transaction details..." }
+                }                
             },
+            // Case 2: The resource future returned an error
             Some(Err(e)) => rsx! {
-                // ... same as before
+                Card {
+                    h3 { style: "color: var(--pico-color-red-500);", "Error" }
+                    p { "Could not fetch transaction details from the mempool." }
+                    hr {}
+                    h5 { "Details:" }
+                    code { "{e}" }
+                }                
             },
+            // Case 3: The resource future completed successfully, but the API returned no data (not found)
             Some(Ok(None)) => rsx! {
-                // ... same as before
+                Card {
+                    h3 { "Not Found" }
+                    p { "Transaction with the following ID was not found in the mempool:" }
+                    div {
+                        style: "display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;",
+                        code { title: "{tx_id.to_string()}", "{tx_id}" }
+                        CopyButton { text_to_copy: tx_id.to_string() }
+                    }
+                }                
             },
+            // Case 4: The resource future completed successfully with data
             Some(Ok(Some(kernel))) => {
                 // --- THE FIX: Prepare complex strings outside the macro ---
                 let inputs_str = std::fmt::format(format_args!("{:#?}", kernel.inputs));

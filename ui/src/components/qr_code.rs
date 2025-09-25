@@ -1,11 +1,11 @@
 //=============================================================================
 // File: src/components/qr_code.rs
 //=============================================================================
-use dioxus::prelude::*;
-use qrcode::{QrCode, EcLevel, Version};
-use qrcode::render::svg;
-use futures::StreamExt;
 use base64::Engine;
+use dioxus::prelude::*;
+use futures::StreamExt;
+use qrcode::render::svg;
+use qrcode::{EcLevel, QrCode};
 
 const STATIC_CHUNK_SIZE: usize = 120;
 
@@ -30,36 +30,35 @@ pub fn QrCode(props: QrCodeProps) -> Element {
     let uppercased_data = props.data.to_uppercase();
 
     #[cfg(not(target_arch = "wasm32"))]
-    let save_file_coroutine = use_coroutine(|mut rx: UnboundedReceiver<SaveFileAction>| async move {
-        while let Some(action) = rx.next().await {
-            if let SaveFileAction::SaveSvg(svg_data, file_name) = action {
-                spawn(async move {
-                    if let Some(path) = rfd::AsyncFileDialog::new()
-                        .add_filter("SVG Image", &["svg"])
-                        .set_file_name(&file_name)
-                        .save_file()
-                        .await
-                    {
-                        let _ = tokio::fs::write(path.path(), svg_data).await;
-                    }
-                });
+    let save_file_coroutine =
+        use_coroutine(|mut rx: UnboundedReceiver<SaveFileAction>| async move {
+            while let Some(action) = rx.next().await {
+                #[allow(irrefutable_let_patterns)]
+                if let SaveFileAction::SaveSvg(svg_data, file_name) = action {
+                    spawn(async move {
+                        if let Some(path) = rfd::AsyncFileDialog::new()
+                            .add_filter("SVG Image", &["svg"])
+                            .set_file_name(&file_name)
+                            .save_file()
+                            .await
+                        {
+                            let _ = tokio::fs::write(path.path(), svg_data).await;
+                        }
+                    });
+                }
             }
-        }
-    });
-
+        });
 
     if uppercased_data.len() <= STATIC_CHUNK_SIZE {
         // --- STATIC QR CODE LOGIC WITH DOWNLOAD ---
         match QrCode::with_error_correction_level(uppercased_data.as_bytes(), EcLevel::H) {
             Ok(code) => {
-                let svg_image_data = use_memo(move || {
-                    code.render::<svg::Color>().min_dimensions(200, 200).build()
-                });
+                let svg_image_data =
+                    use_memo(move || code.render::<svg::Color>().min_dimensions(200, 200).build());
 
                 let svg_data_url = use_memo(move || {
-                    let encoded = base64::engine::general_purpose::STANDARD.encode(
-                        &*svg_image_data.read()
-                    );
+                    let encoded =
+                        base64::engine::general_purpose::STANDARD.encode(&*svg_image_data.read());
                     format!("data:image/svg+xml;base64,{encoded}")
                 });
 
@@ -69,7 +68,7 @@ pub fn QrCode(props: QrCodeProps) -> Element {
                     } else {
                         let data = uppercased_data.clone();
                         if data.len() > 24 {
-                            format!("{}...{}", &data[..12], &data[data.len()-12..])
+                            format!("{}...{}", &data[..12], &data[data.len() - 12..])
                         } else {
                             data
                         }
@@ -126,13 +125,13 @@ pub fn QrCode(props: QrCodeProps) -> Element {
                         {download_element}
                     }
                 }
-            },
+            }
             Err(e) => rsx! {
                 p {
                     style: "color: red; font-family: sans-serif; font-size: 14px; border: 1px solid red; padding: 10px; border-radius: 5px;",
                     "Error generating QR code: {e}"
                 }
-            }
+            },
         }
     } else {
         // --- ANIMATED QR CODE LOGIC ---
@@ -143,9 +142,7 @@ pub fn QrCode(props: QrCodeProps) -> Element {
 
         let animated_svg_data_url = use_memo(move || {
             let svg_string = animated_svg.read();
-            let base64_encoded = base64::engine::general_purpose::STANDARD.encode(
-                &*svg_string
-            );
+            let base64_encoded = base64::engine::general_purpose::STANDARD.encode(&*svg_string);
             format!("data:image/svg+xml;base64,{base64_encoded}")
         });
 
@@ -155,7 +152,7 @@ pub fn QrCode(props: QrCodeProps) -> Element {
             } else {
                 let data = uppercased_data.clone();
                 if data.len() > 24 {
-                    format!("{}...{}", &data[..12], &data[data.len()-12..])
+                    format!("{}...{}", &data[..12], &data[data.len() - 12..])
                 } else {
                     data
                 }
@@ -221,27 +218,38 @@ pub fn QrCode(props: QrCodeProps) -> Element {
     }
 }
 
-
 /// Generates a self-contained, animated SVG string for a multipart QR code.
 fn generate_animated_svg(data: &str) -> String {
     const CHUNK_SIZE: usize = 120;
     const FRAME_DURATION_MS: u32 = 300;
 
-    let chunks: Vec<_> = data.chars().collect::<Vec<char>>()
+    let chunks: Vec<_> = data
+        .chars()
+        .collect::<Vec<char>>()
         .chunks(CHUNK_SIZE)
         .map(|c| c.iter().collect::<String>())
         .collect();
 
     let total_parts = chunks.len();
-    if total_parts == 0 { return String::new(); }
+    if total_parts == 0 {
+        return String::new();
+    }
 
-    let frames: Vec<_> = chunks.into_iter().enumerate().map(|(i, chunk)| {
-        format!("P{}/{}/{}", i + 1, total_parts, chunk)
-    }).collect();
+    let frames: Vec<_> = chunks
+        .into_iter()
+        .enumerate()
+        .map(|(i, chunk)| format!("P{}/{}/{}", i + 1, total_parts, chunk))
+        .collect();
 
     // --- Generate the first frame to establish the standard size ---
-    let Some(first_frame_data) = frames.first() else { return String::new(); };
-    let Ok(first_code) = QrCode::with_error_correction_level(first_frame_data.as_bytes(), EcLevel::L) else { return String::new(); };
+    let Some(first_frame_data) = frames.first() else {
+        return String::new();
+    };
+    let Ok(first_code) =
+        QrCode::with_error_correction_level(first_frame_data.as_bytes(), EcLevel::L)
+    else {
+        return String::new();
+    };
 
     // Use the version and error correction level from the first frame for all subsequent frames.
     // WARNING: This approach assumes that no frame after the first will ever require a
@@ -259,22 +267,27 @@ fn generate_animated_svg(data: &str) -> String {
         .unwrap_or("0 0 256 256");
 
     // --- Generate all frame contents, forcing each to the same version ---
-    let frame_contents: Vec<String> = frames.iter().filter_map(|frame_data| {
-        QrCode::with_version(frame_data.as_bytes(), version, ec_level)
-            .ok()
-            .map(|code| {
-                let svg_str = code.render::<svg::Color>().build();
-                if let Some(path_start) = svg_str.find("<path") {
-                    if let Some(end_svg) = svg_str.rfind("</svg>") {
-                        return svg_str[path_start..end_svg].to_string();
+    let frame_contents: Vec<String> = frames
+        .iter()
+        .filter_map(|frame_data| {
+            QrCode::with_version(frame_data.as_bytes(), version, ec_level)
+                .ok()
+                .map(|code| {
+                    let svg_str = code.render::<svg::Color>().build();
+                    if let Some(path_start) = svg_str.find("<path") {
+                        if let Some(end_svg) = svg_str.rfind("</svg>") {
+                            return svg_str[path_start..end_svg].to_string();
+                        }
                     }
-                }
-                String::new()
-            })
-    }).collect();
+                    String::new()
+                })
+        })
+        .collect();
 
     let num_frames = frame_contents.len();
-    if num_frames == 0 { return String::new(); }
+    if num_frames == 0 {
+        return String::new();
+    }
 
     let total_duration_ms = num_frames as u32 * FRAME_DURATION_MS;
     let frame_visibility_percentage = 100.0 / num_frames as f32;
@@ -292,10 +305,14 @@ fn generate_animated_svg(data: &str) -> String {
         next_percentage = frame_visibility_percentage + 0.01
     );
 
-    let body = frame_contents.into_iter().enumerate().map(|(i, content)| {
-        let delay = i as u32 * FRAME_DURATION_MS;
-        format!(r#"<g class="qr-frame" style="animation-delay: {delay}ms;">{content}</g>"#)
-    }).collect::<String>();
+    let body = frame_contents
+        .into_iter()
+        .enumerate()
+        .map(|(i, content)| {
+            let delay = i as u32 * FRAME_DURATION_MS;
+            format!(r#"<g class="qr-frame" style="animation-delay: {delay}ms;">{content}</g>"#)
+        })
+        .collect::<String>();
 
     let final_svg = format!(
         r#"<svg width="200" height="200" viewBox="{view_box}" xmlns="http://www.w3.org/2000/svg">

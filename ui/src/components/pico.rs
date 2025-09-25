@@ -2,6 +2,7 @@
 //! To use, ensure you have pico.min.css linked in your main application.
 
 #![allow(non_snake_case)] // Allow PascalCase for component function names
+#![allow(dead_code)] // Allow PascalCase for component function names
 
 use dioxus::html::input_data::keyboard_types::Key;
 use dioxus::prelude::*;
@@ -261,7 +262,7 @@ pub struct CopyButtonProps {
 /// a "Copied!" confirmation for 5 seconds.
 #[allow(non_snake_case)]
 pub fn CopyButton(props: CopyButtonProps) -> Element {
-    let mut is_copied = use_signal(|| false);
+    let is_copied = use_signal(|| false);
 
     rsx! {
         if is_copied() {

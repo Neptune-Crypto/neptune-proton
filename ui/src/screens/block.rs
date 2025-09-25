@@ -2,10 +2,7 @@
 use crate::components::pico::{Card, CopyButton};
 use crate::Screen;
 use dioxus::prelude::*;
-use neptune_types::{
-    block_info::BlockInfo, block_selector::BlockSelector,
-    native_currency_amount::NativeCurrencyAmount,
-};
+use neptune_types::block_selector::BlockSelector;
 use twenty_first::tip5::Digest;
 
 /// A small helper component to display a Digest with a label and copy button.
