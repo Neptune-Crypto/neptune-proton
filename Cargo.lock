@@ -3853,12 +3853,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libm"
-version = "0.2.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
-
-[[package]]
 name = "libredox"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4295,8 +4289,8 @@ dependencies = [
 
 [[package]]
 name = "neptune-cash"
-version = "0.3.0"
-source = "git+https://github.com/Neptune-Crypto/neptune-core.git?rev=dec1f267fc3e80bff7a97ca919deac1f49f596f4#dec1f267fc3e80bff7a97ca919deac1f49f596f4"
+version = "0.4.0"
+source = "git+https://github.com/Neptune-Crypto/neptune-core.git?rev=v0.4.0#2af0e560574acf290d6571898fdd71b29f4b18c0"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -4323,7 +4317,6 @@ dependencies = [
  "num-traits 0.2.19",
  "priority-queue",
  "rand 0.9.2",
- "rand_distr",
  "rayon",
  "readonly",
  "regex",
@@ -4355,7 +4348,7 @@ dependencies = [
 [[package]]
 name = "neptune-types"
 version = "0.1.0"
-source = "git+https://github.com/Neptune-Crypto/neptune-types.git?rev=372c54fa689cd3697dd3644a834e4aa72d27caa4#372c54fa689cd3697dd3644a834e4aa72d27caa4"
+source = "git+https://github.com/Neptune-Crypto/neptune-types.git?rev=d8c230318079c87311eb9844f547a31b349e6962#d8c230318079c87311eb9844f547a31b349e6962"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -4580,7 +4573,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
- "libm",
 ]
 
 [[package]]
@@ -5636,16 +5628,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 dependencies = [
  "getrandom 0.3.3",
-]
-
-[[package]]
-name = "rand_distr"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
-dependencies = [
- "num-traits 0.2.19",
- "rand 0.8.5",
 ]
 
 [[package]]
