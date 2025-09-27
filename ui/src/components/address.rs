@@ -33,7 +33,6 @@ pub fn Address(props: AddressProps) -> Element {
     });
 
     rsx! {
-
         NoTitleModal {
             is_open: is_modal_open,
             div {
@@ -44,10 +43,8 @@ pub fn Address(props: AddressProps) -> Element {
                     caption: "Scan the QR code to obtain the full address.".to_string()
                 }
 
-                // This flex container will center the buttons and add a gap between them.
                 div {
                     style: "display: flex; justify-content: center; gap: 0.5rem;",
-
                     CopyButton { text_to_copy: full_address() }
                     Button {
                         on_click: move |_| is_modal_open.set(false),
@@ -59,7 +56,8 @@ pub fn Address(props: AddressProps) -> Element {
                     "Full Address"
                 }
                 code {
-                    style: "text-align: left; word-break: break-all; background-color: var(--pico-muted-background-color); padding: 1rem; border-radius: var(--pico-border-radius); width: 100%; margin-bottom: 1rem;", // Gap after the code block
+                    // Reverted to the previous approach and reduced max-height to prevent parent overflow.
+                    style: "display: block; max-height: 10rem; overflow-y: auto; text-align: left; word-break: break-all; background-color: var(--pico-muted-background-color); padding: 1rem; border-radius: var(--pico-border-radius); width: 100%;",
                     "{full_address}"
                 }
             }
