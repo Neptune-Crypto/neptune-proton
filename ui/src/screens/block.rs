@@ -18,8 +18,8 @@ fn DigestDisplay(
     let digest_str = digest.to_hex();
     let abbreviated_digest = format!(
         "{}...{}",
-        &digest_str[0..6],
-        &digest_str[digest_str.len() - 4..]
+        &digest_str[0..12],
+        &digest_str[digest_str.len() - 12..]
     );
 
     rsx! {
@@ -99,7 +99,6 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
                     }
                 }
                 DigestDisplay { digest: info.digest, label: "Digest".to_string(), is_link: false, current_selector: current_selector }
-                DigestDisplay { digest: info.prev_block_digest, label: "Previous Digest".to_string(), is_link: true, current_selector: current_selector }
                 hr {}
                 div {
                     style: "display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;",
