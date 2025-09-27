@@ -25,20 +25,27 @@ fn AddressRow(
 
     rsx! {
         tr {
+            // When the mouse leaves, we reset both hover and copied states.
             onmouseenter: move |_| is_hovered.set(true),
             onmouseleave: move |_| {
                 is_hovered.set(false);
             },
 
             td { "{key_type_str}" }
-            td { Address { address: address.clone() } }
+
+            // CHANGE 1: Pass an `on_click` handler to the Address component.
+            // This allows the child component to tell this parent to hide the buttons.
+            td {
+                Address {
+                    address: address.clone(),
+                    on_click: move |_| is_hovered.set(false)
+                }
+            }
 
             td {
                 style: "min-width: 150px; display: flex; align-items: center; justify-content: flex-end;",
 
                 div {
-                    // SYNTAX FIX: Use the format! macro to build the entire style string.
-                    // This is the correct way to create dynamic attribute values in Dioxus.
                     style: {
                         format!(
                             "visibility: {}; margin: 0; font-size: 0.75em; --pico-form-element-spacing-vertical: 0.2rem; --pico-form-element-spacing-horizontal: 0.5rem;",
@@ -52,7 +59,9 @@ fn AddressRow(
                     Button {
                         button_type: ButtonType::Contrast,
                         outline: true,
+                        // CHANGE 2: Also hide the buttons when the QR button is clicked.
                         on_click: move |_| {
+                            is_hovered.set(false);
                             on_qr_request.call(address.clone());
                         },
                         "QR"

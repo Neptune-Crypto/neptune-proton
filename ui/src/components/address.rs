@@ -11,6 +11,10 @@ use std::rc::Rc;
 #[derive(Props, PartialEq, Clone)]
 pub struct AddressProps {
     pub address: Rc<ReceivingAddress>,
+
+    // CHANGE: Removed the `#[props(optional)]` attribute.
+    // Simply using `Option<T>` is the correct way to make a prop optional.
+    pub on_click: Option<EventHandler<()>>,
 }
 
 #[component]
@@ -56,7 +60,6 @@ pub fn Address(props: AddressProps) -> Element {
                     "Full Address"
                 }
                 code {
-                    // Reverted to the previous approach and reduced max-height to prevent parent overflow.
                     style: "display: block; max-height: 10rem; overflow-y: auto; text-align: left; word-break: break-all; background-color: var(--pico-muted-background-color); padding: 1rem; border-radius: var(--pico-border-radius); width: 100%;",
                     "{full_address}"
                 }
@@ -67,7 +70,12 @@ pub fn Address(props: AddressProps) -> Element {
         div {
             style: "cursor: pointer;",
             title: "Click to view full address",
-            onclick: move |_| is_modal_open.set(true),
+            onclick: move |_| {
+                if let Some(handler) = &props.on_click {
+                    handler.call(());
+                }
+                is_modal_open.set(true);
+            },
             code { "{abbreviated_address}" }
         }
     }
