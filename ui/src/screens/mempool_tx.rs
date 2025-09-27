@@ -2,34 +2,185 @@
 use crate::components::pico::{Card, CopyButton};
 use dioxus::prelude::*;
 use neptune_types::{
-    native_currency_amount::NativeCurrencyAmount, transaction_kernel_id::TransactionKernelId,
+    announcement::Announcement,
+    mutator_set::{
+        addition_record::AdditionRecord,
+        chunk::Chunk,
+        chunk_dictionary::ChunkDictionary,
+        removal_record::{absolute_index_set::AbsoluteIndexSet, RemovalRecord},
+    },
+    native_currency_amount::NativeCurrencyAmount,
+    transaction_kernel_id::TransactionKernelId,
 };
 use num_traits::Zero;
-use twenty_first::tip5::Digest;
+use twenty_first::{tip5::Digest, util_types::mmr::mmr_membership_proof::MmrMembershipProof};
 
-/// A small helper component to display a Digest with a label and copy button.
+// --- Helper & Sub-Components ---
+
 #[component]
-fn DigestDisplay(digest: Digest, label: String) -> Element {
-    let digest_str = digest.to_string();
-    let abbreviated_digest = format!(
-        "{}...{}",
-        &digest_str[0..6],
-        &digest_str[digest_str.len() - 4..]
-    );
+fn DigestDisplay(digest: Digest, label: String, abbreviated: Option<bool>) -> Element {
+    // Use to_hex() instead of to_string()
+    let digest_hex = digest.to_hex();
+    let is_abbreviated = abbreviated.unwrap_or(true);
+    let display_str = if is_abbreviated {
+        format!(
+            "{}...{}",
+            &digest_hex[0..6],
+            &digest_hex[digest_hex.len() - 4..]
+        )
+    } else {
+        digest_hex.clone()
+    };
+
     rsx! {
         div {
             style: "display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0;",
             strong { "{label}:" }
             div {
                 style: "display: flex; align-items: center; gap: 0.5rem;",
-                code { title: "{digest_str}", "{abbreviated_digest}" }
-                CopyButton { text_to_copy: &digest_str }
+                code { title: "{digest_hex}", "{display_str}" }
+                CopyButton { text_to_copy: &digest_hex }
             }
         }
     }
 }
 
-// In src/screens/mempool_tx.rs
+#[component]
+fn ChunkDisplay(chunk: Chunk) -> Element {
+    let indices_str = chunk.relative_indices.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+    rsx! {
+        details {
+            summary { "Chunk ({chunk.relative_indices.len()} indices)" }
+            div {
+                style: "padding: 0.5rem; margin-top: 0.5rem; background-color: var(--pico-secondary-background-color); border-radius: var(--pico-border-radius); font-size: 0.875em;",
+                p {
+                    style: "margin: 0; word-break: break-all;",
+                    strong { "Relative Indices: " }
+                    "{indices_str}"
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn MmrMembershipProofDisplay(proof: MmrMembershipProof) -> Element {
+    rsx! {
+        details {
+            summary { "MMR Membership Proof ({proof.authentication_path.len()} digests)" }
+            div {
+                style: "padding: 0.5rem; margin-top: 0.5rem; background-color: var(--pico-secondary-background-color); border-radius: var(--pico-border-radius);",
+                for (i, digest) in proof.authentication_path.iter().enumerate() {
+                    DigestDisplay {
+                        label: format!("Digest {}", i),
+                        digest: *digest
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn AbsoluteIndexSetDisplay(ais: AbsoluteIndexSet) -> Element {
+    let absolute_indices = ais.to_vec();
+    let indices_str = absolute_indices.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+
+    rsx! {
+        div {
+            style: "border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 0.75rem; margin-bottom: 0.75rem;",
+            details {
+                summary { "Absolute Index Set ({absolute_indices.len()} indices)" }
+                 div {
+                    style: "padding: 0.5rem; margin-top: 0.5rem; background-color: var(--pico-secondary-background-color); border-radius: var(--pico-border-radius); font-size: 0.875em; word-break: break-all;",
+                    "{indices_str}"
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn ChunkDictionaryDisplay(dictionary: ChunkDictionary) -> Element {
+    rsx! {
+         div {
+            style: "border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 0.75rem;",
+            h6 { style: "margin: 0 0 0.5rem 0;", "Target Chunks ({dictionary.len()})" }
+            if dictionary.is_empty() {
+                p { style: "font-style: italic;", "No target chunks."}
+            } else {
+                for (i, (chunk_index, (proof, chunk))) in dictionary.iter().enumerate() {
+                     div {
+                        style: "border-top: 1px solid var(--pico-muted-border-color); padding: 0.75rem 0;",
+                        p {
+                            style: "margin: 0 0 0.5rem 0;",
+                            strong { "Entry {i}: " }
+                            span { "Chunk at index " }
+                            code { "{*chunk_index}" }
+                        }
+                        ChunkDisplay { chunk: chunk.clone() }
+                        MmrMembershipProofDisplay { proof: proof.clone() }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+// --- Main Display Components ---
+
+#[component]
+fn AnnouncementDisplay(announcement: Announcement, index: usize) -> Element {
+    let announcement_str = announcement.to_string();
+    rsx! {
+        div {
+            class: "list-item",
+            style: "margin-bottom: 0.75rem; padding: 0.75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius);",
+            div {
+                style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
+                strong { "Announcement {index}" }
+                CopyButton { text_to_copy: announcement_str.clone() }
+            }
+            pre {
+                style: "background-color: var(--pico-secondary-background-color); padding: 0.5rem; border-radius: var(--pico-border-radius); max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin: 0;",
+                code {
+                    "{announcement_str}"
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn AdditionRecordDisplay(record: AdditionRecord, index: usize) -> Element {
+    rsx! {
+        div {
+            class: "list-item",
+            style: "margin-bottom: 0.75rem; padding: 0.5rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius);",
+            DigestDisplay {
+                label: format!("Output {}", index),
+                digest: record.canonical_commitment,
+                abbreviated: false,
+            }
+        }
+    }
+}
+
+#[component]
+fn RemovalRecordDisplay(record: RemovalRecord, index: usize) -> Element {
+    rsx! {
+        div {
+            class: "list-item",
+            style: "margin-bottom: 1rem; padding: 0.75rem; border: 2px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius);",
+            h5 { style: "margin-top: 0;", "Input {index}" }
+            AbsoluteIndexSetDisplay { ais: record.absolute_indices }
+            ChunkDictionaryDisplay { dictionary: record.target_chunks.clone() }
+        }
+    }
+}
+
+// --- Screen Component ---
 
 #[component]
 pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
@@ -37,14 +188,9 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
 
     rsx! {
         match &*mempool_tx.read() {
-            // Case 1: The resource is still loading
             None => rsx! {
-                div {
-                    style: "text-align: center; padding: 2rem;",
-                    h4 { "Loading transaction details..." }
-                }                
+                div { style: "text-align: center; padding: 2rem;", h4 { "Loading transaction details..." } }
             },
-            // Case 2: The resource future returned an error
             Some(Err(e)) => rsx! {
                 Card {
                     h3 { style: "color: var(--pico-color-red-500);", "Error" }
@@ -52,31 +198,24 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                     hr {}
                     h5 { "Details:" }
                     code { "{e}" }
-                }                
+                }
             },
-            // Case 3: The resource future completed successfully, but the API returned no data (not found)
             Some(Ok(None)) => rsx! {
                 Card {
                     h3 { "Not Found" }
-                    p { "Transaction with the following ID was not found in the mempool:" }
+                    p { "Transaction with ID was not found in the mempool:" }
                     div {
                         style: "display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;",
                         code { title: "{tx_id.to_string()}", "{tx_id}" }
                         CopyButton { text_to_copy: tx_id.to_string() }
                     }
-                }                
+                }
             },
-            // Case 4: The resource future completed successfully with data
             Some(Ok(Some(kernel))) => {
-                // --- THE FIX: Prepare complex strings outside the macro ---
-                let inputs_str = std::fmt::format(format_args!("{:#?}", kernel.inputs));
-                let outputs_str = std::fmt::format(format_args!("{:#?}", kernel.outputs));
-                let announcements_str = std::fmt::format(format_args!("{:#?}", kernel.announcements));
-
                 rsx! {
                     Card {
                         h3 { "Mempool Transaction Details" }
-                        // --- Transaction ID Header (unchanged) ---
+                        // --- Transaction ID Header ---
                         div {
                             style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;",
                             h5 { style: "margin: 0;", "Transaction ID" }
@@ -87,51 +226,54 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                             }
                         }
                         hr {}
-                        // --- Summary Section (unchanged) ---
+                        // --- Summary Section ---
                         h5 { style: "margin-top: 1rem; margin-bottom: 0.5rem;", "Summary" }
                         div {
                             style: "display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: center;",
-                            strong { "Timestamp:" }
-                            span { "{kernel.timestamp.standard_format()}" }
-                            strong { "Fee:" }
-                            span { "{kernel.fee}" }
-                            strong { "Coinbase:" }
-                            span { "{kernel.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}" }
-                            strong { "Inputs:" }
-                            span { "{kernel.inputs.len()}" }
-                            strong { "Outputs:" }
-                            span { "{kernel.outputs.len()}" }
-                            strong { "Announcements:" }
-                            span { "{kernel.announcements.len()}" }
+                            strong { "Timestamp:" }, span { "{kernel.timestamp.standard_format()}" }
+                            strong { "Fee:" }, span { "{kernel.fee}" }
+                            strong { "Coinbase:" }, span { "{kernel.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}" }
+                            strong { "Inputs:" }, span { "{kernel.inputs.len()}" }
+                            strong { "Outputs:" }, span { "{kernel.outputs.len()}" }
+                            strong { "Announcements:" }, span { "{kernel.announcements.len()}" }
                         }
                         hr {}
-                        // --- Details Section (unchanged) ---
+                        // --- Details Section ---
                         h5 { style: "margin-top: 1rem; margin-bottom: 0.5rem;", "Details" }
                         DigestDisplay {
                             label: "Mutator Set Hash".to_string(),
                             digest: kernel.mutator_set_hash
                         }
 
-                        // --- Collapsible Lists (Now using the prepared strings) ---
+                        // --- Collapsible Lists with new components ---
                         details {
                             summary { "Inputs ({kernel.inputs.len()})" }
-                            pre {
-                                style: "margin-top: 0.5rem; background-color: var(--pico-muted-background-color); padding: 0.5rem; border-radius: var(--pico-border-radius);",
-                                code { "{inputs_str}" }
+                            div {
+                                class: "list-container",
+                                style: "margin-top: 0.5rem; padding-left: 1rem;",
+                                for (i, input) in kernel.inputs.iter().enumerate() {
+                                    RemovalRecordDisplay { record: input.clone(), index: i }
+                                }
                             }
                         }
                          details {
                             summary { "Outputs ({kernel.outputs.len()})" }
-                             pre {
-                                style: "margin-top: 0.5rem; background-color: var(--pico-muted-background-color); padding: 0.5rem; border-radius: var(--pico-border-radius);",
-                                code { "{outputs_str}" }
+                            div {
+                                class: "list-container",
+                                style: "margin-top: 0.5rem; padding-left: 1rem;",
+                                for (i, output) in kernel.outputs.iter().enumerate() {
+                                    AdditionRecordDisplay { record: *output, index: i }
+                                }
                             }
                         }
                         details {
                             summary { "Announcements ({kernel.announcements.len()})" }
-                             pre {
-                                style: "margin-top: 0.5rem; background-color: var(--pico-muted-background-color); padding: 0.5rem; border-radius: var(--pico-border-radius);",
-                                code { "{announcements_str}" }
+                            div {
+                                class: "list-container",
+                                style: "margin-top: 0.5rem; padding-left: 1rem;",
+                                for (i, announcement) in kernel.announcements.iter().enumerate() {
+                                    AnnouncementDisplay { announcement: announcement.clone(), index: i }
+                                }
                             }
                         }
                     }

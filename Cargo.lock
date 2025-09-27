@@ -4348,7 +4348,7 @@ dependencies = [
 [[package]]
 name = "neptune-types"
 version = "0.1.0"
-source = "git+https://github.com/Neptune-Crypto/neptune-types.git?rev=d8c230318079c87311eb9844f547a31b349e6962#d8c230318079c87311eb9844f547a31b349e6962"
+source = "git+https://github.com/Neptune-Crypto/neptune-types.git?rev=0204608750d9a2486408171d71b8cc56b805fe74#0204608750d9a2486408171d71b8cc56b805fe74"
 dependencies = [
  "aead",
  "aes-gcm",
