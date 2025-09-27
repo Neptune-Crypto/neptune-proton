@@ -25,7 +25,6 @@ fn AddressRow(
 
     rsx! {
         tr {
-            // When the mouse leaves, we reset both hover and copied states.
             onmouseenter: move |_| is_hovered.set(true),
             onmouseleave: move |_| {
                 is_hovered.set(false);
@@ -35,23 +34,28 @@ fn AddressRow(
             td { Address { address: address.clone() } }
 
             td {
-                style: "min-width: 150px; text-align: right;",
-                if is_hovered() {
-                    // Use Pico's `role="group"` for horizontal button layout.
-                    div {
-                        style: "font-size: 0.8em",
-                        role: "group",
-                        CopyButton {
-                            text_to_copy: address.to_bech32m(network).unwrap()
-                        }
-                        Button {
-                            button_type: ButtonType::Contrast,
-                            outline: true,
-                            on_click: move |_| {
-                                on_qr_request.call(address.clone());
-                            },
-                            "QR"
-                        }
+                style: "min-width: 150px; display: flex; align-items: center; justify-content: flex-end;",
+
+                div {
+                    // SYNTAX FIX: Use the format! macro to build the entire style string.
+                    // This is the correct way to create dynamic attribute values in Dioxus.
+                    style: {
+                        format!(
+                            "visibility: {}; margin: 0; font-size: 0.75em; --pico-form-element-spacing-vertical: 0.2rem; --pico-form-element-spacing-horizontal: 0.5rem;",
+                            if is_hovered() { "visible" } else { "hidden" }
+                        )
+                    },
+                    role: "group",
+                    CopyButton {
+                        text_to_copy: address.to_bech32m(network).unwrap()
+                    }
+                    Button {
+                        button_type: ButtonType::Contrast,
+                        outline: true,
+                        on_click: move |_| {
+                            on_qr_request.call(address.clone());
+                        },
+                        "QR"
                     }
                 }
             }
@@ -87,7 +91,6 @@ pub fn AddressesScreen() -> Element {
 
                 let addresses: Vec<_> = keys
                     .into_iter()
-                    .rev()
                     .filter_map(|key| Some(key.to_address()))
                     .map(Rc::new)
                     .collect();
