@@ -318,7 +318,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                 header {
                     nav {
                         ul {
-                            li { h1 { style: "margin: 0; font-size: 1.5rem;", "Neptune Wallet" } }
+                            li { h1 { style: "margin: 0; font-size: 1.5rem;", "NeptuneCore Wallet" } }
                         }
                         ul {
                             li {
