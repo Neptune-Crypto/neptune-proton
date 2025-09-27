@@ -9,7 +9,7 @@ use twenty_first::tip5::Digest;
 #[component]
 fn DigestDisplay(digest: Digest, label: String, is_link: bool) -> Element {
     let mut active_screen = use_context::<Signal<Screen>>();
-    let digest_str = digest.to_string();
+    let digest_str = digest.to_hex();
     let abbreviated_digest = format!(
         "{}...{}",
         &digest_str[0..6],
