@@ -98,6 +98,21 @@ dx run --platform desktop
 The wallet app should appear in a native desktop window.
 
 
+### Setting neptune-core RPC port
+
+If you need to connect with neptune-core running on a non-default port use the
+`NEPTUNE_CORE_RPC_PORT` environment variable.
+
+Example:
+
+```
+NEPTUNE_CORE_RPC_PORT=19980 dx run --platform desktop
+```
+
+The env var applies to any platform, eg web, desktop, android, ios, etc.
+
+
+
 ## Development
 
 See [README-dioxus-workspace.md](README-dioxus-workspace.md) for an overview of how the workspace is laid out.
