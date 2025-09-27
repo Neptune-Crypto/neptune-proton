@@ -19,6 +19,10 @@ use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
 use num_traits::Zero;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// Use a static atomic counter to ensure every recipient has a unique ID for the key prop.
+static NEXT_RECIPIENT_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, PartialEq)]
 struct Recipient {
@@ -32,6 +36,7 @@ impl From<Recipient> for OutputFormat {
 }
 #[derive(Clone, PartialEq, Debug)]
 struct EditableRecipient {
+    id: u64, // Add a unique ID for stable keys
     address_str: String,
     amount_str: String,
     address_error: Option<String>,
@@ -49,6 +54,8 @@ impl EditableRecipient {
 impl Default for EditableRecipient {
     fn default() -> Self {
         Self {
+            // Assign a new, unique ID every time a default instance is created.
+            id: NEXT_RECIPIENT_ID.fetch_add(1, Ordering::Relaxed),
             address_str: String::new(),
             amount_str: String::new(),
             address_error: None,
@@ -92,26 +99,113 @@ fn EditableRecipientRow(
     rsx! {
         div {
             class: if is_active { "recipient-row active" } else { "recipient-row" },
-            style: "border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); padding: 1rem; margin-bottom: 1rem;",
-            div {
-                style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
-                label {
-                    style: "margin-bottom: 0;",
-                    if is_active { "Recipient Address" } else { "Recipient" }
-                }
+            style: "border: 1px solid var(--pico-form-element-border-color); border-radius: var(--pico-border-radius); padding: 0.75rem; margin-bottom: 0.75rem;",
+            if is_active {
                 div {
-                    style: "display: flex; gap: 0.5rem; align-items: center;",
-                    if is_active {
-                        Button {
-                           button_type: ButtonType::Primary,
-                           on_click: move |evt: MouseEvent| {
-                               evt.stop_propagation();
-                               on_done_editing.call(());
-                           },
-                           disabled: !is_row_valid(),
-                           "Done"
+                    key: "active-state-{index}",
+                    div {
+                        style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
+                        label { style: "margin-bottom: 0;", "Recipient Address" },
+                        div {
+                            style: "display: flex; gap: 0.5rem; align-items: center;",
+                            Button {
+                               button_type: ButtonType::Primary,
+                               on_click: move |evt: MouseEvent| {
+                                   evt.stop_propagation();
+                                   on_done_editing.call(());
+                               },
+                               disabled: !is_row_valid(),
+                               "Done"
+                            }
+                            if can_delete {
+                                CloseButton {
+                                    on_click: move |event: MouseEvent| {
+                                        event.stop_propagation();
+                                        on_delete.call(index);
+                                    }
+                                }
+                            }
                         }
-                    } else {
+                    }
+                    div {
+                        key: "active-form-{index}",
+                        div {
+                            Input {
+                                label: "".to_string(),
+                                name: "address_{index}",
+                                placeholder: "Click to paste or scan an address...",
+                                value: "{display_address}",
+                                readonly: true,
+                                on_click: move |event: MouseEvent| {
+                                    event.stop_propagation();
+                                    on_open_address_actions.call(index);
+                                },
+                                style: "cursor: pointer;".to_string()
+                            }
+                        }
+                        if let Some(err) = &recipient.read().address_error {
+                            small { style: "color: var(--pico-color-red-500);", "{err}" }
+                        }
+                        div {
+                            style: "margin-top: 0.75rem;",
+                            label { "Amount" }
+                            Input {
+                                label: "".to_string(),
+                                name: "amount_{index}",
+                                input_type: "number".to_string(),
+                                min: "0".to_string(), // Prevent negative numbers via stepper
+                                placeholder: "0.0",
+                                value: "{recipient.read().amount_str}",
+                                readonly: false,
+                                on_input: move |event: FormEvent| {
+                                    recipient.with_mut(|r| {
+                                        r.amount_str = event.value().clone();
+                                        // Add explicit check for negative values
+                                        match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
+                                            Ok(amt) => {
+                                                if amt < NativeCurrencyAmount::zero() {
+                                                    r.amount_error = Some("Amount cannot be negative.".to_string());
+                                                } else if amt.is_zero() {
+                                                    r.amount_error = Some("Amount must be greater than zero.".to_string());
+                                                } else {
+                                                    r.amount_error = None;
+                                                }
+                                            },
+                                            Err(_) => {
+                                                if !r.amount_str.is_empty() {
+                                                    r.amount_error = Some("Invalid amount format.".to_string())
+                                                } else {
+                                                    r.amount_error = None;
+                                                }
+                                            },
+                                        }
+                                    });
+                                }
+                            }
+                            if let Some(err) = &recipient.read().amount_error {
+                                small { style: "color: var(--pico-color-red-500);", "{err}" }
+                            }
+                        }
+                    }
+                }
+            } else {
+                div {
+                    key: "inactive-state-{index}",
+                    style: "display: flex; justify-content: space-between; align-items: center; width: 100%;",
+                    div {
+                        style: "flex-grow: 1; min-width: 0;",
+                        if let Some(addr) = parsed_address() {
+                             Address { address: Rc::new(addr) }
+                        } else {
+                             code { "{display_address}" }
+                        }
+                    }
+                    strong {
+                        style: "margin: 0 1rem; white-space: nowrap;",
+                        "{recipient.read().amount_str} NPT"
+                    }
+                    div {
+                        style: "display: flex; gap: 0.5rem; align-items: center;",
                         Button {
                            button_type: ButtonType::Secondary,
                            outline: true,
@@ -122,74 +216,15 @@ fn EditableRecipientRow(
                            disabled: is_any_other_row_active,
                            "Edit"
                         }
-                    }
-                    if can_delete {
-                        CloseButton {
-                            on_click: move |event: MouseEvent| {
-                                event.stop_propagation();
-                                on_delete.call(index);
+                        if can_delete {
+                            CloseButton {
+                                on_click: move |event: MouseEvent| {
+                                    event.stop_propagation();
+                                    on_delete.call(index);
+                                }
                             }
                         }
                     }
-                }
-            }
-            if is_active {
-                div {
-                    key: "active-form-{index}",
-                    div {
-                        Input {
-                            label: "".to_string(),
-                            name: "address_{index}",
-                            placeholder: "Click to paste or scan an address...",
-                            value: "{display_address}",
-                            readonly: true,
-                            on_click: move |event: MouseEvent| {
-                                event.stop_propagation();
-                                on_open_address_actions.call(index);
-                            },
-                            style: "cursor: pointer;"
-                        }
-                    }
-                    if let Some(err) = &recipient.read().address_error {
-                        small { style: "color: var(--pico-color-red-500);", "{err}" }
-                    }
-                    div {
-                        style: "margin-top: 0.75rem;",
-                        label { "Amount" }
-                        Input {
-                            label: "".to_string(),
-                            name: "amount_{index}",
-                            input_type: "number".to_string(),
-                            placeholder: "0.0",
-                            value: "{recipient.read().amount_str}",
-                            readonly: false,
-                            on_input: move |event: FormEvent| {
-                                recipient.with_mut(|r| {
-                                    r.amount_str = event.value().clone();
-                                    match NativeCurrencyAmount::coins_from_str(&r.amount_str) {
-                                        Ok(amt) if amt > NativeCurrencyAmount::zero() => r.amount_error = None,
-                                        _ => r.amount_error = Some("Invalid amount".to_string()),
-                                    }
-                                });
-                            }
-                        }
-                        if let Some(err) = &recipient.read().amount_error {
-                            small { style: "color: var(--pico-color-red-500);", "{err}" }
-                        }
-                    }
-                }
-            } else {
-                div {
-                    key: "inactive-display-{index}",
-                    style: "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.25rem;",
-                    div {
-                        if let Some(addr) = parsed_address() {
-                             Address { address: Rc::new(addr) }
-                        } else {
-                             code { "{display_address}" }
-                        }
-                    }
-                    strong { "{recipient.read().amount_str}" }
                 }
             }
         }
@@ -203,6 +238,7 @@ pub fn SendScreen() -> Element {
     #[derive(PartialEq, Clone, Copy)]
     enum WizardStep {
         AddRecipients,
+        EnterFee,
         Review,
         Status,
     }
@@ -240,15 +276,20 @@ pub fn SendScreen() -> Element {
         subtotal() + fee
     });
     let is_any_row_active = use_memo(move || active_row_index().is_some());
-    let is_form_fully_valid = use_memo(move || {
+
+    let are_recipients_valid = use_memo(move || {
         let recs = recipients.read();
-        if recs.is_empty() {
-            return false;
+        !recs.is_empty() && recs.iter().all(|r| r.read().is_valid(network))
+    });
+
+    let is_fee_valid = use_memo(move || {
+        if fee_str.read().is_empty() {
+            return true;
         }
-        let all_recipients_valid = recs.iter().all(|r| r.read().is_valid(network));
-        let fee_is_valid =
-            fee_str.read().is_empty() || NativeCurrencyAmount::coins_from_str(&fee_str()).is_ok();
-        all_recipients_valid && fee_is_valid
+        match NativeCurrencyAmount::coins_from_str(&fee_str()) {
+            Ok(amt) => amt >= NativeCurrencyAmount::zero(),
+            Err(_) => false,
+        }
     });
 
     let mut reset_screen = move || {
@@ -412,69 +453,98 @@ pub fn SendScreen() -> Element {
         div {
             match wizard_step() {
                 WizardStep::AddRecipients => rsx! {
-                    Card {
-                        h3 { "Add Recipients" },
-                        for (i, recipient) in recipients.iter().enumerate() {
-                            EditableRecipientRow {
-                                key: "{i}",
-                                index: i,
-                                recipient: *recipient,
-                                is_active: active_row_index() == Some(i),
-                                on_delete: move |index_to_delete: usize| {
-                                    if recipients.len() > 1 {
-                                        if active_row_index() == Some(index_to_delete) {
+                    div {
+                        style: "display: flex; flex-direction: column; height: 80vh;",
+                        h3 { style: "margin: 0 0 1rem 0; padding: 0 0.5rem;", "Add Recipients" },
+                        div {
+                            style: "flex-grow: 1; overflow-y: auto; padding: 0 0.5rem;",
+                            Card {
+                                for (i, recipient) in recipients.iter().enumerate() {
+                                    EditableRecipientRow {
+                                        key: "{recipient.read().id}",
+                                        index: i,
+                                        recipient: *recipient,
+                                        is_active: active_row_index() == Some(i),
+                                        on_delete: move |index_to_delete: usize| {
+                                            if recipients.read().len() > 1 {
+                                                recipients.write().remove(index_to_delete);
+                                                if active_row_index() == Some(index_to_delete) {
+                                                    active_row_index.set(None);
+                                                }
+                                            }
+                                        },
+                                        on_open_address_actions: move |index: usize| {
+                                            if active_row_index() == Some(index) {
+                                                action_target_index.set(Some(index));
+                                                is_address_actions_modal_open.set(true);
+                                            }
+                                        },
+                                        on_set_active: move |index: usize| {
+                                            active_row_index.set(Some(index));
+                                        },
+                                        on_done_editing: move |_| {
                                             active_row_index.set(None);
-                                        }
-                                        recipients.write().remove(index_to_delete);
+                                        },
+                                        can_delete: recipients.read().len() > 1,
+                                        is_any_other_row_active: is_any_row_active() && active_row_index() != Some(i),
                                     }
-                                },
-                                on_open_address_actions: move |index: usize| {
-                                    if active_row_index() == Some(index) {
-                                        action_target_index.set(Some(index));
-                                        is_address_actions_modal_open.set(true);
-                                    }
-                                },
-                                on_set_active: move |index: usize| {
-                                    active_row_index.set(Some(index));
-                                },
-                                on_done_editing: move |_| {
-                                    active_row_index.set(None);
-                                },
-                                can_delete: recipients.len() > 1,
-                                is_any_other_row_active: is_any_row_active() && active_row_index() != Some(i),
+                                }
                             }
                         },
                         div {
-                            style: "display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;",
+                            style: "flex-shrink: 0; padding: 0.25rem 1rem; background: var(--pico-background-color); border-top: 1px solid var(--pico-muted-border-color); display: flex; justify-content: space-between; align-items: center;",
                             Button {
                                 button_type: ButtonType::Secondary,
                                 outline: true,
                                 on_click: move |_| {
-                                    let new_index = recipients.len();
-                                    recipients.write().push(Signal::new(EditableRecipient::default()));
-                                    active_row_index.set(Some(new_index));
+                                    recipients.write().insert(0, Signal::new(EditableRecipient::default()));
+                                    active_row_index.set(Some(0));
                                 },
                                 disabled: is_any_row_active(),
                                 "Add Another Recipient"
                             },
-                            if recipients.len() > 1 {
-                                h5 { "Subtotal: {subtotal}" }
+                            h5 { style: "margin: 0;", "Subtotal: {subtotal}" },
+                            Button {
+                                on_click: move |_| {
+                                    if are_recipients_valid() {
+                                        wizard_step.set(WizardStep::EnterFee);
+                                    }
+                                },
+                                disabled: !are_recipients_valid() || is_any_row_active(),
+                                "Next: Set Fee"
                             }
                         }
-                    },
+                    }
+                },
+                WizardStep::EnterFee => rsx! {
                     Card {
+                        h3 { "Set Fee" },
+                        p { "Subtotal: {subtotal}" },
+                        hr {},
                         Input {
                             label: "Fee".to_string(),
                             name: "fee",
                             input_type: "number".to_string(),
-                            placeholder: "0.0",
+                            min: "0".to_string(), // Prevent negative numbers via stepper
+                            placeholder: "0.0 (optional)",
                             value: "{fee_str}",
                             on_input: move |event: FormEvent| {
-                                fee_str.set(event.value().clone());
-                                if NativeCurrencyAmount::coins_from_str(&event.value()).is_err() && !event.value().is_empty() {
-                                    fee_error.set(Some("Invalid fee.".to_string()));
-                                } else {
+                                let val = event.value();
+                                fee_str.set(val.clone());
+                                if val.is_empty() {
                                     fee_error.set(None);
+                                    return;
+                                }
+                                match NativeCurrencyAmount::coins_from_str(&val) {
+                                    Ok(amt) if amt < NativeCurrencyAmount::zero() => {
+                                        fee_error.set(Some("Fee cannot be negative.".to_string()));
+                                    }
+                                    Ok(_) => {
+                                        fee_error.set(None);
+                                    }
+                                    Err(_) => {
+                                        fee_error.set(Some("Invalid fee format.".to_string()));
+                                    }
                                 }
                             },
                         },
@@ -482,14 +552,19 @@ pub fn SendScreen() -> Element {
                             small { style: "color: var(--pico-color-red-500);", "{err}" }
                         },
                         h4 { style: "margin-top: 1rem; text-align: right;", "Total Spend: {total_spend}" },
-                        Button {
-                            on_click: move |_| {
-                                if is_form_fully_valid() {
-                                    wizard_step.set(WizardStep::Review);
-                                }
+                        footer {
+                             style: "display: flex; justify-content: space-between; margin-top: 1rem;",
+                             Button {
+                                button_type: ButtonType::Secondary,
+                                outline: true,
+                                on_click: move |_| wizard_step.set(WizardStep::AddRecipients),
+                                "Back"
                             },
-                            disabled: !is_form_fully_valid() || is_any_row_active(),
-                            "Next: Review"
+                            Button {
+                                on_click: move |_| wizard_step.set(WizardStep::Review),
+                                disabled: !is_fee_valid(),
+                                "Next: Review"
+                            }
                         }
                     }
                 },
@@ -514,7 +589,6 @@ pub fn SendScreen() -> Element {
                                 })}
                             }
                         },
-                        hr {},
                         p {
                             strong { "Fee: " },
                             if fee_str().is_empty() { "0.0" } else { "{fee_str()}" }
@@ -525,7 +599,7 @@ pub fn SendScreen() -> Element {
                             Button {
                                 button_type: ButtonType::Secondary,
                                 outline: true,
-                                on_click: move |_| wizard_step.set(WizardStep::AddRecipients),
+                                on_click: move |_| wizard_step.set(WizardStep::EnterFee),
                                 "Back"
                             },
                             Button {

@@ -77,7 +77,6 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
 
 #[component]
 pub fn MempoolScreen() -> Element {
-    // ... the MempoolScreen component itself does not need any changes ...
     let mut mempool_overview =
         use_resource(move || async move { api::mempool_overview(0, 1000).await });
 
@@ -101,23 +100,29 @@ pub fn MempoolScreen() -> Element {
                 Card {
                     h3 { "Mempool" }
                     p { "Transactions: {tx_list.len()}" }
-                    table {
-                        thead {
-                            tr {
-                                th { "Id" }
-                                th { "Proof Type" }
-                                th { "Inputs" }
-                                th { "Outputs" }
-                                th { "Balance Effect" }
-                                th { "Fee" }
-                            }
-                        }
-                        tbody {
-                            {tx_list.into_iter().map(|tx| {
-                                rsx! {
-                                    MempoolRow { tx: MempoolTransactionInfoReadOnly(Rc::new(*tx)) }
+
+                    // This div is the scrollable container for the table.
+                    div {
+                        style: "max-height: 70vh; overflow-y: auto;",
+                        table {
+                            thead {
+                                tr {
+                                    // The 'th' elements are now sticky to the top of the scrollable container.
+                                    th { style: "position: sticky; top: 0; background: var(--pico-card-background-color);", "Id" }
+                                    th { style: "position: sticky; top: 0; background: var(--pico-card-background-color);", "Proof Type" }
+                                    th { style: "position: sticky; top: 0; background: var(--pico-card-background-color);", "Inputs" }
+                                    th { style: "position: sticky; top: 0; background: var(--pico-card-background-color);", "Outputs" }
+                                    th { style: "position: sticky; top: 0; background: var(--pico-card-background-color);", "Balance Effect" }
+                                    th { style: "position: sticky; top: 0; background: var(--pico-card-background-color);", "Fee" }
                                 }
-                            })}
+                            }
+                            tbody {
+                                {tx_list.into_iter().map(|tx| {
+                                    rsx! {
+                                        MempoolRow { tx: MempoolTransactionInfoReadOnly(Rc::new(*tx)) }
+                                    }
+                                })}
+                            }
                         }
                     }
                 }

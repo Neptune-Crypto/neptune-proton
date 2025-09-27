@@ -109,17 +109,14 @@ pub struct ButtonProps {
 
 /// A versatile button component.
 pub fn Button(props: ButtonProps) -> Element {
-    // **THE FIX**: Build the class string correctly based on Pico's documentation.
     let mut class_parts = Vec::new();
 
-    // Add the base style class.
     match props.button_type {
         ButtonType::Primary => class_parts.push("primary"),
         ButtonType::Secondary => class_parts.push("secondary"),
         ButtonType::Contrast => class_parts.push("contrast"),
     }
 
-    // Add the "outline" class if the prop is true.
     if props.outline {
         class_parts.push("outline");
     }
@@ -128,10 +125,7 @@ pub fn Button(props: ButtonProps) -> Element {
 
     rsx! {
         button {
-            // Use the correctly generated class string.
             class: "{class_str}",
-            // style: "padding: 0.1rem; margin-top: 0.1rem;",
-            // The `data-theme` attribute is removed as it was incorrect.
             disabled: props.disabled,
             onclick: move |evt| {
                 if let Some(handler) = &props.on_click {
@@ -147,6 +141,7 @@ pub fn Button(props: ButtonProps) -> Element {
 pub struct InputProps {
     label: String,
     name: String,
+    value: String,
     #[props(default = "text".to_string())]
     input_type: String,
     #[props(optional)]
@@ -155,13 +150,15 @@ pub struct InputProps {
     disabled: bool,
     #[props(default = false)]
     readonly: bool,
-    value: String,
     #[props(optional)]
     on_input: Option<EventHandler<FormEvent>>,
     #[props(optional)]
     on_click: Option<EventHandler<MouseEvent>>,
     #[props(optional)]
     style: Option<String>,
+    // Add the new optional 'min' prop
+    #[props(optional, default)]
+    min: Option<String>,
 }
 
 /// A labeled form input field.
@@ -177,6 +174,8 @@ pub fn Input(props: InputProps) -> Element {
                 readonly: props.readonly,
                 value: "{props.value}",
                 style: "{props.style.as_deref().unwrap_or(\"\")}",
+                // Apply the new 'min' attribute to the input element
+                min: props.min,
 
                 oninput: move |event| {
                     if let Some(handler) = &props.on_input {
@@ -251,7 +250,6 @@ pub fn NoTitleModal(mut props: NoTitleModalProps) -> Element {
     }
 }
 
-// ** NEW CopyButton Component **
 #[derive(Props, PartialEq, Clone)]
 pub struct CopyButtonProps {
     /// The string that will be copied to the clipboard when the button is clicked.
@@ -281,7 +279,6 @@ pub fn CopyButton(props: CopyButtonProps) -> Element {
 
                         async move {
                             if crate::compat::clipboard_set(clipboard_text).await {
-                                // Set the state to "Copied!" and spawn the timer to reset it.
                                 is_copied.set(true);
                                 crate::compat::sleep(Duration::from_millis(5000)).await;
                                 is_copied.set(false);

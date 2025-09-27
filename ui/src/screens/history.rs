@@ -55,8 +55,6 @@ fn HistoryRow(
 pub fn HistoryScreen() -> Element {
     let mut history = use_resource(move || async move { api::history().await });
 
-    // Vec<(Digest, BlockHeight, Timestamp, NativeCurrencyAmount)
-
     rsx! {
         match &*history.read() {
             None => rsx! {
@@ -85,25 +83,49 @@ pub fn HistoryScreen() -> Element {
                 rsx! {
                     Card {
                         h3 { "History" }
-                        table {
-                            thead { tr {
-                                th { "Date" }
-                                th { "Type" }
-                                th { "Amount" }
-                                th { "Block" }
-                            }}
-                            tbody {
-
-                                {block_summaries.map(|(digest, height, timestamp, amount)| {
-                                    rsx! {
-                                        HistoryRow {
-                                            digest: *digest,
-                                            height: *height,
-                                            timestamp: *timestamp,
-                                            amount,
+                        // This div is the scrollable container for the table.
+                        div {
+                            // Adjusted max-height to reduce whitespace below the table.
+                            style: "max-height: 70vh; overflow-y: auto;",
+                            table {
+                                thead {
+                                    tr {
+                                        // The 'th' elements are now sticky to the top of the scrollable container.
+                                        th {
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
+                                            "Date"
+                                        }
+                                        th {
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
+                                            "Type"
+                                        }
+                                        th {
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
+                                            "Amount"
+                                        }
+                                        th {
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
+                                            "Block"
                                         }
                                     }
-                                })}
+                                }
+                                tbody {
+                                    {block_summaries.map(|(digest, height, timestamp, amount)| {
+                                        rsx! {
+                                            HistoryRow {
+                                                digest: *digest,
+                                                height: *height,
+                                                timestamp: *timestamp,
+                                                amount,
+                                            }
+                                        }
+                                    })}
+                                }
+                            }
+                        }
+                        p {
+                            em {
+                                "Note: Unconfirmed transactions will appear once confirmed by the network."
                             }
                         }
                     }

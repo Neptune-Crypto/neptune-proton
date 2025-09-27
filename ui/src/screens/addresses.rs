@@ -31,10 +31,9 @@ fn AddressRow(
                 is_hovered.set(false);
             },
 
+            // No explicit width needed, the single table layout handles it.
             td { "{key_type_str}" }
 
-            // CHANGE 1: Pass an `on_click` handler to the Address component.
-            // This allows the child component to tell this parent to hide the buttons.
             td {
                 Address {
                     address: address.clone(),
@@ -42,6 +41,7 @@ fn AddressRow(
                 }
             }
 
+            // Restore original style with min-width for the button group.
             td {
                 style: "min-width: 150px; display: flex; align-items: center; justify-content: flex-end;",
 
@@ -59,7 +59,6 @@ fn AddressRow(
                     Button {
                         button_type: ButtonType::Contrast,
                         outline: true,
-                        // CHANGE 2: Also hide the buttons when the QR button is clicked.
                         on_click: move |_| {
                             is_hovered.set(false);
                             on_qr_request.call(address.clone());
@@ -107,11 +106,9 @@ pub fn AddressesScreen() -> Element {
                 rsx! {
                     NoTitleModal {
                         is_open: qr_modal_is_open,
-
                         if let Some(address) = qr_code_content() {
                             div {
                                 style: "display: flex; flex-direction: column; align-items: center; text-align: center",
-
                                 QrCode {
                                     data: address.to_bech32m(network).unwrap().to_uppercase(),
                                     caption: address.to_display_bech32m_abbreviated(network).unwrap(),
@@ -121,29 +118,43 @@ pub fn AddressesScreen() -> Element {
                     }
                     Card {
                         h3 { "My Addresses" }
-                        table {
-                            thead {
-                                tr {
-                                    th { "Type" }
-                                    th { "Address" }
-                                    th { style: "width: 1%;", "" }
-                                }
-                            }
-                            tbody {
-                                {addresses.into_iter().map(|address| {
-                                    let full_address_for_key = address.to_bech32m(network).unwrap();
-                                    rsx! {
-                                        AddressRow {
-                                            key: "{full_address_for_key}",
-                                            address: Rc::clone(&address),
-                                            network,
-                                            on_qr_request: move |address: Rc<ReceivingAddress>| {
-                                                qr_code_content.set(Some(address));
-                                                qr_modal_is_open.set(true);
-                                            }
+
+                        // This div is the scrollable container for the table.
+                        div {
+                            style: "max-height: 70vh; overflow-y: auto;",
+                            table {
+                                thead {
+                                    tr {
+                                        // The 'th' elements are now sticky to the top of the scrollable container.
+                                        th {
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
+                                            "Type"
+                                        }
+                                        th {
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
+                                            "Address"
+                                        }
+                                        th {
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color); width: 1%;", ""
                                         }
                                     }
-                                })}
+                                }
+                                tbody {
+                                    {addresses.into_iter().map(|address| {
+                                        let full_address_for_key = address.to_bech32m(network).unwrap();
+                                        rsx! {
+                                            AddressRow {
+                                                key: "{full_address_for_key}",
+                                                address: Rc::clone(&address),
+                                                network,
+                                                on_qr_request: move |address: Rc<ReceivingAddress>| {
+                                                    qr_code_content.set(Some(address));
+                                                    qr_modal_is_open.set(true);
+                                                }
+                                            }
+                                        }
+                                    })}
+                                }
                             }
                         }
                     }
