@@ -321,12 +321,15 @@ fn LoadedApp(app_state: AppState) -> Element {
                             li { h1 { style: "margin: 0; font-size: 1.5rem;", "NeptuneCore Wallet" } }
                         }
                         ul {
-                            li {
-                                Button {
-                                    button_type: ButtonType::Contrast,
-                                    outline: true,
-                                    on_click: move |_| view_mode.set(ViewMode::Mobile),
-                                    "Mobile View"
+                            // Conditionally render the button based on the environment variable.
+                            if option_env!("VIEW_MODE_TOGGLE") == Some("1") {
+                                li {
+                                    Button {
+                                        button_type: ButtonType::Contrast,
+                                        outline: true,
+                                        on_click: move |_| view_mode.set(ViewMode::Mobile),
+                                        "Mobile View"
+                                    }
                                 }
                             }
                             li {
