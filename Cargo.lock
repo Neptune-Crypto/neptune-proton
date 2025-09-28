@@ -4348,11 +4348,12 @@ dependencies = [
 [[package]]
 name = "neptune-types"
 version = "0.1.0"
-source = "git+https://github.com/Neptune-Crypto/neptune-types.git?rev=0204608750d9a2486408171d71b8cc56b805fe74#0204608750d9a2486408171d71b8cc56b805fe74"
+source = "git+https://github.com/Neptune-Crypto/neptune-types.git?rev=64337e8935e383a611cda1a1eb4eff1045ee850a#64337e8935e383a611cda1a1eb4eff1045ee850a"
 dependencies = [
  "aead",
  "aes-gcm",
  "anyhow",
+ "arraystring",
  "bech32",
  "bincode",
  "chrono",
@@ -7617,6 +7618,7 @@ dependencies = [
  "api",
  "base64",
  "camera_capture",
+ "chrono",
  "dioxus",
  "dioxus-clipboard",
  "dioxus-desktop",
@@ -7643,6 +7645,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time",
 ]
 
 [[package]]

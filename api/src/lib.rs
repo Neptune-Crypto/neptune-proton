@@ -15,6 +15,7 @@ use neptune_types::dashboard_overview_data_from_client::DashBoardOverviewDataFro
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
+use neptune_types::peer_info::PeerInfo as NeptunePeerInfo;
 use neptune_types::output_format::OutputFormat;
 use neptune_types::timestamp::Timestamp;
 use neptune_types::transaction_details::TransactionDetails;
@@ -148,6 +149,18 @@ pub async fn dashboard_overview_data() -> Result<DashBoardOverviewDataFromClient
         .await??;
     Ok(data)
 }
+
+#[server(input = Json, output = Json)]
+pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ServerFnError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let data = client
+        .peer_info(tarpc::context::current(), *token)
+        .await??;
+    Ok(data)
+}
+
 
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]

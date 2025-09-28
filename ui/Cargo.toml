@@ -42,6 +42,7 @@ js-sys = "0.3.69"
 anyhow = "1.0.100"
 image = { version = "0.25", features = ["jpeg"] }
 base64 = "0.22"
+web-time = { version = "1.1.0", features = ["serde"] }
 
 # for upload and read SVG QR files.
 resvg = "0.41.0"
@@ -50,6 +51,7 @@ tiny-skia = "0.11.4"
 quick-xml = "0.31.0"
 futures = "0.3.31"
 futures-channel = "0.3.31"
+chrono = { version = "0.4.42", features = ["wasm-bindgen"] }
 # end SVG QR files
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

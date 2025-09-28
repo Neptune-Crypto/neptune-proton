@@ -17,6 +17,7 @@ use screens::{
     addresses::AddressesScreen, balance::BalanceScreen, block::BlockScreen,
     blockchain::BlockChainScreen, history::HistoryScreen, mempool::MempoolScreen,
     mempool_tx::MempoolTxScreen, receive::ReceiveScreen, send::SendScreen,
+    peers::PeersScreen,
 };
 
 /// Enum to represent the different screens in our application.
@@ -28,6 +29,7 @@ enum Screen {
     Receive,
     History,
     Addresses,
+    Peers,
     BlockChain,
     Mempool,
     MempoolTx(TransactionKernelId),
@@ -43,6 +45,7 @@ impl Screen {
             Screen::Receive => "Receive",
             Screen::History => "History",
             Screen::Addresses => "Addresses",
+            Screen::Peers => "Peers",
             Screen::BlockChain => "BlockChain",
             Screen::Mempool => "Mempool",
             Screen::MempoolTx(_) => "Mempool Transaction",
@@ -60,12 +63,13 @@ enum ViewMode {
 }
 
 /// A list of all available screens for easy iteration.
-const ALL_SCREENS: [Screen; 7] = [
+const ALL_SCREENS: [Screen; 8] = [
     Screen::Balance,
     Screen::Send,
     Screen::Receive,
     Screen::History,
     Screen::Addresses,
+    Screen::Peers,
     Screen::BlockChain,
     Screen::Mempool,
 ];
@@ -346,6 +350,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                         Screen::Receive => rsx!{ ReceiveScreen {} },
                         Screen::History => rsx!{ HistoryScreen {} },
                         Screen::Addresses => rsx!{ AddressesScreen {} },
+                        Screen::Peers => rsx!{ PeersScreen {} },
                         Screen::BlockChain => rsx!{ BlockChainScreen {} },
                         Screen::Mempool => rsx!{ MempoolScreen {} },
                         Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },
@@ -386,6 +391,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                             Screen::Receive => rsx!{ ReceiveScreen {} },
                             Screen::History => rsx!{ HistoryScreen {} },
                             Screen::Addresses => rsx!{ AddressesScreen {} },
+                            Screen::Peers => rsx!{ PeersScreen {} },
                             Screen::BlockChain => rsx!{ BlockChainScreen {} },
                             Screen::Mempool => rsx!{ MempoolScreen {} },
                             Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },

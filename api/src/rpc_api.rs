@@ -11,6 +11,7 @@ use neptune_types::dashboard_overview_data_from_client::DashBoardOverviewDataFro
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
+use neptune_types::peer_info::PeerInfo;
 use neptune_types::timestamp::Timestamp;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
@@ -40,7 +41,7 @@ pub trait RPC {
     async fn confirmations(token: rpc_auth::Token) -> RpcResult<Option<BlockHeight>>;
 
     /// Returns info about the peers we are connected to
-    // async fn peer_info(token: rpc_auth::Token) -> RpcResult<Vec<PeerInfo>>;
+    async fn peer_info(token: rpc_auth::Token) -> RpcResult<Vec<PeerInfo>>;
 
     /// Returns the digest of the latest n blocks
     async fn latest_tip_digests(token: rpc_auth::Token, n: usize) -> RpcResult<Vec<Digest>>;
