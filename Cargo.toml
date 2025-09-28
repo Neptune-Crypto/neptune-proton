@@ -13,7 +13,7 @@ twenty-first = "0.50"
 dioxus = { version = "0.6.0", features = ["router", "logger"] }
 dioxus-logger = "0.6.0"
 getrandom = { version = "0.3", features = ["wasm_js"] }
-neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", rev = "64337e8935e383a611cda1a1eb4eff1045ee850a"}
+neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", rev = "eb9d1d337b8108dafc2c640f7fd617ffe3c943e8"}
 
 # workspace
 ui = { path = "ui" }
