@@ -1,8 +1,6 @@
 // src/screens/block.rs
 use crate::components::pico::{Card, CopyButton};
-use crate::Screen;
 use dioxus::prelude::*;
-use neptune_types::block_height::BlockHeight;
 use neptune_types::block_info::BlockInfo;
 use neptune_types::block_selector::BlockSelector;
 use twenty_first::tip5::Digest;
@@ -55,16 +53,14 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
 
     // FIX: This effect now ONLY reads from `block_resource` and WRITES to `displayed_info`.
     // It no longer reads from `displayed_info`, which resolves the infinite loop warning.
-    use_effect(move || {
-        match block_resource.read().as_ref() {
-            Some(Ok(Some(info))) => {
-                displayed_info.set(Some(info.clone()));
-            }
-            Some(Err(_)) | Some(Ok(None)) => {
-                displayed_info.set(None);
-            }
-            None => {}
+    use_effect(move || match block_resource.read().as_ref() {
+        Some(Ok(Some(info))) => {
+            displayed_info.set(Some(info.clone()));
         }
+        Some(Err(_)) | Some(Ok(None)) => {
+            displayed_info.set(None);
+        }
+        None => {}
     });
 
     if let Some(info) = displayed_info() {

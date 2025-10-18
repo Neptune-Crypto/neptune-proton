@@ -6,11 +6,13 @@ use web_time::{SystemTime, UNIX_EPOCH};
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+// Added for SocketAddr and IpAddr types
+use std::net::{IpAddr, SocketAddr};
+
 use crate::components::pico::Card;
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
+use chrono::{NaiveDateTime, TimeZone, Utc};
 use dioxus::prelude::*;
 use neptune_types::peer_info::PeerInfo;
-use std::cmp::Ordering;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SortableColumn {
@@ -31,13 +33,42 @@ enum SortDirection {
 fn format_sanction(sanction_info: Option<(impl ToString, SystemTime)>) -> String {
     match sanction_info {
         Some((sanction, time)) => {
-            let duration = SystemTime::now()
-                .duration_since(time)
-                .unwrap_or_default();
+            let duration = SystemTime::now().duration_since(time).unwrap_or_default();
             let secs = duration.as_secs();
             format!("{} ({}s ago)", sanction.to_string(), secs)
         }
         None => "N/A".to_string(),
+    }
+}
+
+/// Formats a SocketAddr to display IPv4-mapped addresses as plain IPv4.
+fn format_socket_addr(addr: SocketAddr) -> String {
+    match addr {
+        SocketAddr::V4(addr_v4) => addr_v4.to_string(),
+        SocketAddr::V6(addr_v6) => {
+            // FIX: Call .ip() to get the Ipv6Addr, which has the to_ipv4_mapped method.
+            if let Some(addr_v4) = addr_v6.ip().to_ipv4_mapped() {
+                // Construct a new SocketAddrV4 to get the correct formatting.
+                std::net::SocketAddrV4::new(addr_v4, addr_v6.port()).to_string()
+            } else {
+                addr_v6.to_string()
+            }
+        }
+    }
+}
+
+/// Returns a canonical IpAddr, converting IPv4-mapped V6 addresses to V4 for consistent sorting.
+fn get_canonical_ip(addr: &SocketAddr) -> IpAddr {
+    match addr.ip() {
+        IpAddr::V6(v6) => {
+            // FIX: Call to_ipv4_mapped() on the Ipv6Addr.
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                IpAddr::V4(v4)
+            } else {
+                IpAddr::V6(v6)
+            }
+        }
+        ip => ip,
     }
 }
 
@@ -62,7 +93,6 @@ fn SortableHeader(
 
     rsx! {
         th {
-            // Add `white-space: nowrap;` to prevent the header text from wrapping
             style: "position: sticky; top: 0; background: var(--pico-card-background-color); cursor: pointer; white-space: nowrap;",
             onclick: move |_| {
                 if is_active {
@@ -89,6 +119,7 @@ fn EstablishedCell(time: SystemTime) -> Element {
     let duration_since_epoch = time
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
+    #[allow(deprecated)]
     let naive_datetime = NaiveDateTime::from_timestamp_opt(
         duration_since_epoch.as_secs() as i64,
         duration_since_epoch.subsec_nanos(),
@@ -97,7 +128,10 @@ fn EstablishedCell(time: SystemTime) -> Element {
     let established_utc = Utc.from_utc_datetime(&naive_datetime);
     let established_local = established_utc.with_timezone(&chrono::Local);
     let formatted_timestamp = established_local.format("%Y-%m-%d %H:%M:%S").to_string();
-    let seconds_ago = SystemTime::now().duration_since(time).unwrap_or_default().as_secs();
+    let seconds_ago = SystemTime::now()
+        .duration_since(time)
+        .unwrap_or_default()
+        .as_secs();
 
     rsx! {
         td {
@@ -107,13 +141,12 @@ fn EstablishedCell(time: SystemTime) -> Element {
     }
 }
 
-
 #[component]
 pub fn PeersScreen() -> Element {
     let mut peer_info = use_resource(move || async move { api::peer_info().await });
 
-    let mut sort_column = use_signal(|| SortableColumn::Standing);
-    let mut sort_direction = use_signal(|| SortDirection::Descending);
+    let sort_column = use_signal(|| SortableColumn::Standing);
+    let sort_direction = use_signal(|| SortDirection::Descending);
 
     rsx! {
         match &*peer_info.read() {
@@ -136,7 +169,8 @@ pub fn PeersScreen() -> Element {
 
                 sorted_peers.sort_by(|a: &PeerInfo, b: &PeerInfo| {
                     let ordering = match sort_column() {
-                        SortableColumn::Ip => a.connected_address().ip().cmp(&b.connected_address().ip()),
+                        // FIX: Pass a reference with `&` since get_canonical_ip expects one.
+                        SortableColumn::Ip => get_canonical_ip(&a.connected_address()).cmp(&get_canonical_ip(&b.connected_address())),
                         SortableColumn::Version => a.version().cmp(b.version()),
                         SortableColumn::Established => a.connection_established().cmp(&b.connection_established()),
                         SortableColumn::Standing => a.standing.standing.cmp(&b.standing.standing),
@@ -171,7 +205,8 @@ pub fn PeersScreen() -> Element {
                                 tbody {
                                     for peer in sorted_peers.iter() {
                                         tr {
-                                            td { code { "{peer.connected_address()}" } }
+                                            // FIX: Remove the unnecessary dereference `*`. The function takes ownership.
+                                            td { code { "{format_socket_addr(peer.connected_address())}" } }
                                             td { "{peer.version()}" }
                                             EstablishedCell { time: peer.connection_established() }
                                             td { "{peer.standing.standing}" }

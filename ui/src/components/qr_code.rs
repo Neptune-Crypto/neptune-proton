@@ -163,7 +163,7 @@ pub fn QrCode(props: QrCodeProps) -> Element {
 
         let tooltip_text = props.tooltip.as_deref().unwrap_or(&props.data);
         let caption_text = props.caption.clone().unwrap_or_default();
-        let frame_count = (uppercased_data.len() + STATIC_CHUNK_SIZE - 1) / STATIC_CHUNK_SIZE;
+        let frame_count = uppercased_data.len().div_ceil(STATIC_CHUNK_SIZE);
 
         let download_element = {
             #[cfg(not(target_arch = "wasm32"))]

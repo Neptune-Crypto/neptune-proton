@@ -2,9 +2,11 @@
 //! They can be used to defined common UI elements like buttons, forms, and modals. In this template, we define a Hero
 //! component  to be used in our app.
 pub mod address;
+pub mod amount;
 pub mod block;
 pub mod pico;
 pub mod qr_code;
 pub mod qr_processor;
 pub mod qr_scanner;
 pub mod qr_uploader;
+pub mod currency_amount_input;

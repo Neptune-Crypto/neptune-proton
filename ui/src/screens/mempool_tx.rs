@@ -47,7 +47,12 @@ fn DigestDisplay(digest: Digest, label: String, abbreviated: Option<bool>) -> El
 
 #[component]
 fn ChunkDisplay(chunk: Chunk) -> Element {
-    let indices_str = chunk.relative_indices.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+    let indices_str = chunk
+        .relative_indices
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
     rsx! {
         details {
             summary { "Chunk ({chunk.relative_indices.len()} indices)" }
@@ -84,7 +89,11 @@ fn MmrMembershipProofDisplay(proof: MmrMembershipProof) -> Element {
 #[component]
 fn AbsoluteIndexSetDisplay(ais: AbsoluteIndexSet) -> Element {
     let absolute_indices = ais.to_vec();
-    let indices_str = absolute_indices.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", ");
+    let indices_str = absolute_indices
+        .iter()
+        .map(|i| i.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
 
     rsx! {
         div {
@@ -126,7 +135,6 @@ fn ChunkDictionaryDisplay(dictionary: ChunkDictionary) -> Element {
         }
     }
 }
-
 
 // --- Main Display Components ---
 

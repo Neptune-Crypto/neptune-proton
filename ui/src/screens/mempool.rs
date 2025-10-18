@@ -1,14 +1,17 @@
 //=============================================================================
 // File: src/screens/mempool.rs
 //=============================================================================
+use crate::components::amount::Amount;
 use crate::components::pico::Card;
 use crate::Screen;
 use dioxus::prelude::*;
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
-use num_traits::CheckedSub;
-use std::cmp::Ordering;
+use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::time::Duration;
+
+use num_traits::CheckedSub;
 
 // Enums to manage sorting state
 #[derive(Clone, Copy, PartialEq)]
@@ -19,12 +22,19 @@ enum SortableColumn {
     Outputs,
     BalanceEffect,
     Fee,
+    Synced,
 }
 
 #[derive(Clone, Copy, PartialEq)]
 enum SortDirection {
     Ascending,
     Descending,
+}
+
+// A helper function to safely calculate balance effect as a signed integer for sorting.
+// We assume `NativeCurrencyAmount` is a tuple struct wrapping a u128, so we access with `.0`.
+fn calculate_balance_effect(tx: &MempoolTransactionInfo) -> NativeCurrencyAmount {
+    tx.positive_balance_effect.checked_sub(&tx.negative_balance_effect).unwrap_or_default()
 }
 
 #[derive(Debug, Clone)]
@@ -67,7 +77,7 @@ fn SortableHeader(
 
     rsx! {
         th {
-            style: "position: sticky; top: 0; background: var(--pico-card-background-color); cursor: pointer; white-space: nowrap;",
+            style: "position: sticky; top: 0; background: var(--pico-card-background-color); cursor: pointer; white-space: nowrap; padding: 12px 4px;",
             onclick: move |_| {
                 if is_active {
                     sort_direction.with_mut(|dir| *dir = match dir {
@@ -94,10 +104,18 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
     let mut active_screen = use_context::<Signal<Screen>>();
     let mut is_hovered = use_signal(|| false);
 
-    let balance_effect = tx
-        .positive_balance_effect
-        .checked_sub(&tx.negative_balance_effect)
-        .unwrap();
+    // Safely handle the balance effect calculation for display.
+    // avoids unwrap() and correctly formats negative values.
+    let balance_effect_display = if let Some(bal) =
+        tx.positive_balance_effect.checked_sub(&tx.negative_balance_effect)
+    {
+        // Positive or zero balance effect
+        rsx! { Amount { amount: bal } }
+    } else {
+        // Negative balance effect. The reverse subtraction is now guaranteed to succeed.
+        let neg_bal = tx.negative_balance_effect.checked_sub(&tx.positive_balance_effect).unwrap();
+        rsx! { "-" Amount { amount: neg_bal } }
+    };
 
     let tx_id_str = tx.id.to_string();
     let abbreviated_tx_id = format!(
@@ -112,20 +130,25 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
             onmouseleave: move |_| is_hovered.set(false),
 
             td {
+                style: "padding: 8px 4px;",
                 a {
                     href: "#",
                     title: "{tx_id_str}",
                     onclick: move |_| {
-                        active_screen.set(Screen::MempoolTx(tx.id.clone()));
+                        active_screen.set(Screen::MempoolTx(tx.id));
                     },
                     "{abbreviated_tx_id}"
                 }
             }
-            td { "{tx.proof_type}" }
-            td { "{tx.num_inputs}" }
-            td { "{tx.num_outputs}" }
-            td { "{balance_effect}" }
-            td { "{tx.fee}" }
+            td { style: "padding: 8px 4px;", "{tx.proof_type}" }
+            td { style: "padding: 8px 4px;", "{tx.num_inputs}" }
+            td { style: "padding: 8px 4px;", "{tx.num_outputs}" }
+            td { style: "padding: 8px 4px;", {balance_effect_display} }
+            td { style: "padding: 8px 4px;", Amount { amount: tx.fee } }
+            td {
+                style: "text-align: center; padding: 8px 4px;",
+                if tx.synced { "✅" } else { "❌" }
+            }
         }
     }
 }
@@ -136,8 +159,21 @@ pub fn MempoolScreen() -> Element {
         use_resource(move || async move { api::mempool_overview(0, 1000).await });
 
     // State for sorting
-    let mut sort_column = use_signal(|| SortableColumn::Fee);
-    let mut sort_direction = use_signal(|| SortDirection::Descending);
+    let sort_column = use_signal(|| SortableColumn::Fee);
+    let sort_direction = use_signal(|| SortDirection::Descending);
+
+    // API Polling every 10 seconds
+    // This effect runs once on component mount and starts a background task.
+    use_effect(move || {
+        // We need to clone the signal to move it into the async task.
+        let mut mempool_overview = mempool_overview.clone();
+        spawn(async move {
+            loop {
+                crate::compat::sleep(Duration::from_secs(10)).await;
+                mempool_overview.restart();
+            }
+        });
+    });
 
     rsx! {
         match &*mempool_overview.read() {
@@ -161,17 +197,17 @@ pub fn MempoolScreen() -> Element {
                 // Apply sorting based on the current state
                 sorted_txs.sort_by(|a, b| {
                     let ordering = match sort_column() {
-                        // Reverted to direct comparison now that `Ord` is implemented
                         SortableColumn::Id => a.id.cmp(&b.id),
                         SortableColumn::ProofType => a.proof_type.to_string().cmp(&b.proof_type.to_string()),
                         SortableColumn::Inputs => a.num_inputs.cmp(&b.num_inputs),
                         SortableColumn::Outputs => a.num_outputs.cmp(&b.num_outputs),
                         SortableColumn::BalanceEffect => {
-                            let bal_a = a.positive_balance_effect.checked_sub(&a.negative_balance_effect).unwrap();
-                            let bal_b = b.positive_balance_effect.checked_sub(&b.negative_balance_effect).unwrap();
+                            let bal_a = calculate_balance_effect(a);
+                            let bal_b = calculate_balance_effect(b);
                             bal_a.cmp(&bal_b)
                         },
                         SortableColumn::Fee => a.fee.cmp(&b.fee),
+                        SortableColumn::Synced => a.synced.cmp(&b.synced),
                     };
 
                     match sort_direction() {
@@ -191,11 +227,12 @@ pub fn MempoolScreen() -> Element {
                                 thead {
                                     tr {
                                         SortableHeader { title: "Id", column: SortableColumn::Id, sort_column, sort_direction }
-                                        SortableHeader { title: "Proof Type", column: SortableColumn::ProofType, sort_column, sort_direction }
+                                        SortableHeader { title: "Proof", column: SortableColumn::ProofType, sort_column, sort_direction }
                                         SortableHeader { title: "Inputs", column: SortableColumn::Inputs, sort_column, sort_direction }
                                         SortableHeader { title: "Outputs", column: SortableColumn::Outputs, sort_column, sort_direction }
-                                        SortableHeader { title: "Balance Effect", column: SortableColumn::BalanceEffect, sort_column, sort_direction }
+                                        SortableHeader { title: "Δ Balance", column: SortableColumn::BalanceEffect, sort_column, sort_direction }
                                         SortableHeader { title: "Fee", column: SortableColumn::Fee, sort_column, sort_direction }
+                                        SortableHeader { title: "Synced", column: SortableColumn::Synced, sort_column, sort_direction }
                                     }
                                 }
                                 tbody {

@@ -108,9 +108,9 @@ pub fn ReceiveScreen() -> Element {
                         on_click: move |_| {
                             is_generating.set(true);
                             spawn({
-                                let mut receiving_address = receiving_address.clone();
-                                let mut is_generating = is_generating.clone();
-                                let key_type_to_gen = selected_key_type.read().clone();
+                                let mut receiving_address = receiving_address;
+                                let mut is_generating = is_generating;
+                                let key_type_to_gen = *selected_key_type.read();
                                 async move {
                                     let new_addr = api::next_receiving_address(key_type_to_gen).await.unwrap();
                                     receiving_address.set(Some(Rc::new(new_addr)));

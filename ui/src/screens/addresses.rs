@@ -98,8 +98,8 @@ pub fn AddressesScreen() -> Element {
                 let mut qr_modal_is_open = use_signal(|| false);
 
                 let addresses: Vec<_> = keys
-                    .into_iter()
-                    .filter_map(|key| Some(key.to_address()))
+                    .iter()
+                    .map(|key| key.to_address())
                     .map(Rc::new)
                     .collect();
 

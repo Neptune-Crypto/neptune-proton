@@ -275,7 +275,7 @@ pub fn CopyButton(props: CopyButtonProps) -> Element {
                     let clipboard_text = props.text_to_copy.clone();
 
                     spawn({
-                        let mut is_copied = is_copied.clone();
+                        let mut is_copied = is_copied;
 
                         async move {
                             if crate::compat::clipboard_set(clipboard_text).await {

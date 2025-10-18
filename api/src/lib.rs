@@ -1,7 +1,15 @@
 //! This crate contains all shared fullstack server functions.
 
+pub mod fiat_amount;
+pub mod fiat_currency;
+#[cfg(not(target_arch = "wasm32"))]
+mod price_caching;
+pub mod price_map;
+#[cfg(not(target_arch = "wasm32"))]
+mod price_providers;
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
+
 use dioxus::prelude::server_fn::codec::Json;
 use dioxus::prelude::*;
 use neptune_types::address::KeyType;
@@ -15,12 +23,13 @@ use neptune_types::dashboard_overview_data_from_client::DashBoardOverviewDataFro
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::network::Network;
-use neptune_types::peer_info::PeerInfo as NeptunePeerInfo;
 use neptune_types::output_format::OutputFormat;
+use neptune_types::peer_info::PeerInfo as NeptunePeerInfo;
 use neptune_types::timestamp::Timestamp;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use price_map::PriceMap;
 use twenty_first::tip5::Digest;
 
 /// Echo the user input on the server.
@@ -161,6 +170,10 @@ pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ServerFnError> {
     Ok(data)
 }
 
+#[server(FiatPricesApi, input = Json, output = Json)]
+pub async fn fiat_prices() -> Result<PriceMap, ServerFnError> {
+    price_caching::get_cached_fiat_prices().await
+}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]

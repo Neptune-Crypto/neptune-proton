@@ -1,6 +1,7 @@
 //=============================================================================
 // File: src/screens/history.rs
 //=============================================================================
+use crate::components::amount::Amount;
 use crate::components::block::Block;
 use crate::components::pico::Card;
 use dioxus::prelude::*;
@@ -10,7 +11,6 @@ use neptune_types::block_height::BlockHeight;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::timestamp::Timestamp;
 use num_traits::Zero;
-use std::cmp::Ordering;
 use std::rc::Rc;
 use twenty_first::tip5::Digest;
 
@@ -101,7 +101,7 @@ fn HistoryRow(
                 "{date}"
             }
             td { "{tx_type}" }
-            td { "{amount} NPT" }
+            td { Amount { amount } }
             td { Block{ block_digest: digest.clone(), height }}
         }
     }
@@ -113,8 +113,8 @@ pub fn HistoryScreen() -> Element {
     let mut history = use_resource(move || async move { api::history().await });
 
     // State for sorting
-    let mut sort_column = use_signal(|| SortableColumn::Date);
-    let mut sort_direction = use_signal(|| SortDirection::Descending);
+    let sort_column = use_signal(|| SortableColumn::Date);
+    let sort_direction = use_signal(|| SortDirection::Descending);
 
     rsx! {
         match &*history.read() {

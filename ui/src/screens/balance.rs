@@ -1,6 +1,9 @@
+use crate::app_state::AppState;
+use crate::app_state_mut::{AppStateMut, DisplayCurrency};
+use crate::components::amount::Amount;
 use crate::components::block::Block;
 use crate::components::pico::Card;
-use crate::AppState;
+use api::fiat_currency::FiatCurrency;
 use dioxus::prelude::*;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use num_traits::CheckedSub;
@@ -9,21 +12,17 @@ use std::rc::Rc;
 
 /// A responsive container for a section of the dashboard.
 #[component]
-fn InfoCard(title: String, children: Element) -> Element {
+fn InfoCard(children: Element) -> Element {
     rsx! {
         article {
             style: "border: 1px solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); padding: 1rem; background-color: var(--pico-card-background-color);",
-            h5 {
-                style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;",
-                "{title}"
-            }
-            dl { style: "margin: 0;", {children} }
+            // The title is now passed in as part of children to allow for more complex headers
+            {children}
         }
     }
 }
 
 /// A small, reusable component for displaying a key-value pair.
-/// It correctly receives its value as `children`.
 #[component]
 fn InfoItem(label: String, children: Element) -> Element {
     rsx! {
@@ -40,18 +39,18 @@ fn InfoItem(label: String, children: Element) -> Element {
 fn BalanceRow(available: NativeCurrencyAmount, total: NativeCurrencyAmount) -> Element {
     let time_locked = total.checked_sub(&available).unwrap_or_default();
     rsx! {
-        InfoItem{
+        InfoItem {
             label: "Available".to_string(),
-            span { "{available}" }
+            Amount { amount: available }
         }
         if time_locked > NativeCurrencyAmount::zero() {
-            InfoItem{
+            InfoItem {
                 label: "Time-locked".to_string(),
-                span { "{time_locked}" }
+                Amount { amount: time_locked }
             }
-            InfoItem{
+            InfoItem {
                 label: "Total".to_string(),
-                span { "{total}" }
+                Amount { amount: total }
             }
         }
     }
@@ -59,12 +58,13 @@ fn BalanceRow(available: NativeCurrencyAmount, total: NativeCurrencyAmount) -> E
 
 #[component]
 pub fn BalanceScreen() -> Element {
-    let network = use_context::<AppState>().network;
+    let app_state = use_context::<AppState>();
+    let mut app_state_mut = use_context::<AppStateMut>();
     let mut dashboard_data =
         use_resource(move || async move { api::dashboard_overview_data().await });
 
     use_coroutine(move |_rx: UnboundedReceiver<()>| {
-        let mut data_resource = dashboard_data.clone();
+        let mut data_resource = dashboard_data;
         async move {
             loop {
                 // Correct for WASM targets: use a timer from the `gloo` ecosystem.
@@ -108,87 +108,126 @@ pub fn BalanceScreen() -> Element {
                 let mining_status_str = std::fmt::format(format_args!("{}", data.mining_status.unwrap_or_default()));
                 let proving_capability_str = std::fmt::format(format_args!("{}", data.proving_capability));
 
+                // Logic for the global display toggle button
+                let toggle_text = match *app_state_mut.display_currency.read() {
+                    DisplayCurrency::Npt => "USD", // Show what it will change to
+                    DisplayCurrency::Fiat(_) => "NPT",
+                };
+                let toggle_onclick = move |_| {
+                    let new_currency = match *app_state_mut.display_currency.read() {
+                        DisplayCurrency::Npt => DisplayCurrency::Fiat(FiatCurrency::USD),
+                        DisplayCurrency::Fiat(_) => DisplayCurrency::Npt,
+                    };
+                    app_state_mut.display_currency.set(new_currency);
+                };
+
                 rsx! {
                     div {
                         style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;",
 
                         InfoCard {
-                            title: "Confirmed Balance".to_string(),
                             div {
-                                style: "{balance_grid_style}",
-                                BalanceRow {
-                                    available: data.confirmed_available_balance,
-                                    total: data.confirmed_total_balance,
+                                style: "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--pico-secondary-border); margin-bottom: 1rem; padding-bottom: 0.5rem;",
+                                h5 { style: "margin: 0;", "Confirmed Balance" }
+                                button {
+                                    class: "outline secondary",
+                                    style: "padding: 0.2rem 0.5rem; font-size: 0.8em; margin-left: 1rem; min-width: 55px;",
+                                    onclick: toggle_onclick,
+                                    "{toggle_text}"
+                                }
+                            }
+                            dl {
+                                style: "margin: 0;",
+                                div {
+                                    style: "{balance_grid_style}",
+                                    BalanceRow {
+                                        available: data.confirmed_available_balance,
+                                        total: data.confirmed_total_balance,
+                                    }
                                 }
                             }
                         }
 
                         if show_unconfirmed {
                             InfoCard {
-                                title: "Unconfirmed Balance".to_string(),
-                                div {
-                                    style: "{balance_grid_style}",
-                                    BalanceRow {
-                                        available: data.unconfirmed_available_balance,
-                                        total: data.unconfirmed_total_balance,
+                                h5 {
+                                    style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;",
+                                    "Unconfirmed Balance"
+                                }
+                                dl {
+                                    style: "margin: 0;",
+                                    div {
+                                        style: "{balance_grid_style}",
+                                        BalanceRow {
+                                            available: data.unconfirmed_available_balance,
+                                            total: data.unconfirmed_total_balance,
+                                        }
                                     }
                                 }
                             }
                         }
 
                         InfoCard {
-                            title: "Blockchain".to_string(),
-                            InfoItem {
-                                label: "Network".to_string(),
-                                span { "{network}" }
-                            }
-                            InfoItem {
-                                label: "Status".to_string(),
-                                span { style: "color: {status_color};", "{sync_text}" }
-                            }
-                            InfoItem {
-                                label: "Tip".to_string(),
-                                Block{ block_digest, height }
-                            }
-                            // InfoItem {
-                            //     label: "Proof of Work".to_string(),
-                            //     code { "{data.total_pow}" }
-                            // }
-                        }
-
-                        InfoCard {
-                            title: "Mempool".to_string(),
-                            InfoItem {
-                                label: "Transactions".to_string(),
-                                span { "{data.mempool_total_tx_count}" }
-                            }
-                            InfoItem {
-                                label: "Size (bytes)".to_string(),
-                                span { "{data.mempool_size}" }
+                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Blockchain" }
+                            dl {
+                                style: "margin: 0;",
+                                InfoItem {
+                                    label: "Network".to_string(),
+                                    span { "{app_state.network}" }
+                                }
+                                InfoItem {
+                                    label: "Status".to_string(),
+                                    span { style: "color: {status_color};", "{sync_text}" }
+                                }
+                                InfoItem {
+                                    label: "Tip".to_string(),
+                                    Block { block_digest, height }
+                                }
                             }
                         }
 
                         InfoCard {
-                            title: "Network Peers".to_string(),
-                            InfoItem {
-                                label: "Connected Peers".to_string(),
-                                span { "{data.peer_count.unwrap_or_default()}" }
-                            }
-                            InfoItem {
-                                label: "Max Peers".to_string(),
-                                span { "{data.max_num_peers}" }
+                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Mempool" }
+                            dl {
+                                style: "margin: 0;",
+                                InfoItem {
+                                    label: "Transactions".to_string(),
+                                    span { "{data.mempool_total_tx_count}" }
+                                }
+                                InfoItem {
+                                    label: "Size (bytes)".to_string(),
+                                    span { "{data.mempool_size}" }
+                                }
                             }
                         }
 
                         InfoCard {
-                            title: "Node Info".to_string(),
-                            InfoItem {
-                                label: "Mining Status".to_string(),
-                                span { "{mining_status_str}" }
+                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Network Peers" }
+                            dl {
+                                style: "margin: 0;",
+                                InfoItem {
+                                    label: "Connected Peers".to_string(),
+                                    span { "{data.peer_count.unwrap_or_default()}" }
+                                }
+                                InfoItem {
+                                    label: "Max Peers".to_string(),
+                                    span { "{data.max_num_peers}" }
+                                }
                             }
-                            InfoItem {
-                                label: "Proving Capability".to_string(),
-                                code { "{proving_capability_str}" }
+                        }
+
+                        InfoCard {
+                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Node Info" }
+                            dl {
+                                style: "margin: 0;",
+                                InfoItem {
+                                    label: "Mining Status".to_string(),
+                                    span { "{mining_status_str}" }
+                                }
+                                InfoItem {
+                                    label: "Proving Capability".to_string(),
+                                    code { "{proving_capability_str}" }
+                                }
                             }
                         }
                     }

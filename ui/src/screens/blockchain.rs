@@ -47,7 +47,6 @@ pub fn BlockChainScreen() -> Element {
                         p { "Provide a block height (number) or digest (hex string) to look up a block." }
 
                         form {
-                            prevent_default: "onsubmit",
                             onsubmit: move |_| {
                                 let input_str = lookup_input.read().trim().to_string();
                                 if input_str.is_empty() {

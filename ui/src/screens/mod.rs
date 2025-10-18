@@ -7,6 +7,6 @@ pub mod blockchain;
 pub mod history;
 pub mod mempool;
 pub mod mempool_tx;
+pub mod peers;
 pub mod receive;
 pub mod send;
-pub mod peers;

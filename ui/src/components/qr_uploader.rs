@@ -34,7 +34,7 @@ mod svg_reader {
                 Ok(Event::Start(e))
                     if e.name().as_ref() == b"g"
                         && e.attributes().any(|a| {
-                            a.map_or(false, |a| {
+                            a.is_ok_and(|a| {
                                 a.key.as_ref() == b"class" && a.value.as_ref() == b"qr-frame"
                             })
                         }) =>

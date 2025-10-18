@@ -3,21 +3,21 @@
 use dioxus::prelude::*;
 
 mod app_state;
+mod app_state_mut;
 pub mod compat;
 mod components;
+pub mod hooks;
 mod screens;
 
 use app_state::AppState;
+use app_state_mut::{AppStateMut, DisplayCurrency};
+use components::pico::{Button, ButtonType, Container};
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
-
-// Use components from our modules.
-use components::pico::{Button, ButtonType, Container};
 use screens::{
     addresses::AddressesScreen, balance::BalanceScreen, block::BlockScreen,
     blockchain::BlockChainScreen, history::HistoryScreen, mempool::MempoolScreen,
-    mempool_tx::MempoolTxScreen, receive::ReceiveScreen, send::SendScreen,
-    peers::PeersScreen,
+    mempool_tx::MempoolTxScreen, peers::PeersScreen, receive::ReceiveScreen, send::SendScreen,
 };
 
 /// Enum to represent the different screens in our application.
@@ -92,7 +92,7 @@ fn Tabs(active_screen: Signal<Screen>) -> Element {
                                     (&Screen::MempoolTx(_), &Screen::Mempool) => true,
                                     (&Screen::Block(_), &Screen::BlockChain) => true,
                                     // Otherwise, do a direct comparison
-                                    (ref active, screen) => *active == screen,
+                                    (active, screen) => active == screen,
                                 };
                                 if is_active { "page" } else { "false" }
                             },
@@ -165,38 +165,6 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
 
 #[allow(non_snake_case)]
 pub fn App() -> Element {
-    let future = use_server_future(api::network)?;
-
-    let content = match &*future.read() {
-        None => rsx! {
-            h1 { "Loading..." }
-            progress {}
-        },
-        Some(Ok(network)) => rsx! {
-            LoadedApp { app_state: AppState::new(*network) }
-        },
-        Some(Err(e)) => rsx! {
-            h1 { "Error from API" }
-            p { "{e}" }
-        },
-    };
-
-    content
-}
-
-/// A new component to hold the main part of your app.
-/// This makes the logic cleaner, as it only runs when the data is ready.
-#[component]
-fn LoadedApp(app_state: AppState) -> Element {
-    use_context_provider(|| app_state);
-
-    let active_screen = use_signal(Screen::default);
-    let mut view_mode = use_signal(ViewMode::default);
-
-    // --- Provide the active_screen signal to the context ---
-    // This allows child components like SendScreen to change the current screen.
-    use_context_provider(|| active_screen);
-
     let responsive_css = r#"
     /* --- Responsive Navigation Logic --- */
     .hamburger-menu-container { display: none; }
@@ -301,6 +269,82 @@ fn LoadedApp(app_state: AppState) -> Element {
     }
 "#;
 
+    rsx! {
+        document::Meta { name: "viewport", content: "width=device-width, initial-scale=1.0" }
+        document::Stylesheet { href: asset!("/assets/css/pico.cyan.min.css") }
+        style { "{responsive_css}" }
+        AppBody {}
+    }
+}
+
+/// A new component that contains the suspended part of the application.
+#[component]
+fn AppBody() -> Element {
+    let future = use_server_future(api::network)?;
+
+    // **[THE FIX]** Store the result of `.read()` in a variable to extend its lifetime.
+    let future_read = future.read();
+    match &*future_read {
+        None => rsx! {
+            h1 { "Loading..." }
+            progress {}
+        },
+        Some(Ok(network)) => rsx! {
+            LoadedApp { app_state: AppState::new(*network) }
+        },
+        Some(Err(e)) => rsx! {
+            h1 { "Error from API" }
+            p { "{e}" }
+        },
+    }
+}
+
+/// This component holds the main app logic and only runs when data is ready.
+#[component]
+fn LoadedApp(app_state: AppState) -> Element {
+    // Provide the stable, non-reactive AppState.
+    use_context_provider(|| app_state.clone());
+
+    // Create signals for mutable state at the top level of the component.
+    let prices_signal = use_signal(|| None);
+    let display_currency_signal = use_signal(DisplayCurrency::default);
+
+    // Provide the mutable state by passing the already created signals.
+    use_context_provider(|| AppStateMut {
+        prices: prices_signal,
+        display_currency: display_currency_signal,
+    });
+
+    // Get a handle to the mutable state to populate it.
+    let mut app_state_mut = use_context::<AppStateMut>();
+
+    // Fetch fiat prices from the backend.
+    let prices_resource = use_resource(move || async move { api::fiat_prices().await });
+
+    // Set up a timer to periodically refresh prices.
+    use_coroutine(move |_rx: UnboundedReceiver<()>| {
+        let mut res = prices_resource;
+        async move {
+            loop {
+                compat::sleep(std::time::Duration::from_secs(60)).await;
+                res.restart();
+            }
+        }
+    });
+
+    // Use an effect to safely write to the signal after rendering.
+    use_effect(move || {
+        if let Some(Ok(price_map)) = prices_resource.read().as_ref() {
+            app_state_mut.prices.set(Some(price_map.clone()));
+        }
+    });
+
+    let active_screen = use_signal(Screen::default);
+    let mut view_mode = use_signal(ViewMode::default);
+
+    // --- Provide the active_screen signal to the context ---
+    use_context_provider(|| active_screen);
+
     let wrapper_class = if view_mode() == ViewMode::Mobile {
         "mobile-view-wrapper"
     } else {
@@ -313,10 +357,6 @@ fn LoadedApp(app_state: AppState) -> Element {
     };
 
     rsx! {
-        document::Meta { name: "viewport", content: "width=device-width, initial-scale=1.0" }
-        document::Stylesheet { href: asset!("/assets/css/pico.cyan.min.css") }
-        style { "{responsive_css}" }
-
         if view_mode() == ViewMode::Desktop {
             Container {
                 header {
@@ -359,7 +399,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                             rsx! {
                                 BlockScreen {
                                     key: "{key}",
-                                    selector: selector.clone()
+                                    selector: selector
                                 }
                             }
                         }
@@ -379,7 +419,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                             ul {
                                 li {
                                     HamburgerMenu { active_screen: active_screen, view_mode: view_mode }
-                                }
+                                 }
                             }
                         }
                     }
@@ -400,7 +440,7 @@ fn LoadedApp(app_state: AppState) -> Element {
                                 rsx! {
                                     BlockScreen {
                                         key: "{key}",
-                                        selector: selector.clone()
+                                        selector: selector
                                     }
                                 }
                             }

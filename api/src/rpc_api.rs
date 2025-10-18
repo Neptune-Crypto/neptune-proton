@@ -31,7 +31,7 @@ pub trait RPC {
     /// Returns local socket used for incoming peer-connections. Does not show
     async fn own_listen_address_for_peers(token: rpc_auth::Token) -> RpcResult<Option<SocketAddr>>;
 
-    /// Return the node's instance-ID which is a globally unique random generated number
+    // /// Return the node's instance-ID which is a globally unique random generated number
     // async fn own_instance_id(token: rpc_auth::Token) -> RpcResult<InstanceId>;
 
     /// Returns the current block height.
@@ -52,7 +52,7 @@ pub trait RPC {
         block_selector: BlockSelector,
     ) -> RpcResult<Option<BlockInfo>>;
 
-    /// Return the block kernel if block is known.
+    // /// Return the block kernel if block is known.
     // async fn block_kernel(
     //     token: rpc_auth::Token,
     //     block_selector: BlockSelector,
@@ -79,14 +79,14 @@ pub trait RPC {
     /// Return the digest for the specified UTXO leaf index if found
     async fn utxo_digest(token: rpc_auth::Token, leaf_index: u64) -> RpcResult<Option<Digest>>;
 
-    /// Returns the block digest in which the specified UTXO was created, if available
+    // /// Returns the block digest in which the specified UTXO was created, if available
     // async fn utxo_origin_block(
     //     token: rpc_auth::Token,
     //     addition_record: AdditionRecord,
     //     max_search_depth: Option<u64>,
     // ) -> RpcResult<Option<Digest>>;
 
-    /// Return the block header for the specified block
+    // /// Return the block header for the specified block
     // async fn header(
     //     token: rpc_auth::Token,
     //     block_selector: BlockSelector,
@@ -106,7 +106,7 @@ pub trait RPC {
         token: rpc_auth::Token,
     ) -> RpcResult<Vec<(Digest, BlockHeight, Timestamp, NativeCurrencyAmount)>>;
 
-    /// Return information about funds in the wallet
+    // /// Return information about funds in the wallet
     // async fn wallet_status(token: rpc_auth::Token) -> RpcResult<WalletStatus>;
 
     /// Return the number of expected UTXOs, including already received UTXOs.
@@ -169,18 +169,18 @@ pub trait RPC {
         amount: NativeCurrencyAmount,
     ) -> RpcResult<bool>;
 
-    /// Generate a report of all owned and unspent coins, whether time-locked or not.
+    // /// Generate a report of all owned and unspent coins, whether time-locked or not.
     // async fn list_own_coins(token: rpc_auth::Token) -> RpcResult<Vec<CoinWithPossibleTimeLock>>;
 
     /// Get CPU temperature.
     async fn cpu_temp(token: rpc_auth::Token) -> RpcResult<Option<f32>>;
 
-    /// Get the proof-of-work puzzle for the current block proposal. Uses the
+    // /// Get the proof-of-work puzzle for the current block proposal. Uses the
     // async fn pow_puzzle_internal_key(
     //     token: rpc_auth::Token,
     // ) -> RpcResult<Option<ProofOfWorkPuzzle>>;
 
-    /// Get the proof-of-work puzzle for the current block proposal. Like
+    // /// Get the proof-of-work puzzle for the current block proposal. Like
     // async fn pow_puzzle_external_key(
     //     token: rpc_auth::Token,
     //     guesser_digest: Digest,
@@ -193,7 +193,7 @@ pub trait RPC {
         max_num_blocks: Option<usize>,
     ) -> RpcResult<Option<Vec<(u64, u64)>>>;
 
-    /// Return the difficulties of a range of blocks.
+    // /// Return the difficulties of a range of blocks.
     // async fn block_difficulties(
     //     token: rpc_auth::Token,
     //     last_block: BlockSelector,
@@ -209,23 +209,23 @@ pub trait RPC {
     /// Clears standing for ip, whether connected or not
     async fn clear_standing_by_ip(token: rpc_auth::Token, ip: IpAddr) -> RpcResult<()>;
 
-    /// todo: docs.
+    // /// todo: docs.
     // async fn spendable_inputs(token: rpc_auth::Token) -> RpcResult<TxInputList>;
 
-    /// retrieve spendable inputs sufficient to cover spend_amount by applying selection policy.
+    // /// retrieve spendable inputs sufficient to cover spend_amount by applying selection policy.
     // async fn select_spendable_inputs(
     //     token: rpc_auth::Token,
     //     policy: InputSelectionPolicy,
     //     spend_amount: NativeCurrencyAmount,
     // ) -> RpcResult<TxInputList>;
 
-    /// generate tx outputs from list of OutputFormat.
+    // /// generate tx outputs from list of OutputFormat.
     // async fn generate_tx_outputs(
     //     token: rpc_auth::Token,
     //     outputs: Vec<OutputFormat>,
     // ) -> RpcResult<TxOutputList>;
 
-    /// todo: docs.
+    // /// todo: docs.
     // async fn generate_tx_details(
     //     token: rpc_auth::Token,
     //     tx_inputs: TxInputList,
@@ -234,33 +234,33 @@ pub trait RPC {
     //     fee: NativeCurrencyAmount,
     // ) -> RpcResult<TransactionDetails>;
 
-    /// todo: docs.
+    // /// todo: docs.
     // async fn generate_witness_proof(
     //     token: rpc_auth::Token,
     //     tx_details: TransactionDetails,
     // ) -> RpcResult<TransactionProof>;
 
-    /// assemble a transaction from TransactionDetails and a TransactionProof.
+    // /// assemble a transaction from TransactionDetails and a TransactionProof.
     // async fn assemble_transaction(
     //     token: rpc_auth::Token,
     //     transaction_details: TransactionDetails,
     //     transaction_proof: TransactionProof,
     // ) -> RpcResult<Transaction>;
 
-    /// assemble transaction artifacts from TransactionDetails and a TransactionProof.
+    // /// assemble transaction artifacts from TransactionDetails and a TransactionProof.
     // async fn assemble_transaction_artifacts(
     //     token: rpc_auth::Token,
     //     transaction_details: TransactionDetails,
     //     transaction_proof: TransactionProof,
     // ) -> RpcResult<TxCreationArtifacts>;
 
-    /// record transaction and initiate broadcast to peers
+    // /// record transaction and initiate broadcast to peers
     // async fn record_and_broadcast_transaction(
     //     token: rpc_auth::Token,
     //     tx_artifacts: TxCreationArtifacts,
     // ) -> RpcResult<()>;
 
-    /// Send coins to one or more recipients
+    // /// Send coins to one or more recipients
     // async fn send(
     //     token: rpc_auth::Token,
     //     outputs: Vec<OutputFormat>,
@@ -268,14 +268,14 @@ pub trait RPC {
     //     fee: NativeCurrencyAmount,
     // ) -> RpcResult<TxCreationArtifacts>;
 
-    /// upgrades a transaction's proof.
+    // /// upgrades a transaction's proof.
     // async fn upgrade_tx_proof(
     //     token: rpc_auth::Token,
     //     transaction_id: TransactionKernelId,
     //     transaction_proof: TransactionProof,
     // ) -> RpcResult<()>;
 
-    /// todo: docs.
+    // /// todo: docs.
     // async fn proof_type(
     //     token: rpc_auth::Token,
     //     txid: TransactionKernelId,
