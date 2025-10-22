@@ -104,18 +104,18 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
     let mut active_screen = use_context::<Signal<Screen>>();
     let mut is_hovered = use_signal(|| false);
 
-    // Safely handle the balance effect calculation for display.
-    // avoids unwrap() and correctly formats negative values.
-    let balance_effect_display = if let Some(bal) =
-        tx.positive_balance_effect.checked_sub(&tx.negative_balance_effect)
-    {
-        // Positive or zero balance effect
-        rsx! { Amount { amount: bal } }
-    } else {
-        // Negative balance effect. The reverse subtraction is now guaranteed to succeed.
-        let neg_bal = tx.negative_balance_effect.checked_sub(&tx.positive_balance_effect).unwrap();
-        rsx! { "-" Amount { amount: neg_bal } }
-    };
+    // note: as of neptune-core v0.3.0, the negative and positive balance
+    // effect fields are backwards.  ie:
+    //    negative_balance_effect is the amount added to own wallet.
+    //    positive_balance_effect is the amount removed from own wallet.
+    // thus we subtract positive_balance_effect from positive_balance_effect to
+    // obtain the balance delta.
+    //
+    // note that we cannot directly use subtraction to obtain a negative number
+    // but we can add a negative number to do so. this is an inconsistency in NativeCurrencyAmount.
+    let delta = tx.negative_balance_effect + -tx.positive_balance_effect;
+
+    let balance_effect_display = rsx! { Amount { amount: delta } };
 
     let tx_id_str = tx.id.to_string();
     let abbreviated_tx_id = format!(
