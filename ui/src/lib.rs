@@ -6,11 +6,14 @@ mod app_state;
 mod app_state_mut;
 pub mod compat;
 mod components;
+mod currency;
 pub mod hooks;
 mod screens;
 
 use app_state::AppState;
-use app_state_mut::{AppStateMut, DisplayCurrency};
+use app_state_mut::AppStateMut;
+use api::prefs::user_prefs::UserPrefs;
+use api::price_map::PriceMap;
 use components::pico::{Button, ButtonType, Container};
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
@@ -73,7 +76,6 @@ const ALL_SCREENS: [Screen; 8] = [
     Screen::BlockChain,
     Screen::Mempool,
 ];
-
 /// The desktop navigation tabs component.
 #[component]
 fn Tabs(active_screen: Signal<Screen>) -> Element {
@@ -81,17 +83,19 @@ fn Tabs(active_screen: Signal<Screen>) -> Element {
         nav {
             class: "tab-menu",
             ul {
+
+
                 for screen in ALL_SCREENS {
                     li {
+
+
                         a {
                             href: "#",
                             class: if *active_screen.read() == screen { "active-tab" } else { "" },
                             "aria-current": {
                                 let is_active = match (&*active_screen.read(), &screen) {
-                                    // Highlight "Mempool" tab when viewing a specific tx
                                     (&Screen::MempoolTx(_), &Screen::Mempool) => true,
                                     (&Screen::Block(_), &Screen::BlockChain) => true,
-                                    // Otherwise, do a direct comparison
                                     (active, screen) => active == screen,
                                 };
                                 if is_active { "page" } else { "false" }
@@ -121,7 +125,7 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                 button_type: ButtonType::Secondary,
                 outline: true,
                 on_click: move |_| is_open.toggle(),
-                "☰"
+                "≡"
             }
             if is_open() {
                 div {
@@ -142,7 +146,11 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                             "{screen.name()}"
                         }
                     }
-                    hr {}
+                    hr {
+                    
+
+                    
+                    }
                     a {
                         class: "custom-dropdown-item",
                         href: "#",
@@ -223,7 +231,6 @@ pub fn App() -> Element {
         border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0;
     }
 
-    /* --- SCROLLBAR FIX: This should be definitive. --- */
     html {
         overflow-y: scroll;
     }
@@ -270,72 +277,137 @@ pub fn App() -> Element {
 "#;
 
     rsx! {
-        document::Meta { name: "viewport", content: "width=device-width, initial-scale=1.0" }
-        document::Stylesheet { href: asset!("/assets/css/pico.cyan.min.css") }
-        style { "{responsive_css}" }
-        AppBody {}
+        document::Meta {
+            name: "viewport",
+            content: "width=device-width, initial-scale=1.0",
+        }
+        document::Stylesheet {
+            href: asset!("/assets/css/pico.cyan.min.css"),
+        }
+        style {
+
+
+            "{responsive_css}"
+        }
+        AppBody {
+        
+
+        
+        }
     }
 }
 
-/// A new component that contains the suspended part of the application.
+// In ui/src/lib.rs
+
 #[component]
 fn AppBody() -> Element {
-    let future = use_server_future(api::network)?;
 
-    // **[THE FIX]** Store the result of `.read()` in a variable to extend its lifetime.
-    let future_read = future.read();
-    match &*future_read {
-        None => rsx! {
-            h1 { "Loading..." }
-            progress {}
-        },
-        Some(Ok(network)) => rsx! {
-            LoadedApp { app_state: AppState::new(*network) }
-        },
+    // this will be processed on server before initial page is delivered.
+    let initial_data_future = use_server_future(move || async move {
+
+        // call the server apis concurrently
+        let (network_result, prefs_result) = tokio::join!(
+            api::network(),
+            api::get_user_prefs()
+        );
+
+        let network = match network_result {
+            Ok(n) => n,
+            Err(e) => return Err(e),
+        };
+        let user_prefs = match prefs_result {
+            Ok(p) => p,
+            Err(e) => return Err(e),
+        };
+
+        dioxus_logger::tracing::info!("prefs: {:#?}", user_prefs);
+
+        Ok((network, user_prefs))
+    })?;
+
+    // Read from the single future to ensure it's polled during SSR.
+    let body = match &*initial_data_future.read() {
+        Some(Ok((network, prefs))) => {
+            rsx! {
+                LoadedApp {
+                    app_state: AppState::new(*network),
+                    user_prefs: *prefs,
+                }
+            }
+        }
         Some(Err(e)) => rsx! {
-            h1 { "Error from API" }
-            p { "{e}" }
+            p {
+
+
+                "An error occurred: {e}"
+            }
         },
-    }
+        _ => rsx! {
+            p {
+
+
+                "Loading..."
+            }
+        },
+    };
+    body
 }
 
 /// This component holds the main app logic and only runs when data is ready.
 #[component]
-fn LoadedApp(app_state: AppState) -> Element {
+fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
     // Provide the stable, non-reactive AppState.
     use_context_provider(|| app_state.clone());
 
     // Create signals for mutable state at the top level of the component.
     let prices_signal = use_signal(|| None);
-    let display_currency_signal = use_signal(DisplayCurrency::default);
+    let display_preference_signal = use_signal(|| user_prefs.display_preference().to_owned());
 
     // Provide the mutable state by passing the already created signals.
     use_context_provider(|| AppStateMut {
         prices: prices_signal,
-        display_currency: display_currency_signal,
+        display_preference: display_preference_signal,
     });
-
     // Get a handle to the mutable state to populate it.
     let mut app_state_mut = use_context::<AppStateMut>();
 
-    // Fetch fiat prices from the backend.
-    let prices_resource = use_resource(move || async move { api::fiat_prices().await });
+    let fiat_enabled = app_state_mut.display_preference.read().is_fiat_enabled();
+    let prices_resource = use_resource(move || async move {
+        if fiat_enabled {
+            // Fetch fiat prices from the backend ONLY if fiat mode is enabled.
+            api::fiat_prices().await
+        } else {
+            Ok(PriceMap::default())
+        }
+    });
 
-    // Set up a timer to periodically refresh prices.
     use_coroutine(move |_rx: UnboundedReceiver<()>| {
         let mut res = prices_resource;
         async move {
             loop {
                 compat::sleep(std::time::Duration::from_secs(60)).await;
-                res.restart();
+                // The conditional logic is now INSIDE the hook's closure.
+                if display_preference_signal.read().is_fiat_enabled() {
+                    res.restart();
+                }
             }
         }
     });
 
-    // Use an effect to safely write to the signal after rendering.
     use_effect(move || {
-        if let Some(Ok(price_map)) = prices_resource.read().as_ref() {
-            app_state_mut.prices.set(Some(price_map.clone()));
+        // The conditional logic is also moved inside here.
+        if display_preference_signal.read().is_fiat_enabled() {
+            if let Some(Ok(price_map)) = prices_resource.read().as_ref() {
+                // This check prevents infinite loops if the resource returns the same data.
+                if app_state_mut.prices.peek().as_ref() != Some(price_map) {
+                    app_state_mut.prices.set(Some(price_map.clone()));
+                }
+            }
+        } else {
+            // Ensure prices are cleared if fiat mode is turned off.
+            if app_state_mut.prices.peek().is_some() {
+                app_state_mut.prices.set(None);
+            }
         }
     });
 
@@ -344,7 +416,6 @@ fn LoadedApp(app_state: AppState) -> Element {
 
     // --- Provide the active_screen signal to the context ---
     use_context_provider(|| active_screen);
-
     let wrapper_class = if view_mode() == ViewMode::Mobile {
         "mobile-view-wrapper"
     } else {
@@ -355,19 +426,25 @@ fn LoadedApp(app_state: AppState) -> Element {
     } else {
         ""
     };
-
     rsx! {
         if view_mode() == ViewMode::Desktop {
             Container {
+
+
                 header {
+
+
                     nav {
+
+
                         ul {
-                            li { h1 { style: "margin: 0; font-size: 1.5rem;", "NeptuneCore Wallet" } }
-                        }
-                        ul {
+
+
                             // Conditionally render the button based on the environment variable.
                             if option_env!("VIEW_MODE_TOGGLE") == Some("1") {
                                 li {
+
+
                                     Button {
                                         button_type: ButtonType::Contrast,
                                         outline: true,
@@ -377,7 +454,11 @@ fn LoadedApp(app_state: AppState) -> Element {
                                 }
                             }
                             li {
-                                Tabs { active_screen: active_screen }
+
+
+                                Tabs {
+                                    active_screen,
+                                }
                             }
                         }
                     }
@@ -385,21 +466,65 @@ fn LoadedApp(app_state: AppState) -> Element {
                 div {
                     class: "content",
                     match active_screen() {
-                        Screen::Balance => rsx!{ BalanceScreen {} },
-                        Screen::Send => rsx!{ SendScreen {} },
-                        Screen::Receive => rsx!{ ReceiveScreen {} },
-                        Screen::History => rsx!{ HistoryScreen {} },
-                        Screen::Addresses => rsx!{ AddressesScreen {} },
-                        Screen::Peers => rsx!{ PeersScreen {} },
-                        Screen::BlockChain => rsx!{ BlockChainScreen {} },
-                        Screen::Mempool => rsx!{ MempoolScreen {} },
-                        Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },
+                        Screen::Balance => rsx! {
+                            BalanceScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::Send => rsx! {
+                            SendScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::Receive => rsx! {
+                            ReceiveScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::History => rsx! {
+                            HistoryScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::Addresses => rsx! {
+                            AddressesScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::Peers => rsx! {
+                            PeersScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::BlockChain => rsx! {
+                            BlockChainScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::Mempool => rsx! {
+                            MempoolScreen {
+                            
+                            
+                            }
+                        },
+                        Screen::MempoolTx(tx_id) => rsx! {
+                            MempoolTxScreen {
+                                tx_id,
+                            }
+                        },
                         Screen::Block(selector) => {
                             let key = std::fmt::format(format_args!("{:?}", selector));
                             rsx! {
                                 BlockScreen {
                                     key: "{key}",
-                                    selector: selector
+                                    selector,
                                 }
                             }
                         }
@@ -412,35 +537,99 @@ fn LoadedApp(app_state: AppState) -> Element {
                 div {
                     class: "{content_class}",
                     header {
+
+
                         nav {
+
+
                             ul {
-                                li { h1 { style: "margin: 0; font-size: 1.5rem;", "Neptune Wallet" } }
+
+
+                                li {
+
+
+                                    h1 {
+                                        style: "margin: 0; font-size: 1.5rem;",
+                                        "Neptune Wallet"
+                                    }
+                                }
                             }
                             ul {
+
+
                                 li {
-                                    HamburgerMenu { active_screen: active_screen, view_mode: view_mode }
-                                 }
+
+
+                                    HamburgerMenu {
+                                        active_screen,
+                                        view_mode,
+                                    }
+                                }
                             }
                         }
                     }
                     div {
                         class: "content",
                         match active_screen() {
-                            Screen::Balance => rsx!{ BalanceScreen {} },
-                            Screen::Send => rsx!{ SendScreen {} },
-                            Screen::Receive => rsx!{ ReceiveScreen {} },
-                            Screen::History => rsx!{ HistoryScreen {} },
-                            Screen::Addresses => rsx!{ AddressesScreen {} },
-                            Screen::Peers => rsx!{ PeersScreen {} },
-                            Screen::BlockChain => rsx!{ BlockChainScreen {} },
-                            Screen::Mempool => rsx!{ MempoolScreen {} },
-                            Screen::MempoolTx(tx_id) => rsx!{ MempoolTxScreen { tx_id } },
+                            Screen::Balance => rsx! {
+                                BalanceScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::Send => rsx! {
+                                SendScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::Receive => rsx! {
+                                ReceiveScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::History => rsx! {
+                                HistoryScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::Addresses => rsx! {
+                                AddressesScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::Peers => rsx! {
+                                PeersScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::BlockChain => rsx! {
+                                BlockChainScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::Mempool => rsx! {
+                                MempoolScreen {
+                                
+                                
+                                }
+                            },
+                            Screen::MempoolTx(tx_id) => rsx! {
+                                MempoolTxScreen {
+                                    tx_id,
+                                }
+                            },
                             Screen::Block(selector) => {
                                 let key = std::fmt::format(format_args!("{:?}", selector));
                                 rsx! {
                                     BlockScreen {
                                         key: "{key}",
-                                        selector: selector
+                                        selector,
                                     }
                                 }
                             }

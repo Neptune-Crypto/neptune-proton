@@ -32,12 +32,18 @@ fn AddressRow(
             },
 
             // No explicit width needed, the single table layout handles it.
-            td { "{key_type_str}" }
+            td {
+
+
+                "{key_type_str}"
+            }
 
             td {
+
+
                 Address {
                     address: address.clone(),
-                    on_click: move |_| is_hovered.set(false)
+                    on_click: move |_| is_hovered.set(false),
                 }
             }
 
@@ -49,12 +55,12 @@ fn AddressRow(
                     style: {
                         format!(
                             "visibility: {}; margin: 0; font-size: 0.75em; --pico-form-element-spacing-vertical: 0.2rem; --pico-form-element-spacing-horizontal: 0.5rem;",
-                            if is_hovered() { "visible" } else { "hidden" }
+                            if is_hovered() { "visible" } else { "hidden" },
                         )
                     },
                     role: "group",
                     CopyButton {
-                        text_to_copy: address.to_bech32m(network).unwrap()
+                        text_to_copy: address.to_bech32m(network).unwrap(),
                     }
                     Button {
                         button_type: ButtonType::Contrast,
@@ -81,28 +87,48 @@ pub fn AddressesScreen() -> Element {
         match &*known_keys.read() {
             None => rsx! {
                 Card {
-                    h3 { "My Addresses" }
-                    p { "Loading..." }
-                    progress {}
+                
+                    h3 {
+                
+                        "My Addresses"
+                    }
+                    p {
+                
+                        "Loading..."
+                    }
+                    progress {
+                    
+                
+                    }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                    h3 { "Error" }
-                    p { "Failed to load addresses: {e}" }
-                    button { onclick: move |_| known_keys.restart(), "Retry" }
+                
+                    h3 {
+                
+                        "Error"
+                    }
+                    p {
+                
+                        "Failed to load addresses: {e}"
+                    }
+                    button {
+                        onclick: move |_| known_keys.restart(),
+                        "Retry"
+                    }
                 }
             },
             Some(Ok(keys)) => {
-                let mut qr_code_content = use_signal::<Option<Rc<ReceivingAddress>>>(|| None);
+                let mut qr_code_content = use_signal::<
+                    Option<Rc<ReceivingAddress>>,
+                >(|| None);
                 let mut qr_modal_is_open = use_signal(|| false);
-
                 let addresses: Vec<_> = keys
                     .iter()
                     .map(|key| key.to_address())
                     .map(Rc::new)
                     .collect();
-
                 rsx! {
                     NoTitleModal {
                         is_open: qr_modal_is_open,
@@ -117,14 +143,20 @@ pub fn AddressesScreen() -> Element {
                         }
                     }
                     Card {
-                        h3 { "My Addresses" }
-
+                    
+                        h3 {
+                    
+                            "My Addresses"
+                        }
                         // This div is the scrollable container for the table.
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {
+                    
                                 thead {
+                    
                                     tr {
+                    
                                         // The 'th' elements are now sticky to the top of the scrollable container.
                                         th {
                                             style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
@@ -135,25 +167,31 @@ pub fn AddressesScreen() -> Element {
                                             "Address"
                                         }
                                         th {
-                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color); width: 1%;", ""
+                                            style: "position: sticky; top: 0; background: var(--pico-card-background-color); width: 1%;",
+                                            ""
                                         }
                                     }
                                 }
                                 tbody {
-                                    {addresses.into_iter().map(|address| {
-                                        let full_address_for_key = address.to_bech32m(network).unwrap();
-                                        rsx! {
-                                            AddressRow {
-                                                key: "{full_address_for_key}",
-                                                address: Rc::clone(&address),
-                                                network,
-                                                on_qr_request: move |address: Rc<ReceivingAddress>| {
-                                                    qr_code_content.set(Some(address));
-                                                    qr_modal_is_open.set(true);
+                    
+                                    {
+                                        addresses
+                                            .into_iter()
+                                            .map(|address| {
+                                                let full_address_for_key = address.to_bech32m(network).unwrap();
+                                                rsx! {
+                                                    AddressRow {
+                                                        key: "{full_address_for_key}",
+                                                        address: Rc::clone(&address),
+                                                        network,
+                                                        on_qr_request: move |address: Rc<ReceivingAddress>| {
+                                                            qr_code_content.set(Some(address));
+                                                            qr_modal_is_open.set(true);
+                                                        },
+                                                    }
                                                 }
-                                            }
-                                        }
-                                    })}
+                                            })
+                                    }
                                 }
                             }
                         }

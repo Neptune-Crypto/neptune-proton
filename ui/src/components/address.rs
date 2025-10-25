@@ -11,9 +11,6 @@ use std::rc::Rc;
 #[derive(Props, PartialEq, Clone)]
 pub struct AddressProps {
     pub address: Rc<ReceivingAddress>,
-
-    // CHANGE: Removed the `#[props(optional)]` attribute.
-    // Simply using `Option<T>` is the correct way to make a prop optional.
     pub on_click: Option<EventHandler<()>>,
 }
 
@@ -44,12 +41,14 @@ pub fn Address(props: AddressProps) -> Element {
 
                 QrCode {
                     data: full_address().to_uppercase(),
-                    caption: "Scan the QR code to obtain the full address.".to_string()
+                    caption: "Scan the QR code to obtain the full address.".to_string(),
                 }
 
                 div {
                     style: "display: flex; justify-content: center; gap: 0.5rem;",
-                    CopyButton { text_to_copy: full_address() }
+                    CopyButton {
+                        text_to_copy: full_address(),
+                    }
                     Button {
                         on_click: move |_| is_modal_open.set(false),
                         "Close"
@@ -76,7 +75,11 @@ pub fn Address(props: AddressProps) -> Element {
                 }
                 is_modal_open.set(true);
             },
-            code { "{abbreviated_address}" }
+            code {
+
+
+                "{abbreviated_address}"
+            }
         }
     }
 }

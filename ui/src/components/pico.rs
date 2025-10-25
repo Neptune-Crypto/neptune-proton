@@ -16,14 +16,24 @@ use std::time::Duration;
 /// Wraps content in a `<main class="container">` element.
 #[component]
 pub fn Container(children: Element) -> Element {
-    rsx! { main { class: "container", {children} } }
+    rsx! {
+        main {
+            class: "container",
+            {children}
+        }
+    }
 }
 
 /// A responsive grid layout.
 /// Wraps `GridItem` components in a `<div class="grid">`.
 #[component]
 pub fn Grid(children: Element) -> Element {
-    rsx! { div { class: "grid", {children} } }
+    rsx! {
+        div {
+            class: "grid",
+            {children}
+        }
+    }
 }
 
 //=============================================================================
@@ -34,7 +44,13 @@ pub fn Grid(children: Element) -> Element {
 /// Wraps content in an `<article>` element.
 #[component]
 pub fn Card(children: Element) -> Element {
-    rsx! { article { {children} } }
+    rsx! {
+        article {
+
+
+            {children}
+        }
+    }
 }
 
 #[derive(Props, PartialEq, Clone)]
@@ -47,7 +63,12 @@ pub struct AccordionProps {
 pub fn Accordion(props: AccordionProps) -> Element {
     rsx! {
         details {
-            summary { role: "button", "{props.title}" }
+
+
+            summary {
+                role: "button",
+                "{props.title}"
+            }
             {props.children}
         }
     }
@@ -105,6 +126,10 @@ pub struct ButtonProps {
     outline: bool,
     #[props(default = false)]
     disabled: bool,
+    #[props(default)]
+    style: String,
+    #[props(default)]
+    title: String,
 }
 
 /// A versatile button component.
@@ -132,6 +157,8 @@ pub fn Button(props: ButtonProps) -> Element {
                     handler.call(evt);
                 }
             },
+            style: "{props.style}",
+            title: "{props.title}",
             {props.children}
         }
     }
@@ -165,9 +192,11 @@ pub struct InputProps {
 pub fn Input(props: InputProps) -> Element {
     rsx! {
         label {
-            "{props.label}",
+
+
+            "{props.label}"
             input {
-                r#type:"{props.input_type}",
+                r#type: "{props.input_type}",
                 name: "{props.name}",
                 placeholder: "{props.placeholder.as_deref().unwrap_or(\"\")}",
                 disabled: props.disabled,
@@ -205,14 +234,21 @@ pub fn Modal(mut props: ModalProps) -> Element {
             dialog {
                 open: true,
                 article {
+
+
                     header {
+
+
                         a {
                             href: "#",
                             "aria-label": "Close",
                             class: "close",
-                            onclick: move |_| props.is_open.set(false)
+                            onclick: move |_| props.is_open.set(false),
                         }
-                        h3 { style: "margin-bottom: 0;", "{props.title}" }
+                        h3 {
+                            style: "margin-bottom: 0;",
+                            "{props.title}"
+                        }
                     }
                     {props.children}
                 }
@@ -273,10 +309,8 @@ pub fn CopyButton(props: CopyButtonProps) -> Element {
             Button {
                 on_click: move |_| {
                     let clipboard_text = props.text_to_copy.clone();
-
                     spawn({
                         let mut is_copied = is_copied;
-
                         async move {
                             if crate::compat::clipboard_set(clipboard_text).await {
                                 is_copied.set(true);
@@ -287,6 +321,113 @@ pub fn CopyButton(props: CopyButtonProps) -> Element {
                     });
                 },
                 "Copy"
+            }
+        }
+    }
+}
+
+
+//=============================================================================
+// Chooser Component
+//=============================================================================
+
+#[derive(Props, PartialEq, Clone)]
+pub struct ChooserProps {
+    /// A signal holding the ID of the currently selected option.
+    /// The signal's initial value determines the default selection.
+    pub selected: Signal<String>,
+    /// A vector of (ID, Label) tuples for the options.
+    pub options: Vec<(String, String)>,
+    /// An optional label to display above the chooser.
+    #[props(optional)]
+    pub label: Option<String>,
+    /// An optional string of custom CSS styles.
+    #[props(optional)]
+    pub style: Option<String>,
+    /// The visual style of the button.
+    #[props(default)]
+    pub button_type: ButtonType,
+    /// Whether the button should be an outline style.
+    #[props(default = false)]
+    pub outline: bool,
+}
+
+/// A dropdown selector component that looks like a button, based on the
+/// <details> element. Separates option IDs from display labels.
+pub fn Chooser(mut props: ChooserProps) -> Element {
+    let mut is_open = use_signal(|| false);
+
+    let selected_label = props.options
+        .iter()
+        .find(|(id, _label)| id == &*props.selected.read())
+        .map(|(_id, label)| label.clone())
+        .unwrap_or_else(|| "Select...".to_string());
+
+    let maybe_label = props.label.as_ref().map(|l| rsx!{ "{l}" });
+    let style = props.style.as_deref().unwrap_or("");
+
+    rsx! {
+        div {
+            style: "{style}",
+            {maybe_label}
+            div {
+                style: "position: relative;",
+                Button {
+                    button_type: props.button_type,
+                    outline: props.outline,
+                    on_click: move |_| is_open.toggle(),
+                    style: "width: 100%;",
+                    "{selected_label}"
+                }
+                if is_open() {
+                    ul {
+                        role: "listbox",
+                        style: "
+                            position: absolute;
+                            width: 100%;
+                            z-index: 10;
+                            background-color: var(--pico-card-background-color);
+                            border: 1px solid var(--pico-card-border-color);
+                            border-radius: var(--pico-border-radius);
+                            padding: 0.5rem;
+                            margin-top: 0.25rem;
+                        ",
+                        {
+                            props
+                                .options
+                                .iter()
+                                .map(|(id, label)| {
+                                    let id_clone = id.clone();
+                                    let is_selected = *props.selected.read() == *id;
+                                    rsx! {
+                                        li {
+                                            key: "{id}",
+                                            style: "display: flex; align-items: center; cursor: pointer;",
+                                            onclick: move |_| {
+                                                props.selected.set(id_clone.clone());
+                                                is_open.set(false);
+                                            },
+                                            if is_selected {
+                                                span {
+                                                    style: "width: 1.5rem;",
+                                                    "✓"
+                                                }
+                                            } else {
+                                                span {
+                                                    style: "width: 1.5rem; visibility: hidden;",
+                                                    "✓"
+                                                }
+                                            }
+                                            span {
+                                        
+                                                "{label}"
+                                            }
+                                        }
+                                    }
+                                })
+                        }
+                    }
+                }
             }
         }
     }

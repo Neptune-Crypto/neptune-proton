@@ -182,24 +182,44 @@ pub fn QrUploader(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> 
 
     rsx! {
         div {
-            h3 { "Processing QR Image" }
+
+
+            h3 {
+
+
+                "Processing QR Image"
+            }
             if let Some(err) = upload_error() {
-                div { p { style: "color: var(--pico-color-red-500);", "{err}" } }
+                div {
+
+
+                    p {
+                        style: "color: var(--pico-color-red-500);",
+                        "{err}"
+                    }
+                }
             } else {
                 div {
                     style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; min-width: 300px;",
-                    p { "{status_message}" },
+                    p {
+
+
+                        "{status_message}"
+                    }
                     if *is_processing.read() {
                         progress {
                             max: "{upload_progress().1}",
-                            value: "{upload_progress().0}"
+                            value: "{upload_progress().0}",
                         }
                     }
                 }
             }
             div {
                 style: "margin-top: 1rem;",
-                Button { on_click: move |_| on_close.call(()), "Close" }
+                Button {
+                    on_click: move |_| on_close.call(()),
+                    "Close"
+                }
             }
         }
     }

@@ -150,7 +150,12 @@ mod wasm32 {
         });
 
         let error_display = if let Some(err) = error_message.read().as_ref() {
-            Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
+            Some(rsx! {
+                p {
+                    style: "color: var(--pico-color-red-500);",
+                    "{err}"
+                }
+            })
         } else {
             None
         };
@@ -160,16 +165,31 @@ mod wasm32 {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label { "Scan Progress: {found} of {total}" },
-                        progress { max: "{total}", value: "{found}" }
+                        label {
+
+
+                            "Scan Progress: {found} of {total}"
+                        }
+                        progress {
+                            max: "{total}",
+                            value: "{found}",
+                        }
                     }
                 }
             } else {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label { "Aim camera at QR code..." },
-                        progress {}
+                        label {
+
+
+                            "Aim camera at QR code..."
+                        }
+                        progress {
+
+
+
+                        }
                     }
                 }
             })
@@ -180,8 +200,15 @@ mod wasm32 {
             Some(rsx! {
                 div {
                     style: "position: relative; width: 100%; max-width: 400px; margin: auto; border-radius: var(--pico-border-radius); overflow: hidden; border: 1px solid var(--pico-form-element-border-color);",
-                    video { id: "qr-video", autoplay: true, playsinline: true },
-                    canvas { id: "qr-canvas", style: "display: none;" }
+                    video {
+                        id: "qr-video",
+                        autoplay: true,
+                        playsinline: true,
+                    }
+                    canvas {
+                        id: "qr-canvas",
+                        style: "display: none;",
+                    }
                 }
             })
         } else {
@@ -221,7 +248,11 @@ mod wasm32 {
         rsx! {
             div {
                 style: "display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: auto;",
-                h3 { "Scan QR Code" }
+                h3 {
+
+
+                    "Scan QR Code"
+                }
                 {error_display}
                 {progress_indicator}
                 {scanner_display}
@@ -230,7 +261,9 @@ mod wasm32 {
                     style: "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;",
                     button {
                         class: "secondary",
-                        onclick: move |_| { on_close.call(()); },
+                        onclick: move |_| {
+                            on_close.call(());
+                        },
                         "Cancel"
                     }
                 }
@@ -316,16 +349,15 @@ mod desktop {
     ) {
         std::thread::spawn(move || {
             let cam_result = camera_capture::create(0)
-                .map_err(|e| e.into())
                 .and_then(|builder| {
                     builder
                         .fps(15.0)
                         .map_err(|e| {
-                            std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))
+                            std::io::Error::other(format!("{:?}", e))
                         })
                         .and_then(|b| {
                             b.start().map_err(|e| {
-                                std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))
+                                std::io::Error::other(format!("{:?}", e))
                             })
                         })
                 });
@@ -365,8 +397,8 @@ mod desktop {
         let state_updater = use_coroutine(
             move |mut rx: futures_channel::mpsc::UnboundedReceiver<Message>| {
                 let window = window.clone();
-                let on_scan = on_scan.clone();
-                let on_close = on_close.clone();
+                let on_scan = on_scan;
+                let on_close = on_close;
                 let stop_signal = stop_signal.clone();
                 let mut last_scan_time = std::time::Instant::now();
                 let scan_interval = Duration::from_millis(100);
@@ -392,7 +424,6 @@ mod desktop {
                                 }
                                 let base64_frame = BASE64_STANDARD.encode(&rgba_pixels);
 
-                                // --- CORRECTED JAVASCRIPT ---
                                 let js_code = format!(
                                     r#"
                                 try {{
@@ -462,12 +493,12 @@ mod desktop {
 
         use_effect(move || {
             let state_updater_clone = state_updater.clone();
-            let stop_signal_clone = stop_signal2.clone();
+            let stop_signal = stop_signal2.clone();
             spawn(async move {
                 is_scanning.set(true);
                 error_message.set(None);
                 let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-                start_camera_thread(tx, stop_signal_clone);
+                start_camera_thread(tx, stop_signal);
                 while let Some(msg) = rx.recv().await {
                     state_updater_clone.send(msg);
                 }
@@ -482,7 +513,12 @@ mod desktop {
         });
 
         let error_display = if let Some(err) = error_message.read().as_ref() {
-            Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
+            Some(rsx! {
+                p {
+                    style: "color: var(--pico-color-red-500);",
+                    "{err}"
+                }
+            })
         } else {
             None
         };
@@ -493,16 +529,31 @@ mod desktop {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label { "Scan Progress: {found} of {total}" },
-                        progress { max: "{total}", value: "{found}" }
+                        label {
+
+
+                            "Scan Progress: {found} of {total}"
+                        }
+                        progress {
+                            max: "{total}",
+                            value: "{found}",
+                        }
                     }
                 }
             } else {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label { "Aim camera at QR code..." },
-                        progress {}
+                        label {
+
+
+                            "Aim camera at QR code..."
+                        }
+                        progress {
+
+
+
+                        }
                     }
                 }
             })
@@ -519,7 +570,7 @@ mod desktop {
                         id: "qr-canvas",
                         width: "{width}",
                         height: "{height}",
-                        style: "width: 100%; height: auto; display: block; background-color: #333;"
+                        style: "width: 100%; height: auto; display: block; background-color: #333;",
                     }
                 }
             })
@@ -530,15 +581,21 @@ mod desktop {
         rsx! {
             div {
                 style: "display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: auto;",
-                h3 { "Scan QR Code" },
-                {error_display},
-                {progress_indicator},
-                {scanner_display},
+                h3 {
+
+
+                    "Scan QR Code"
+                }
+                {error_display}
+                {progress_indicator}
+                {scanner_display}
                 div {
                     style: "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;",
                     button {
                         class: "secondary",
-                        onclick: move |_| { on_close.call(()); },
+                        onclick: move |_| {
+                            on_close.call(());
+                        },
                         "Cancel"
                     }
                 }
@@ -569,8 +626,16 @@ mod mobile {
         rsx! {
             div {
                 style: "color: var(--pico-color-red-500); border: 1px solid var(--pico-color-red-500); padding: 1rem; border-radius: var(--pico-border-radius);",
-                h4 { "Not Implemented" },
-                p { "QR code scanning is not yet available on mobile devices." },
+                h4 {
+
+
+                    "Not Implemented"
+                }
+                p {
+
+
+                    "QR code scanning is not yet available on mobile devices."
+                }
                 button {
                     style: "margin-top: 1rem;",
                     onclick: move |_| on_close.call(()),

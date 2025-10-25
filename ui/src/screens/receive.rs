@@ -16,7 +16,6 @@ pub fn ReceiveScreen() -> Element {
     let mut receiving_address = use_signal::<Option<Rc<ReceivingAddress>>>(|| None);
     let mut is_generating = use_signal(|| false);
     let mut selected_key_type = use_signal(|| KeyType::Generation);
-    // **NEW**: A signal to track the acknowledgment checkbox.
     let mut symmetric_warning_acknowledged = use_signal(|| false);
 
     // Determine if the main generate button should be disabled.
@@ -25,23 +24,48 @@ pub fn ReceiveScreen() -> Element {
 
     rsx! {
         Card {
-            h2 { "Receive Funds" }
+
+
+            h2 {
+
+
+                "Receive Funds"
+            }
 
             if let Some(address) = receiving_address() {
                 // View to display AFTER an address has been generated
                 div {
                     style: "text-align: center; padding-top: 1rem;",
                     if KeyType::from(&*address).is_symmetric() {
-                        p{ strong { style: "color: var(--pico-color-red-500);", "Do not share with anyone."} }
-                        p{ "This is a symmetric key/address." }
-                        p{ "Anyone possessing it can spend associated funds." }
+                        p {
+
+
+                            strong {
+                                style: "color: var(--pico-color-red-500);",
+                                "Do not share with anyone."
+                            }
+                        }
+                        p {
+
+
+                            "This is a symmetric key/address."
+                        }
+                        p {
+
+
+                            "Anyone possessing it can spend associated funds."
+                        }
                     } else {
-                        p{ "Share this address to receive funds." }
+                        p {
+
+
+                            "Share this address to receive funds."
+                        }
                     }
 
                     QrCode {
                         data: address.to_display_bech32m(network).unwrap().to_uppercase(),
-                        caption: "Scan the QR code to obtain the full address.".to_string()
+                        caption: "Scan the QR code to obtain the full address.".to_string(),
                     }
 
                     code {
@@ -51,13 +75,13 @@ pub fn ReceiveScreen() -> Element {
                     div {
                         style: "margin-top: 1.5rem; display: flex; justify-content: center; gap: 1rem;",
                         CopyButton {
-                            text_to_copy: address.to_bech32m(network).unwrap()
+                            text_to_copy: address.to_bech32m(network).unwrap(),
                         }
                         Button {
                             button_type: ButtonType::Secondary,
                             on_click: move |_| {
                                 receiving_address.set(None);
-                                symmetric_warning_acknowledged.set(false); // Reset checkbox state
+                                symmetric_warning_acknowledged.set(false);
                             },
                             "Generate Another"
                         }
@@ -68,7 +92,11 @@ pub fn ReceiveScreen() -> Element {
                 div {
                     style: "text-align: center; padding: 2rem;",
 
-                    p { "Select Address Type:" }
+                    p {
+
+
+                        "Select Address Type:"
+                    }
                     div {
                         style: "display: flex; justify-content: center; gap: 1rem; margin-bottom: 1.5rem;",
                         Button {
@@ -85,16 +113,19 @@ pub fn ReceiveScreen() -> Element {
                         }
                     }
 
-                    // **NEW**: Conditionally render the warning and checkbox.
                     if selected_key_type() == KeyType::Symmetric {
                         div {
                             style: "max-width: 400px; margin: auto; margin-bottom: 1.5rem;",
                             fieldset {
+
+
                                 label {
+
+
                                     input {
                                         r#type: "checkbox",
                                         checked: "{symmetric_warning_acknowledged()}",
-                                        oninput: move |evt| symmetric_warning_acknowledged.set(evt.value() == "true")
+                                        oninput: move |evt| symmetric_warning_acknowledged.set(evt.value() == "true"),
                                     }
                                     "I understand that symmetric keys must only be used for sending between wallets I control. Sharing with others would enable them to spend my funds."
                                 }
@@ -103,7 +134,6 @@ pub fn ReceiveScreen() -> Element {
                     }
 
                     Button {
-                        // **MODIFIED**: Use the new disabled logic.
                         disabled: generate_button_disabled,
                         on_click: move |_| {
                             is_generating.set(true);
@@ -112,7 +142,9 @@ pub fn ReceiveScreen() -> Element {
                                 let mut is_generating = is_generating;
                                 let key_type_to_gen = *selected_key_type.read();
                                 async move {
-                                    let new_addr = api::next_receiving_address(key_type_to_gen).await.unwrap();
+                                    let new_addr = api::next_receiving_address(key_type_to_gen)
+                                        .await
+                                        .unwrap();
                                     receiving_address.set(Some(Rc::new(new_addr)));
                                     is_generating.set(false);
                                 }

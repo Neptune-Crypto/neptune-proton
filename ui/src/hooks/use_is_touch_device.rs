@@ -6,10 +6,10 @@
 // following the established pattern in `qr_scanner.rs`.
 
 #[cfg(target_arch = "wasm32")]
-pub use self::wasm32::*;
+pub use self::web_desktop::*;
 
 #[cfg(feature = "dioxus-desktop")]
-pub use self::desktop::*;
+pub use self::web_desktop::*;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub use self::mobile::*;
@@ -22,50 +22,31 @@ pub use self::mobile::*;
 ))]
 pub use self::fallback::*;
 
-
-/// # Desktop Implementation
-/// Uses `dioxus_desktop::use_window` to evaluate JavaScript in the webview,
-/// following the pattern in `qr_scanner.rs`.
-#[cfg(feature = "dioxus-desktop")]
-mod desktop {
+/// # Unified Desktop & Web (WASM) Implementation
+/// Uses the `use_document` hook to get a handle to the document, which
+/// provides a cross-platform `.eval()` method.
+#[cfg(any(feature = "dioxus-desktop", target_arch = "wasm32"))]
+mod web_desktop {
     use dioxus::prelude::*;
-    use dioxus_desktop::use_window;
-    use serde_json::Value;
 
     pub fn use_is_touch_device() -> Signal<bool> {
         let mut is_touch_device = use_signal(|| false);
-        let window = use_window();
 
         use_effect(move || {
+            // We need to handle the case where the document might not be available yet
             spawn(async move {
-                let js_code = "return navigator.maxTouchPoints > 0;";
-                if let Ok(Ok(Value::Bool(has_touch))) = window.webview.evaluate_script_with_return(js_code).await {
-                    is_touch_device.set(has_touch);
+                let js_code = r#"
+                    return navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+                "#;
+
+                // Call eval on the document handle. This is the correct API.
+                if let Ok(result) = document::eval(js_code).await {
+                    // The result is a serde_json::Value, so the rest of the logic is the same.
+                    if let Ok(has_touch) = serde_json::from_value::<bool>(result) {
+                        is_touch_device.set(has_touch);
+                    }
                 }
             });
-        });
-
-        is_touch_device
-    }
-}
-
-/// # WebAssembly (WASM) Implementation
-/// Uses the `web_sys` crate to directly query browser APIs, following the
-/// idiomatic pattern demonstrated in `qr_scanner.rs`.
-#[cfg(target_arch = "wasm32")]
-mod wasm32 {
-    use dioxus::prelude::*;
-
-    pub fn use_is_touch_device() -> Signal<bool> {
-        let mut is_touch_device = use_signal(|| false);
-
-        use_effect(move || {
-            if let Some(window) = web_sys::window() {
-                let navigator = window.navigator();
-                // `max_touch_points()` is a direct API call that returns an i32.
-                let has_touch = navigator.max_touch_points() > 0;
-                is_touch_device.set(has_touch);
-            }
         });
 
         is_touch_device
@@ -101,4 +82,3 @@ mod fallback {
         use_signal(|| false)
     }
 }
-

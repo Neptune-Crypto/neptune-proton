@@ -54,10 +54,13 @@ fn SortableHeader(
             style: "position: sticky; top: 0; background: var(--pico-card-background-color); cursor: pointer; white-space: nowrap;",
             onclick: move |_| {
                 if is_active {
-                    sort_direction.with_mut(|dir| *dir = match dir {
-                        SortDirection::Ascending => SortDirection::Descending,
-                        SortDirection::Descending => SortDirection::Ascending,
-                    });
+                    sort_direction
+                        .with_mut(|dir| {
+                            *dir = match dir {
+                                SortDirection::Ascending => SortDirection::Descending,
+                                SortDirection::Descending => SortDirection::Ascending,
+                            };
+                        });
                 } else {
                     sort_column.set(column);
                     sort_direction.set(SortDirection::Ascending);
@@ -100,9 +103,26 @@ fn HistoryRow(
                 title: "{timestamp.standard_format()}",
                 "{date}"
             }
-            td { "{tx_type}" }
-            td { Amount { amount } }
-            td { Block{ block_digest: digest.clone(), height }}
+            td {
+
+
+                "{tx_type}"
+            }
+            td {
+
+
+                Amount {
+                    amount,
+                }
+            }
+            td {
+
+
+                Block {
+                    block_digest: digest.clone(),
+                    height,
+                }
+            }
         }
     }
 }
@@ -120,77 +140,142 @@ pub fn HistoryScreen() -> Element {
         match &*history.read() {
             None => rsx! {
                 Card {
-                    h3 { "History" }
-                    p { "Loading..." }
-                    progress {}
+                
+                    h3 {
+                
+                        "History"
+                    }
+                    p {
+                
+                        "Loading..."
+                    }
+                    progress {
+                    
+                
+                    }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                    h3 { "Error" }
-                    p { "Failed to load history: {e}" }
-                    button { onclick: move |_| history.restart(), "Retry" }
+                
+                    h3 {
+                
+                        "Error"
+                    }
+                    p {
+                
+                        "Failed to load history: {e}"
+                    }
+                    button {
+                        onclick: move |_| history.restart(),
+                        "Retry"
+                    }
                 }
             },
             Some(Ok(utxos)) => {
-                let iter = utxos.iter().rev().chunk_by(|(digest, height, timestamp, _)| (digest, height, timestamp));
-                let mut block_summaries: Vec<_> = iter.into_iter()
+                let iter = utxos
+                    .iter()
+                    .rev()
+                    .chunk_by(|(digest, height, timestamp, _)| (digest, height, timestamp));
+                let mut block_summaries: Vec<_> = iter
+                    .into_iter()
                     .map(|(key, group)| {
                         let (digest, height, timestamp) = key;
-                        let amount_sum: NativeCurrencyAmount = group.map(|(.., amount)| *amount).sum();
+                        let amount_sum: NativeCurrencyAmount = group
+                            .map(|(.., amount)| *amount)
+                            .sum();
                         (*digest, *height, *timestamp, amount_sum)
                     })
                     .collect();
-
-                // Apply sorting based on the current state
-                block_summaries.sort_by(|a, b| {
-                    let ordering = match sort_column() {
-                        SortableColumn::Date => a.2.cmp(&b.2),
-                        SortableColumn::Type => {
-                            let type_a = if a.3 > NativeCurrencyAmount::zero() { "Received" } else { "Sent" };
-                            let type_b = if b.3 > NativeCurrencyAmount::zero() { "Received" } else { "Sent" };
-                            type_a.cmp(type_b)
-                        },
-                        SortableColumn::Amount => a.3.cmp(&b.3),
-                        SortableColumn::Block => a.1.cmp(&b.1),
-                    };
-
-                    match sort_direction() {
-                        SortDirection::Ascending => ordering,
-                        SortDirection::Descending => ordering.reverse(),
-                    }
-                });
-
+                block_summaries
+                    .sort_by(|a, b| {
+                        let ordering = match sort_column() {
+                            SortableColumn::Date => a.2.cmp(&b.2),
+                            SortableColumn::Type => {
+                                let type_a = if a.3 > NativeCurrencyAmount::zero() {
+                                    "Received"
+                                } else {
+                                    "Sent"
+                                };
+                                let type_b = if b.3 > NativeCurrencyAmount::zero() {
+                                    "Received"
+                                } else {
+                                    "Sent"
+                                };
+                                type_a.cmp(type_b)
+                            }
+                            SortableColumn::Amount => a.3.cmp(&b.3),
+                            SortableColumn::Block => a.1.cmp(&b.1),
+                        };
+                        match sort_direction() {
+                            SortDirection::Ascending => ordering,
+                            SortDirection::Descending => ordering.reverse(),
+                        }
+                    });
                 rsx! {
                     Card {
-                        h3 { "History" }
+                    
+                        h3 {
+                    
+                            "History"
+                        }
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {
+                    
                                 thead {
+                    
                                     tr {
-                                        SortableHeader { title: "Date", column: SortableColumn::Date, sort_column, sort_direction }
-                                        SortableHeader { title: "Type", column: SortableColumn::Type, sort_column, sort_direction }
-                                        SortableHeader { title: "Amount", column: SortableColumn::Amount, sort_column, sort_direction }
-                                        SortableHeader { title: "Block", column: SortableColumn::Block, sort_column, sort_direction }
+                    
+                                        SortableHeader {
+                                            title: "Date",
+                                            column: SortableColumn::Date,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Type",
+                                            column: SortableColumn::Type,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Amount",
+                                            column: SortableColumn::Amount,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Block",
+                                            column: SortableColumn::Block,
+                                            sort_column,
+                                            sort_direction,
+                                        }
                                     }
                                 }
                                 tbody {
-                                    {block_summaries.into_iter().map(|(digest, height, timestamp, amount)| {
-                                        rsx! {
-                                            HistoryRow {
-                                                digest: digest,
-                                                height: height,
-                                                timestamp: timestamp,
-                                                amount,
-                                            }
-                                        }
-                                    })}
+                    
+                                    {
+                                        block_summaries
+                                            .into_iter()
+                                            .map(|(digest, height, timestamp, amount)| {
+                                                rsx! {
+                                                    HistoryRow {
+                                                        digest,
+                                                        height,
+                                                        timestamp,
+                                                        amount,
+                                                    }
+                                                }
+                                            })
+                                    }
                                 }
                             }
                         }
                         p {
+                    
                             em {
+                    
                                 "Note: Unconfirmed transactions will appear once confirmed by the network."
                             }
                         }

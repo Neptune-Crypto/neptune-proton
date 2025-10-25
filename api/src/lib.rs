@@ -2,11 +2,11 @@
 
 pub mod fiat_amount;
 pub mod fiat_currency;
+pub mod prefs;
 #[cfg(not(target_arch = "wasm32"))]
 mod price_caching;
 pub mod price_map;
-#[cfg(not(target_arch = "wasm32"))]
-mod price_providers;
+pub mod price_providers;
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
 
@@ -29,13 +29,17 @@ use neptune_types::timestamp::Timestamp;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use prefs::user_prefs::UserPrefs;
 use price_map::PriceMap;
 use twenty_first::tip5::Digest;
 
-/// Echo the user input on the server.
-#[server(Echo)]
-pub async fn echo(input: String) -> Result<String, ServerFnError> {
-    Ok(format!("{}", input))
+/// Retrieves the user's preferences.
+///
+/// In the future this may read from a settings file.  For now it just
+/// returns the default settings, which read from env vars.
+#[server(input = Json, output = Json)]
+pub async fn get_user_prefs() -> Result<UserPrefs, ServerFnError> {
+    Ok(UserPrefs::default())
 }
 
 #[server(NetworkApi, input = Json, output = Json)]

@@ -97,7 +97,7 @@ pub fn QrCode(props: QrCodeProps) -> Element {
                     #[cfg(target_arch = "wasm32")]
                     {
                         rsx! {
-                             a {
+                            a {
                                 href: "{svg_data_url}",
                                 download: "{file_name}",
                                 style: "font-size: 12px; margin-top: 10px;",
@@ -183,7 +183,7 @@ pub fn QrCode(props: QrCodeProps) -> Element {
             #[cfg(target_arch = "wasm32")]
             {
                 rsx! {
-                     a {
+                    a {
                         href: "{animated_svg_data_url}",
                         download: "{file_name}",
                         style: "font-size: 12px; margin-top: 10px;",
@@ -252,9 +252,8 @@ fn generate_animated_svg(data: &str) -> String {
     };
 
     // Use the version and error correction level from the first frame for all subsequent frames.
-    // WARNING: This approach assumes that no frame after the first will ever require a
-    // larger QR code version. This can fail if the animation has 10 or more frames,
-    // as the header "P10/..." is longer than "P9/...".
+    // This approach assumes that no frame after the first will ever require a
+    // larger QR code version.
     let version = first_code.version();
     let ec_level = first_code.error_correction_level();
 

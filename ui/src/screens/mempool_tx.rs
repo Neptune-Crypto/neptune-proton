@@ -35,11 +35,20 @@ fn DigestDisplay(digest: Digest, label: String, abbreviated: Option<bool>) -> El
     rsx! {
         div {
             style: "display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0;",
-            strong { "{label}:" }
+            strong {
+
+
+                "{label}:"
+            }
             div {
                 style: "display: flex; align-items: center; gap: 0.5rem;",
-                code { title: "{digest_hex}", "{display_str}" }
-                CopyButton { text_to_copy: &digest_hex }
+                code {
+                    title: "{digest_hex}",
+                    "{display_str}"
+                }
+                CopyButton {
+                    text_to_copy: &digest_hex,
+                }
             }
         }
     }
@@ -55,12 +64,22 @@ fn ChunkDisplay(chunk: Chunk) -> Element {
         .join(", ");
     rsx! {
         details {
-            summary { "Chunk ({chunk.relative_indices.len()} indices)" }
+
+
+            summary {
+
+
+                "Chunk ({chunk.relative_indices.len()} indices)"
+            }
             div {
                 style: "padding: 0.5rem; margin-top: 0.5rem; background-color: var(--pico-secondary-background-color); border-radius: var(--pico-border-radius); font-size: 0.875em;",
                 p {
                     style: "margin: 0; word-break: break-all;",
-                    strong { "Relative Indices: " }
+                    strong {
+
+
+                        "Relative Indices: "
+                    }
                     "{indices_str}"
                 }
             }
@@ -72,13 +91,19 @@ fn ChunkDisplay(chunk: Chunk) -> Element {
 fn MmrMembershipProofDisplay(proof: MmrMembershipProof) -> Element {
     rsx! {
         details {
-            summary { "MMR Membership Proof ({proof.authentication_path.len()} digests)" }
+
+
+            summary {
+
+
+                "MMR Membership Proof ({proof.authentication_path.len()} digests)"
+            }
             div {
                 style: "padding: 0.5rem; margin-top: 0.5rem; background-color: var(--pico-secondary-background-color); border-radius: var(--pico-border-radius);",
-                for (i, digest) in proof.authentication_path.iter().enumerate() {
+                for (i , digest) in proof.authentication_path.iter().enumerate() {
                     DigestDisplay {
                         label: format!("Digest {}", i),
-                        digest: *digest
+                        digest: *digest,
                     }
                 }
             }
@@ -99,8 +124,14 @@ fn AbsoluteIndexSetDisplay(ais: AbsoluteIndexSet) -> Element {
         div {
             style: "border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 0.75rem; margin-bottom: 0.75rem;",
             details {
-                summary { "Absolute Index Set ({absolute_indices.len()} indices)" }
-                 div {
+
+
+                summary {
+
+
+                    "Absolute Index Set ({absolute_indices.len()} indices)"
+                }
+                div {
                     style: "padding: 0.5rem; margin-top: 0.5rem; background-color: var(--pico-secondary-background-color); border-radius: var(--pico-border-radius); font-size: 0.875em; word-break: break-all;",
                     "{indices_str}"
                 }
@@ -112,23 +143,45 @@ fn AbsoluteIndexSetDisplay(ais: AbsoluteIndexSet) -> Element {
 #[component]
 fn ChunkDictionaryDisplay(dictionary: ChunkDictionary) -> Element {
     rsx! {
-         div {
+        div {
             style: "border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 0.75rem;",
-            h6 { style: "margin: 0 0 0.5rem 0;", "Target Chunks ({dictionary.len()})" }
+            h6 {
+                style: "margin: 0 0 0.5rem 0;",
+                "Target Chunks ({dictionary.len()})"
+            }
             if dictionary.is_empty() {
-                p { style: "font-style: italic;", "No target chunks."}
+                p {
+                    style: "font-style: italic;",
+                    "No target chunks."
+                }
             } else {
-                for (i, (chunk_index, (proof, chunk))) in dictionary.iter().enumerate() {
-                     div {
+                for (i , (chunk_index , (proof , chunk))) in dictionary.iter().enumerate() {
+                    div {
                         style: "border-top: 1px solid var(--pico-muted-border-color); padding: 0.75rem 0;",
                         p {
                             style: "margin: 0 0 0.5rem 0;",
-                            strong { "Entry {i}: " }
-                            span { "Chunk at index " }
-                            code { "{*chunk_index}" }
+                            strong {
+
+
+                                "Entry {i}: "
+                            }
+                            span {
+
+
+                                "Chunk at index "
+                            }
+                            code {
+
+
+                                "{*chunk_index}"
+                            }
                         }
-                        ChunkDisplay { chunk: chunk.clone() }
-                        MmrMembershipProofDisplay { proof: proof.clone() }
+                        ChunkDisplay {
+                            chunk: chunk.clone(),
+                        }
+                        MmrMembershipProofDisplay {
+                            proof: proof.clone(),
+                        }
                     }
                 }
             }
@@ -147,12 +200,20 @@ fn AnnouncementDisplay(announcement: Announcement, index: usize) -> Element {
             style: "margin-bottom: 0.75rem; padding: 0.75rem; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius);",
             div {
                 style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
-                strong { "Announcement {index}" }
-                CopyButton { text_to_copy: announcement_str.clone() }
+                strong {
+
+
+                    "Announcement {index}"
+                }
+                CopyButton {
+                    text_to_copy: announcement_str.clone(),
+                }
             }
             pre {
                 style: "background-color: var(--pico-secondary-background-color); padding: 0.5rem; border-radius: var(--pico-border-radius); max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin: 0;",
                 code {
+
+
                     "{announcement_str}"
                 }
             }
@@ -181,9 +242,16 @@ fn RemovalRecordDisplay(record: RemovalRecord, index: usize) -> Element {
         div {
             class: "list-item",
             style: "margin-bottom: 1rem; padding: 0.75rem; border: 2px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius);",
-            h5 { style: "margin-top: 0;", "Input {index}" }
-            AbsoluteIndexSetDisplay { ais: record.absolute_indices }
-            ChunkDictionaryDisplay { dictionary: record.target_chunks.clone() }
+            h5 {
+                style: "margin-top: 0;",
+                "Input {index}"
+            }
+            AbsoluteIndexSetDisplay {
+                ais: record.absolute_indices,
+            }
+            ChunkDictionaryDisplay {
+                dictionary: record.target_chunks.clone(),
+            }
         }
     }
 }
@@ -197,90 +265,210 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
     rsx! {
         match &*mempool_tx.read() {
             None => rsx! {
-                div { style: "text-align: center; padding: 2rem;", h4 { "Loading transaction details..." } }
+                div {
+                    style: "text-align: center; padding: 2rem;",
+                    h4 {
+                
+                        "Loading transaction details..."
+                    }
+                }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                    h3 { style: "color: var(--pico-color-red-500);", "Error" }
-                    p { "Could not fetch transaction details from the mempool." }
-                    hr {}
-                    h5 { "Details:" }
-                    code { "{e}" }
+                
+                    h3 {
+                        style: "color: var(--pico-color-red-500);",
+                        "Error"
+                    }
+                    p {
+                
+                        "Could not fetch transaction details from the mempool."
+                    }
+                    hr {
+                    
+                
+                    }
+                    h5 {
+                
+                        "Details:"
+                    }
+                    code {
+                
+                        "{e}"
+                    }
                 }
             },
             Some(Ok(None)) => rsx! {
                 Card {
-                    h3 { "Not Found" }
-                    p { "Transaction with ID was not found in the mempool:" }
+                
+                    h3 {
+                
+                        "Not Found"
+                    }
+                    p {
+                
+                        "Transaction with ID was not found in the mempool:"
+                    }
                     div {
                         style: "display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem;",
-                        code { title: "{tx_id.to_string()}", "{tx_id}" }
-                        CopyButton { text_to_copy: tx_id.to_string() }
+                        code {
+                            title: "{tx_id.to_string()}",
+                            "{tx_id}"
+                        }
+                        CopyButton {
+                            text_to_copy: tx_id.to_string(),
+                        }
                     }
                 }
             },
             Some(Ok(Some(kernel))) => {
                 rsx! {
                     Card {
-                        h3 { "Mempool Transaction Details" }
+                    
+                        h3 {
+                    
+                            "Mempool Transaction Details"
+                        }
                         // --- Transaction ID Header ---
                         div {
                             style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;",
-                            h5 { style: "margin: 0;", "Transaction ID" }
+                            h5 {
+                                style: "margin: 0;",
+                                "Transaction ID"
+                            }
                             div {
                                 style: "display: flex; align-items: center; gap: 0.5rem;",
-                                code { title: "{tx_id.to_string()}", "{tx_id}" }
-                                CopyButton { text_to_copy: tx_id.to_string() }
+                                code {
+                                    title: "{tx_id.to_string()}",
+                                    "{tx_id}"
+                                }
+                                CopyButton {
+                                    text_to_copy: tx_id.to_string(),
+                                }
                             }
                         }
-                        hr {}
+                        hr {
+                        
+                    
+                        }
                         // --- Summary Section ---
-                        h5 { style: "margin-top: 1rem; margin-bottom: 0.5rem;", "Summary" }
+                        h5 {
+                            style: "margin-top: 1rem; margin-bottom: 0.5rem;",
+                            "Summary"
+                        }
                         div {
                             style: "display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: center;",
-                            strong { "Timestamp:" }, span { "{kernel.timestamp.standard_format()}" }
-                            strong { "Fee:" }, span { "{kernel.fee}" }
-                            strong { "Coinbase:" }, span { "{kernel.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}" }
-                            strong { "Inputs:" }, span { "{kernel.inputs.len()}" }
-                            strong { "Outputs:" }, span { "{kernel.outputs.len()}" }
-                            strong { "Announcements:" }, span { "{kernel.announcements.len()}" }
+                            strong {
+                    
+                                "Timestamp:"
+                            }
+                            span {
+                    
+                                "{kernel.timestamp.standard_format()}"
+                            }
+                            strong {
+                    
+                                "Fee:"
+                            }
+                            span {
+                    
+                                "{kernel.fee}"
+                            }
+                            strong {
+                    
+                                "Coinbase:"
+                            }
+                            span {
+                    
+                                "{kernel.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}"
+                            }
+                            strong {
+                    
+                                "Inputs:"
+                            }
+                            span {
+                    
+                                "{kernel.inputs.len()}"
+                            }
+                            strong {
+                    
+                                "Outputs:"
+                            }
+                            span {
+                    
+                                "{kernel.outputs.len()}"
+                            }
+                            strong {
+                    
+                                "Announcements:"
+                            }
+                            span {
+                    
+                                "{kernel.announcements.len()}"
+                            }
                         }
-                        hr {}
+                        hr {
+                        
+                    
+                        }
                         // --- Details Section ---
-                        h5 { style: "margin-top: 1rem; margin-bottom: 0.5rem;", "Details" }
+                        h5 {
+                            style: "margin-top: 1rem; margin-bottom: 0.5rem;",
+                            "Details"
+                        }
                         DigestDisplay {
                             label: "Mutator Set Hash".to_string(),
-                            digest: kernel.mutator_set_hash
+                            digest: kernel.mutator_set_hash,
                         }
-
                         // --- Collapsible Lists with new components ---
                         details {
-                            summary { "Inputs ({kernel.inputs.len()})" }
-                            div {
-                                class: "list-container",
-                                style: "margin-top: 0.5rem; padding-left: 1rem;",
-                                for (i, input) in kernel.inputs.iter().enumerate() {
-                                    RemovalRecordDisplay { record: input.clone(), index: i }
-                                }
+                    
+                            summary {
+                    
+                                "Inputs ({kernel.inputs.len()})"
                             }
-                        }
-                         details {
-                            summary { "Outputs ({kernel.outputs.len()})" }
                             div {
                                 class: "list-container",
                                 style: "margin-top: 0.5rem; padding-left: 1rem;",
-                                for (i, output) in kernel.outputs.iter().enumerate() {
-                                    AdditionRecordDisplay { record: *output, index: i }
+                                for (i , input) in kernel.inputs.iter().enumerate() {
+                                    RemovalRecordDisplay {
+                                        record: input.clone(),
+                                        index: i,
+                                    }
                                 }
                             }
                         }
                         details {
-                            summary { "Announcements ({kernel.announcements.len()})" }
+                    
+                            summary {
+                    
+                                "Outputs ({kernel.outputs.len()})"
+                            }
                             div {
                                 class: "list-container",
                                 style: "margin-top: 0.5rem; padding-left: 1rem;",
-                                for (i, announcement) in kernel.announcements.iter().enumerate() {
-                                    AnnouncementDisplay { announcement: announcement.clone(), index: i }
+                                for (i , output) in kernel.outputs.iter().enumerate() {
+                                    AdditionRecordDisplay {
+                                        record: *output,
+                                        index: i,
+                                    }
+                                }
+                            }
+                        }
+                        details {
+                    
+                            summary {
+                    
+                                "Announcements ({kernel.announcements.len()})"
+                            }
+                            div {
+                                class: "list-container",
+                                style: "margin-top: 0.5rem; padding-left: 1rem;",
+                                for (i , announcement) in kernel.announcements.iter().enumerate() {
+                                    AnnouncementDisplay {
+                                        announcement: announcement.clone(),
+                                        index: i,
+                                    }
                                 }
                             }
                         }

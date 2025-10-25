@@ -1,27 +1,28 @@
-//=============================================================================
-// File: src/components/currency_amount_input.rs
-//=============================================================================
+// ui/src/components/currency_amount_input.rs
 use crate::hooks::use_is_touch_device::use_is_touch_device;
 use dioxus::prelude::*;
+use crate::components::pico::{
+    Button, ButtonType,
+};
 
-/// A simple, reusable numeric keypad component, now with a "Done" button.
+// The NumericKeypad component is unchanged.
 #[component]
-pub fn NumericKeypad(
-    on_key_press: EventHandler<String>,
-    on_close: EventHandler<()>,
-) -> Element {
-    let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"];
-
-    // Local state for flashing
+pub fn NumericKeypad(on_key_press: EventHandler<String>, on_close: EventHandler<()>) -> Element {
+    let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "BACKSPACE"];
     let mut active_key_local = use_signal::<Option<String>>(|| None);
 
-    // Input handling logic
     let handle_key_down = move |event: Event<KeyboardData>| {
         let event_key_string = event.data.key().to_string();
         let event_key_str = event_key_string.as_str();
 
+        if event_key_str == "Escape" || event_key_str == "Enter" {
+            on_close.call(());
+            event.stop_propagation();
+            return;
+        }
+
         let mapped_key = match event_key_str {
-            "Backspace" => Some("⌫"),
+            "Backspace" => Some("BACKSPACE"),
             "." | "Decimal" => Some("."),
             "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => Some(event_key_str),
             _ => None,
@@ -31,7 +32,7 @@ pub fn NumericKeypad(
             active_key_local.set(Some(mapped_key.to_string()));
             on_key_press.call(mapped_key.to_string());
             event.stop_propagation();
-        } else if event_key_str.len() == 1 || event_key_str == "Enter" {
+        } else if event_key_str.len() == 1 {
             event.stop_propagation();
         }
     };
@@ -42,21 +43,10 @@ pub fn NumericKeypad(
 
     rsx! {
         style {
+
+
             {
-                r#"
-                .key-flash {
-                    animation: keyFlash 0.25s ease-out;
-                }
-                @keyframes keyFlash {
-                    0% { background-color: var(--pico-secondary-border); transform: scale(1.0); }
-                    50% {
-                        background-color: var(--pico-background-inverse);
-                        color: var(--pico-color-inverse);
-                        transform: scale(0.96);
-                    }
-                    100% { background-color: var(--pico-background-color); color: var(--pico-color-text); transform: scale(1.0); }
-                }
-                "#
+                r#" .key-flash { animation: keyFlash 0.25s ease-out; } @keyframes keyFlash { 0% { background-color: var(--pico-secondary-border); transform: scale(1.0); } 50% { background-color: var(--pico-background-inverse); color: var(--pico-color-inverse); transform: scale(0.96); } 100% { background-color: var(--pico-background-color); color: var(--pico-color-text); transform: scale(1.0); } } "#
             }
         }
         div {
@@ -76,18 +66,46 @@ pub fn NumericKeypad(
                 {
                     let key_str = key.to_string();
                     let is_active = active_key_local.read().as_deref() == Some(key);
-
                     rsx! {
                         button {
                             key: "{key}",
-                            class: if is_active { "pico-button key-flash" } else { "pico-button" },
-                            style: "font-size: 1.1rem; padding: 0.75rem;",
+                            class: if is_active { "pico-button secondary outline key-flash" } else { "pico-button secondary outline" },
+                            style: "font-size: 1.1rem; padding: 0.75rem; display: flex; justify-content: center; align-items: center;",
                             onanimationend: handle_animation_end,
                             onclick: move |_| {
                                 active_key_local.set(Some(key_str.clone()));
                                 on_key_press.call(key_str.clone());
                             },
-                            "{key}"
+                            if key == "BACKSPACE" {
+                                svg {
+                                    xmlns: "http://www.w3.org/2000/svg",
+                                    width: "24",
+                                    height: "24",
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "2",
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round",
+                                    path {
+                                        d: "M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z",
+                                    }
+                                    line {
+                                        x1: "18",
+                                        y1: "9",
+                                        x2: "12",
+                                        y2: "15",
+                                    }
+                                    line {
+                                        x1: "12",
+                                        y1: "9",
+                                        x2: "18",
+                                        y2: "15",
+                                    }
+                                }
+                            } else {
+                                "{key}"
+                            }
                         }
                     }
                 }
@@ -109,9 +127,8 @@ pub fn NumericKeypad(
 
 #[component]
 pub fn CurrencyAmountInput(
-    value: Signal<String>,
+    value: String,
     on_input: EventHandler<String>,
-    on_keypad_press: EventHandler<String>,
     mut popup_state: Signal<Option<Element>>,
     max_integers: u8,
     max_decimals: u8,
@@ -120,95 +137,133 @@ pub fn CurrencyAmountInput(
     let is_touch_device = use_is_touch_device();
     let is_popup_visible = use_memo(move || popup_state.read().is_some());
 
-    let handle_new_input = move |new_value: String| {
+    let is_zero = value.parse::<f64>() == Ok(0.0);
+
+    let mut value_signal = use_signal(|| value.clone());
+
+    // An effect to synchronize the internal signal when the `value` prop changes
+    // from the parent. This is the idiomatic way to handle such updates and
+    // avoids writing to a signal during the render phase.
+    use_effect({
+        let value = value.clone();
+        move || {
+            if *value_signal.read() != value {
+                value_signal.set(value.clone());
+            }
+        }
+    });
+
+    let mut handle_new_input = move |new_value: String| {
         let mut sanitized = String::new();
         let mut has_decimal = false;
         let mut integer_digits = 0;
         let mut decimal_digits = 0;
-
         for ch in new_value.chars() {
             if ch.is_ascii_digit() {
                 if has_decimal {
-                    if decimal_digits < max_decimals {
-                        sanitized.push(ch);
-                        decimal_digits += 1;
-                    }
-                } else {
-                    if integer_digits < max_integers {
-                        sanitized.push(ch);
-                        integer_digits += 1;
-                    }
-                }
+                    if decimal_digits < max_decimals { sanitized.push(ch); decimal_digits += 1; }
+                } else if integer_digits < max_integers { sanitized.push(ch); integer_digits += 1; }
             } else if ch == '.' && !has_decimal {
                 sanitized.push(ch);
                 has_decimal = true;
             }
         }
-        on_input.call(sanitized);
+        on_input.call(sanitized.clone());
+
+        // Instantly update the mirror, breaking the race condition.
+        value_signal.set(sanitized);
     };
+    let mut handle_new_input_clone = handle_new_input;
 
     let handle_input_keydown = move |event: Event<KeyboardData>| {
-        if is_popup_visible() {
-            event.stop_propagation();
-        }
+        if is_popup_visible() { event.stop_propagation(); }
     };
 
+    let mut handle_interaction = move || {
+        if is_zero {
+            on_input.call("".to_string());
+            value_signal.set("".to_string());
+        }
+    };
+    let mut handle_interaction_clone = handle_interaction;
+
     let open_keypad = move |_| {
-        // PANIC FIX: The write to popup_state MUST be deferred to after the render.
-        // spawn achieves this by scheduling the work for the next tick of the event loop.
+        handle_interaction();
+
         spawn(async move {
+            let handle_keypad_press = move |key: String| {
+                let current_val = value_signal.read().clone();
+                let new_val = if key == "BACKSPACE" {
+                    let mut chars = current_val.chars();
+                    chars.next_back();
+                    chars.as_str().to_string()
+                } else {
+                    current_val + &key
+                };
+                handle_new_input_clone(new_val);
+            };
+
             let keypad_popup = rsx! {
                 div {
                     style: "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.1); z-index: 1000; display: flex; justify-content: center; align-items: center;",
                     onclick: move |_| {
-                        // Also defer the closing action.
-                        spawn(async move { popup_state.set(None); });
+                        spawn(async move {
+                            popup_state.set(None);
+                        });
                     },
                     NumericKeypad {
-                        on_key_press: move |key: String| {
-                            on_keypad_press.call(key);
-                        },
+                        on_key_press: handle_keypad_press,
                         on_close: move |_| {
-                            // Also defer the closing action.
-                            spawn(async move { popup_state.set(None); });
-                        }
+                            spawn(async move {
+                                popup_state.set(None);
+                            });
+                        },
                     }
                 }
             };
             popup_state.set(Some(keypad_popup));
         });
     };
+    let mut open_keypad_clone = open_keypad;
+
+    let display_value = if is_zero { placeholder } else { value };
+    let input_style = if is_zero {
+        "margin-bottom: 0; width: 100%; color: var(--pico-muted-color);"
+    } else {
+        "margin-bottom: 0; width: 100%;"
+    };
 
     rsx! {
         div {
-            style: "display: flex; align-items: center; gap: 0.5rem; width: 100%;",
+            style: "display: flex; flex-grow: 1; gap: 0.5rem;",
             div {
-                style: "flex-grow: 1; margin-bottom: 0;",
+                style: "flex-grow: 1; display: flex;",
                 input {
                     r#type: "text",
                     class: "pico-input",
+                    style: "{input_style}",
                     inputmode: "decimal",
-                    placeholder: "{placeholder}",
-                    value: "{value}",
+                    placeholder: "",
+                    value: "{display_value}",
                     onkeydown: handle_input_keydown,
-                    oninput: move |event| {
-                        if !is_popup_visible() {
-                            handle_new_input(event.value());
-                        }
-                    },
+                    onfocus: move |_| handle_interaction_clone(),
+                    oninput: move |event| { handle_new_input(event.value()) },
                     onclick: move |e| {
                         e.stop_propagation();
                         if is_touch_device() {
-                            open_keypad(e);
+                            open_keypad_clone(e);
                         }
-                    }
+                    },
                 }
             }
             if !is_touch_device() {
-                button {
-                    class: "pico-button pico-button--secondary",
-                    style: "width: 3rem; padding: 0.5rem; margin-bottom: 0; flex-shrink: 0;",
-                    onclick: open_keypad,
+                Button {
+                    title: "Display Numeric Keypad",
+                    button_type: ButtonType::Secondary,
+                    outline: true,
+                    style: "width: 3rem; margin-bottom: 0; flex-shrink: 0;",
+
+                    on_click: open_keypad,
                     svg {
                         xmlns: "http://www.w3.org/2000/svg",
                         width: "20",
@@ -219,10 +274,32 @@ pub fn CurrencyAmountInput(
                         stroke_width: "2",
                         stroke_linecap: "round",
                         stroke_linejoin: "round",
-                        rect { x: "4", y: "2", width: "16", height: "20", rx: "2", ry: "2" }
-                        line { x1: "8", y1: "6", x2: "16", y2: "6" }
-                        line { x1: "12", y1: "10", x2: "12", y2: "18" }
-                        line { x1: "8", y1: "14", x2: "16", y2: "14" }
+                        rect {
+                            x: "4",
+                            y: "2",
+                            width: "16",
+                            height: "20",
+                            rx: "2",
+                            ry: "2",
+                        }
+                        line {
+                            x1: "8",
+                            y1: "6",
+                            x2: "16",
+                            y2: "6",
+                        }
+                        line {
+                            x1: "12",
+                            y1: "10",
+                            x2: "12",
+                            y2: "18",
+                        }
+                        line {
+                            x1: "8",
+                            y1: "14",
+                            x2: "16",
+                            y2: "14",
+                        }
                     }
                 }
             }

@@ -34,7 +34,9 @@ enum SortDirection {
 // A helper function to safely calculate balance effect as a signed integer for sorting.
 // We assume `NativeCurrencyAmount` is a tuple struct wrapping a u128, so we access with `.0`.
 fn calculate_balance_effect(tx: &MempoolTransactionInfo) -> NativeCurrencyAmount {
-    tx.positive_balance_effect.checked_sub(&tx.negative_balance_effect).unwrap_or_default()
+    tx.positive_balance_effect
+        .checked_sub(&tx.negative_balance_effect)
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Clone)]
@@ -80,10 +82,13 @@ fn SortableHeader(
             style: "position: sticky; top: 0; background: var(--pico-card-background-color); cursor: pointer; white-space: nowrap; padding: 12px 4px;",
             onclick: move |_| {
                 if is_active {
-                    sort_direction.with_mut(|dir| *dir = match dir {
-                        SortDirection::Ascending => SortDirection::Descending,
-                        SortDirection::Descending => SortDirection::Ascending,
-                    });
+                    sort_direction
+                        .with_mut(|dir| {
+                            *dir = match dir {
+                                SortDirection::Ascending => SortDirection::Descending,
+                                SortDirection::Descending => SortDirection::Ascending,
+                            };
+                        });
                 } else {
                     sort_column.set(column);
                     sort_direction.set(SortDirection::Ascending);
@@ -115,7 +120,11 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
     // but we can add a negative number to do so. this is an inconsistency in NativeCurrencyAmount.
     let delta = tx.negative_balance_effect + -tx.positive_balance_effect;
 
-    let balance_effect_display = rsx! { Amount { amount: delta } };
+    let balance_effect_display = rsx! {
+        Amount {
+            amount: delta,
+        }
+    };
 
     let tx_id_str = tx.id.to_string();
     let abbreviated_tx_id = format!(
@@ -140,14 +149,35 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
                     "{abbreviated_tx_id}"
                 }
             }
-            td { style: "padding: 8px 4px;", "{tx.proof_type}" }
-            td { style: "padding: 8px 4px;", "{tx.num_inputs}" }
-            td { style: "padding: 8px 4px;", "{tx.num_outputs}" }
-            td { style: "padding: 8px 4px;", {balance_effect_display} }
-            td { style: "padding: 8px 4px;", Amount { amount: tx.fee } }
+            td {
+                style: "padding: 8px 4px;",
+                "{tx.proof_type}"
+            }
+            td {
+                style: "padding: 8px 4px;",
+                "{tx.num_inputs}"
+            }
+            td {
+                style: "padding: 8px 4px;",
+                "{tx.num_outputs}"
+            }
+            td {
+                style: "padding: 8px 4px;",
+                {balance_effect_display}
+            }
+            td {
+                style: "padding: 8px 4px;",
+                Amount {
+                    amount: tx.fee,
+                }
+            }
             td {
                 style: "text-align: center; padding: 8px 4px;",
-                if tx.synced { "✅" } else { "❌" }
+                if tx.synced {
+                    "✅"
+                } else {
+                    "❌"
+                }
             }
         }
     }
@@ -166,7 +196,7 @@ pub fn MempoolScreen() -> Element {
     // This effect runs once on component mount and starts a background task.
     use_effect(move || {
         // We need to clone the signal to move it into the async task.
-        let mut mempool_overview = mempool_overview.clone();
+        let mut mempool_overview = mempool_overview;
         spawn(async move {
             loop {
                 crate::compat::sleep(Duration::from_secs(10)).await;
@@ -179,68 +209,138 @@ pub fn MempoolScreen() -> Element {
         match &*mempool_overview.read() {
             None => rsx! {
                 Card {
-                    h3 { "Mempool" }
-                    p { "Loading..." }
-                    progress {}
+                
+                    h3 {
+                
+                        "Mempool"
+                    }
+                    p {
+                
+                        "Loading..."
+                    }
+                    progress {
+                    
+                
+                    }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                    h3 { "Error" }
-                    p { "Failed to load mempool data: {e}" }
-                    button { onclick: move |_| mempool_overview.restart(), "Retry" }
+                
+                    h3 {
+                
+                        "Error"
+                    }
+                    p {
+                
+                        "Failed to load mempool data: {e}"
+                    }
+                    button {
+                        onclick: move |_| mempool_overview.restart(),
+                        "Retry"
+                    }
                 }
             },
             Some(Ok(tx_list)) => {
                 let mut sorted_txs = tx_list.clone();
-
-                // Apply sorting based on the current state
-                sorted_txs.sort_by(|a, b| {
-                    let ordering = match sort_column() {
-                        SortableColumn::Id => a.id.cmp(&b.id),
-                        SortableColumn::ProofType => a.proof_type.to_string().cmp(&b.proof_type.to_string()),
-                        SortableColumn::Inputs => a.num_inputs.cmp(&b.num_inputs),
-                        SortableColumn::Outputs => a.num_outputs.cmp(&b.num_outputs),
-                        SortableColumn::BalanceEffect => {
-                            let bal_a = calculate_balance_effect(a);
-                            let bal_b = calculate_balance_effect(b);
-                            bal_a.cmp(&bal_b)
-                        },
-                        SortableColumn::Fee => a.fee.cmp(&b.fee),
-                        SortableColumn::Synced => a.synced.cmp(&b.synced),
-                    };
-
-                    match sort_direction() {
-                        SortDirection::Ascending => ordering,
-                        SortDirection::Descending => ordering.reverse(),
-                    }
-                });
-
+                sorted_txs
+                    .sort_by(|a, b| {
+                        let ordering = match sort_column() {
+                            SortableColumn::Id => a.id.cmp(&b.id),
+                            SortableColumn::ProofType => {
+                                a.proof_type.to_string().cmp(&b.proof_type.to_string())
+                            }
+                            SortableColumn::Inputs => a.num_inputs.cmp(&b.num_inputs),
+                            SortableColumn::Outputs => a.num_outputs.cmp(&b.num_outputs),
+                            SortableColumn::BalanceEffect => {
+                                let bal_a = calculate_balance_effect(a);
+                                let bal_b = calculate_balance_effect(b);
+                                bal_a.cmp(&bal_b)
+                            }
+                            SortableColumn::Fee => a.fee.cmp(&b.fee),
+                            SortableColumn::Synced => a.synced.cmp(&b.synced),
+                        };
+                        match sort_direction() {
+                            SortDirection::Ascending => ordering,
+                            SortDirection::Descending => ordering.reverse(),
+                        }
+                    });
                 rsx! {
                     Card {
-                        h3 { "Mempool" }
-                        p { "Transactions: {tx_list.len()}" }
-
+                    
+                        h3 {
+                    
+                            "Mempool"
+                        }
+                        p {
+                    
+                            "Transactions: {tx_list.len()}"
+                        }
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {
+                    
                                 thead {
+                    
                                     tr {
-                                        SortableHeader { title: "Id", column: SortableColumn::Id, sort_column, sort_direction }
-                                        SortableHeader { title: "Proof", column: SortableColumn::ProofType, sort_column, sort_direction }
-                                        SortableHeader { title: "Inputs", column: SortableColumn::Inputs, sort_column, sort_direction }
-                                        SortableHeader { title: "Outputs", column: SortableColumn::Outputs, sort_column, sort_direction }
-                                        SortableHeader { title: "Δ Balance", column: SortableColumn::BalanceEffect, sort_column, sort_direction }
-                                        SortableHeader { title: "Fee", column: SortableColumn::Fee, sort_column, sort_direction }
-                                        SortableHeader { title: "Synced", column: SortableColumn::Synced, sort_column, sort_direction }
+                    
+                                        SortableHeader {
+                                            title: "Id",
+                                            column: SortableColumn::Id,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Proof",
+                                            column: SortableColumn::ProofType,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Inputs",
+                                            column: SortableColumn::Inputs,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Outputs",
+                                            column: SortableColumn::Outputs,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Δ Balance",
+                                            column: SortableColumn::BalanceEffect,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Fee",
+                                            column: SortableColumn::Fee,
+                                            sort_column,
+                                            sort_direction,
+                                        }
+                                        SortableHeader {
+                                            title: "Synced",
+                                            column: SortableColumn::Synced,
+                                            sort_column,
+                                            sort_direction,
+                                        }
                                     }
                                 }
                                 tbody {
-                                    {sorted_txs.into_iter().map(|tx| {
-                                        rsx! {
-                                            MempoolRow { tx: MempoolTransactionInfoReadOnly(Rc::new(tx)) }
-                                        }
-                                    })}
+                    
+                                    {
+                                        sorted_txs
+                                            .into_iter()
+                                            .map(|tx| {
+                                                rsx! {
+                                                    MempoolRow {
+                                                        tx: MempoolTransactionInfoReadOnly(Rc::new(tx)),
+                                                    }
+                                                }
+                                            })
+                                    }
                                 }
                             }
                         }

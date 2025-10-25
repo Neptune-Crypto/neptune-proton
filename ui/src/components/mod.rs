@@ -4,9 +4,10 @@
 pub mod address;
 pub mod amount;
 pub mod block;
+pub mod currency_amount_input;
+pub mod currency_chooser;
 pub mod pico;
 pub mod qr_code;
 pub mod qr_processor;
 pub mod qr_scanner;
 pub mod qr_uploader;
-pub mod currency_amount_input;

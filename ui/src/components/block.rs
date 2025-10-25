@@ -37,7 +37,11 @@ pub fn Block(props: BlockProps) -> Element {
             onclick: move |_| {
                 active_screen.set(Screen::Block(BlockSelector::Digest(*digest)));
             },
-            code { "{height}" }
+            code {
+
+
+                "{height}"
+            }
         }
     }
 }

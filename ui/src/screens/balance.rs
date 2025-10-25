@@ -1,9 +1,14 @@
-use crate::app_state::AppState;
-use crate::app_state_mut::{AppStateMut, DisplayCurrency};
+// ui/src/screens/balance.rs
 use crate::components::amount::Amount;
 use crate::components::block::Block;
 use crate::components::pico::Card;
+use crate::components::currency_chooser::{CurrencyChooser, CurrencyInfo};
+use crate::currency::npt_to_fiat;
+use api::prefs::display_preference::DisplayPreference;
+use crate::{AppState, AppStateMut};
+use api::fiat_amount::FiatAmount;
 use api::fiat_currency::FiatCurrency;
+use strum::IntoEnumIterator;
 use dioxus::prelude::*;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use num_traits::CheckedSub;
@@ -12,12 +17,18 @@ use std::rc::Rc;
 
 /// A responsive container for a section of the dashboard.
 #[component]
-fn InfoCard(children: Element) -> Element {
+fn InfoCard(title: String, children: Element) -> Element {
     rsx! {
         article {
-            style: "border: 1px solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); padding: 1rem; background-color: var(--pico-card-background-color);",
-            // The title is now passed in as part of children to allow for more complex headers
-            {children}
+            style: "margin-bottom: 0; border: 1px solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); padding: 0.5rem; background-color: var(--pico-card-background-color);",
+            h5 {
+                style: "margin-top: 0; margin-bottom: 0.5rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;",
+                "{title}"
+            }
+            dl {
+                style: "margin: 0;",
+                {children}
+            }
         }
     }
 }
@@ -27,114 +38,223 @@ fn InfoCard(children: Element) -> Element {
 fn InfoItem(label: String, children: Element) -> Element {
     rsx! {
         div {
-            style: "display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--pico-secondary-border);",
-            dt { style: "font-weight: 500;", "{label}" }
-            dd { style: "margin: 0; text-align: right;", {children} }
+            style: "display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid var(--pico-secondary-border);",
+            dt {
+                style: "font-weight: 500;",
+                "{label}"
+            }
+            dd {
+                style: "margin: 0; text-align: right;",
+                {children}
+            }
         }
     }
 }
 
 /// A specialized component for displaying the two-part balance rows.
 #[component]
-fn BalanceRow(available: NativeCurrencyAmount, total: NativeCurrencyAmount) -> Element {
+fn BalanceRow(
+    available: NativeCurrencyAmount,
+    total: NativeCurrencyAmount,
+    #[props(optional)] available_fiat: Option<FiatAmount>,
+    #[props(optional)] total_fiat: Option<FiatAmount>,
+) -> Element {
     let time_locked = total.checked_sub(&available).unwrap_or_default();
+    let time_locked_fiat = match (available_fiat, total_fiat) {
+        (Some(avail), Some(tot)) if avail.currency() == tot.currency() => {
+            Some(FiatAmount::new_from_minor(
+                tot.as_minor_units() - avail.as_minor_units(),
+                tot.currency(),
+            ))
+        }
+        _ => None,
+    };
+
     rsx! {
         InfoItem {
             label: "Available".to_string(),
-            Amount { amount: available }
+            Amount {
+                amount: available,
+                fiat_equivalent: available_fiat,
+            }
         }
         if time_locked > NativeCurrencyAmount::zero() {
             InfoItem {
                 label: "Time-locked".to_string(),
-                Amount { amount: time_locked }
+                Amount {
+                    amount: time_locked,
+                    fiat_equivalent: time_locked_fiat,
+                }
             }
             InfoItem {
                 label: "Total".to_string(),
-                Amount { amount: total }
+                Amount {
+                    amount: total,
+                    fiat_equivalent: total_fiat,
+                }
             }
         }
     }
 }
 
+
 #[component]
 pub fn BalanceScreen() -> Element {
     let app_state = use_context::<AppState>();
-    let mut app_state_mut = use_context::<AppStateMut>();
+    let app_state_mut = use_context::<AppStateMut>();
+    let network = app_state.network;
     let mut dashboard_data =
         use_resource(move || async move { api::dashboard_overview_data().await });
-
     use_coroutine(move |_rx: UnboundedReceiver<()>| {
         let mut data_resource = dashboard_data;
         async move {
             loop {
-                // Correct for WASM targets: use a timer from the `gloo` ecosystem.
                 crate::compat::sleep(std::time::Duration::from_millis(5000)).await;
                 data_resource.restart();
             }
         }
     });
-
     rsx! {
         match &*dashboard_data.read() {
             None => rsx! {
                 Card {
-                    h3 { "Wallet Overview" }
-                    p { "Loading..." }
-                    progress {}
+                
+                    h3 {
+                
+                        "Wallet Overview"
+                    }
+                    p {
+                
+                        "Loading..."
+                    }
+                    progress {
+                    
+                
+                    }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                    h3 { "Error" }
-                    p { "Failed to load dashboard data: {e}" }
-                    button { onclick: move |_| dashboard_data.restart(), "Retry" }
+                
+                    h3 {
+                
+                        "Error"
+                    }
+                    p {
+                
+                        "Failed to load dashboard data: {e}"
+                    }
+                    button {
+                        onclick: move |_| dashboard_data.restart(),
+                        "Retry"
+                    }
                 }
             },
             Some(Ok(data)) => {
-                let status_color = if data.syncing { "var(--pico-color-green-500)" } else { "var(--pico-color-amber-500)" };
+                let status_color = if data.syncing {
+                    "var(--pico-color-green-500)"
+                } else {
+                    "var(--pico-color-amber-500)"
+                };
                 let sync_text = if data.syncing { "Syncing..." } else { "Synced" };
                 let block_digest = Rc::new(data.tip_digest);
                 let height = Rc::new(data.tip_header.height);
-
-                let show_unconfirmed = data.unconfirmed_available_balance != data.confirmed_available_balance
+                let show_unconfirmed = data.unconfirmed_available_balance
+                    != data.confirmed_available_balance
                     || data.unconfirmed_total_balance != data.confirmed_total_balance;
-
                 let balance_grid_style = if show_unconfirmed {
                     "display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem 2rem;"
                 } else {
                     "display: block;"
                 };
-
-                let mining_status_str = std::fmt::format(format_args!("{}", data.mining_status.unwrap_or_default()));
-                let proving_capability_str = std::fmt::format(format_args!("{}", data.proving_capability));
-
-                // Logic for the global display toggle button
-                let toggle_text = match *app_state_mut.display_currency.read() {
-                    DisplayCurrency::Npt => "USD", // Show what it will change to
-                    DisplayCurrency::Fiat(_) => "NPT",
+                let mining_status_str = std::fmt::format(
+                    format_args!("{}", data.mining_status.unwrap_or_default()),
+                );
+                let proving_capability_str = std::fmt::format(
+                    format_args!("{}", data.proving_capability),
+                );
+                let (rate, preferred_fiat_id_global, display_as_fiat, fiat_mode_active) = match *app_state_mut
+                    .display_preference
+                    .read()
+                {
+                    DisplayPreference::FiatEnabled { fiat, display_as_fiat, .. } => {
+                        let price = app_state_mut
+                            .prices
+                            .read()
+                            .as_ref()
+                            .and_then(|p| p.get(fiat));
+                        (price, fiat.code(), display_as_fiat, true)
+                    }
+                    DisplayPreference::NptOnly => (None, "", false, false),
                 };
-                let toggle_onclick = move |_| {
-                    let new_currency = match *app_state_mut.display_currency.read() {
-                        DisplayCurrency::Npt => DisplayCurrency::Fiat(FiatCurrency::USD),
-                        DisplayCurrency::Fiat(_) => DisplayCurrency::Npt,
-                    };
-                    app_state_mut.display_currency.set(new_currency);
+                let preferred_fiat_id = use_signal(|| preferred_fiat_id_global);
+                let initial_display_id = if display_as_fiat {
+                    preferred_fiat_id_global
+                } else {
+                    "NPT"
                 };
-
+                let displayed_id = use_signal(|| initial_display_id);
+                use_effect({
+                    let mut app_state_mut = app_state_mut;
+                    move || {
+                        let signal_preferred_fiat = *preferred_fiat_id.read();
+                        let signal_display_is_fiat = *displayed_id.read() != "NPT";
+                        app_state_mut
+                            .display_preference
+                            .with_mut(|pref| {
+                                if let DisplayPreference::FiatEnabled {
+                                    fiat,
+                                    display_as_fiat,
+                                    ..
+                                } = pref {
+                                    if fiat.code() != signal_preferred_fiat {
+                                        if let Some(new_fiat) = FiatCurrency::iter()
+                                            .find(|c| c.code() == signal_preferred_fiat)
+                                        {
+                                            *fiat = new_fiat;
+                                        }
+                                    }
+                                    *display_as_fiat = signal_display_is_fiat;
+                                }
+                            });
+                    }
+                });
+                let all_fiats: Vec<CurrencyInfo> = FiatCurrency::iter()
+                    .map(|c| c.into())
+                    .collect();
+                let confirmed_available_fiat = rate
+                    .as_ref()
+                    .map(|r| npt_to_fiat(&data.confirmed_available_balance, r));
+                let confirmed_total_fiat = rate
+                    .as_ref()
+                    .map(|r| npt_to_fiat(&data.confirmed_total_balance, r));
+                let unconfirmed_available_fiat = rate
+                    .as_ref()
+                    .map(|r| npt_to_fiat(&data.unconfirmed_available_balance, r));
+                let unconfirmed_total_fiat = rate
+                    .as_ref()
+                    .map(|r| npt_to_fiat(&data.unconfirmed_total_balance, r));
                 rsx! {
                     div {
-                        style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;",
-
-                        InfoCard {
+                        style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;",
+                        article {
+                            style: "margin-bottom: 0px; border: 1px solid var(--pico-card-border-color); border-radius: var(--pico-border-radius); padding: 0.5rem; background-color: var(--pico-card-background-color);",
                             div {
-                                style: "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--pico-secondary-border); margin-bottom: 1rem; padding-bottom: 0.5rem;",
-                                h5 { style: "margin: 0;", "Confirmed Balance" }
-                                button {
-                                    class: "outline secondary",
-                                    style: "padding: 0.2rem 0.5rem; font-size: 0.8em; margin-left: 1rem; min-width: 55px;",
-                                    onclick: toggle_onclick,
-                                    "{toggle_text}"
+                                style: "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--pico-secondary-border); margin-top: 0; margin-bottom: 0.5rem;",
+                                h5 {
+                                    style: "margin-top: 0; margin-bottom: 0;",
+                                    "Confirmed Balance"
                                 }
+                                {fiat_mode_active.then(|| rsx! {
+                                    small {
+                                    
+                                        CurrencyChooser {
+                                            displayed_id,
+                                            preferred_fiat_id,
+                                            all_fiats,
+                                        }
+                                    }
+                                })}
                             }
                             dl {
                                 style: "margin: 0;",
@@ -143,90 +263,98 @@ pub fn BalanceScreen() -> Element {
                                     BalanceRow {
                                         available: data.confirmed_available_balance,
                                         total: data.confirmed_total_balance,
+                                        available_fiat: confirmed_available_fiat,
+                                        total_fiat: confirmed_total_fiat,
                                     }
                                 }
                             }
                         }
-
                         if show_unconfirmed {
                             InfoCard {
-                                h5 {
-                                    style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;",
-                                    "Unconfirmed Balance"
-                                }
-                                dl {
-                                    style: "margin: 0;",
-                                    div {
-                                        style: "{balance_grid_style}",
-                                        BalanceRow {
-                                            available: data.unconfirmed_available_balance,
-                                            total: data.unconfirmed_total_balance,
-                                        }
+                                title: "Unconfirmed Balance".to_string(),
+                                div {
+                                    style: "{balance_grid_style}",
+                                    BalanceRow {
+                                        available: data.unconfirmed_available_balance,
+                                        total: data.unconfirmed_total_balance,
+                                        available_fiat: unconfirmed_available_fiat,
+                                        total_fiat: unconfirmed_total_fiat,
                                     }
                                 }
                             }
                         }
-
                         InfoCard {
-                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Blockchain" }
-                            dl {
-                                style: "margin: 0;",
-                                InfoItem {
-                                    label: "Network".to_string(),
-                                    span { "{app_state.network}" }
+                            title: "Blockchain".to_string(),
+                            InfoItem {
+                                label: "Network".to_string(),
+                                span {
+                    
+                                    "{network}"
                                 }
-                                InfoItem {
-                                    label: "Status".to_string(),
-                                    span { style: "color: {status_color};", "{sync_text}" }
+                            }
+                            InfoItem {
+                                label: "Status".to_string(),
+                                span {
+                                    style: "color: {status_color};",
+                                    "{sync_text}"
                                 }
-                                InfoItem {
-                                    label: "Tip".to_string(),
-                                    Block { block_digest, height }
+                            }
+                            InfoItem {
+                                label: "Tip".to_string(),
+                                Block {
+                                    block_digest,
+                                    height,
                                 }
                             }
                         }
-
                         InfoCard {
-                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Mempool" }
-                            dl {
-                                style: "margin: 0;",
-                                InfoItem {
-                                    label: "Transactions".to_string(),
-                                    span { "{data.mempool_total_tx_count}" }
+                            title: "Mempool".to_string(),
+                            InfoItem {
+                                label: "Transactions".to_string(),
+                                span {
+                    
+                                    "{data.mempool_total_tx_count}"
                                 }
-                                InfoItem {
-                                    label: "Size (bytes)".to_string(),
-                                    span { "{data.mempool_size}" }
+                            }
+                            InfoItem {
+                                label: "Size (bytes)".to_string(),
+                                span {
+                    
+                                    "{data.mempool_size}"
                                 }
                             }
                         }
-
                         InfoCard {
-                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Network Peers" }
-                            dl {
-                                style: "margin: 0;",
-                                InfoItem {
-                                    label: "Connected Peers".to_string(),
-                                    span { "{data.peer_count.unwrap_or_default()}" }
+                            title: "Network Peers".to_string(),
+                            InfoItem {
+                                label: "Connected Peers".to_string(),
+                                span {
+                    
+                                    "{data.peer_count.unwrap_or_default()}"
                                 }
-                                InfoItem {
-                                    label: "Max Peers".to_string(),
-                                    span { "{data.max_num_peers}" }
+                            }
+                            InfoItem {
+                                label: "Max Peers".to_string(),
+                                span {
+                    
+                                    "{data.max_num_peers}"
                                 }
                             }
                         }
-
                         InfoCard {
-                            h5 { style: "margin-top: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--pico-secondary-border); padding-bottom: 0.5rem;", "Node Info" }
-                            dl {
-                                style: "margin: 0;",
-                                InfoItem {
-                                    label: "Mining Status".to_string(),
-                                    span { "{mining_status_str}" }
+                            title: "Node Info".to_string(),
+                            InfoItem {
+                                label: "Mining Status".to_string(),
+                                span {
+                    
+                                    "{mining_status_str}"
                                 }
-                                InfoItem {
-                                    label: "Proving Capability".to_string(),
-                                    code { "{proving_capability_str}" }
+                            }
+                            InfoItem {
+                                label: "Proving Capability".to_string(),
+                                code {
+                    
+                                    "{proving_capability_str}"
                                 }
                             }
                         }
