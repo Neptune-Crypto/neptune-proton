@@ -10,3 +10,7 @@ main_binary = "neptune-wallet-gui" # This should match the name of the executabl
 [bundle]
 identifier = "cash.neptune"
 publisher = "neptune.cash"
+
+icon = [
+    "assets/icon/logo-128x128.png", 
+]
