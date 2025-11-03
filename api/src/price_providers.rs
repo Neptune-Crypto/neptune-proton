@@ -50,16 +50,18 @@ impl PriceProvider for PriceProviderKind {
 }
 
 /// A trait for any service that can provide fiat prices for NPT.
+#[allow(dead_code)]
 pub(crate) trait PriceProvider: PriceProviderMeta {
     /// Fetches the latest price map.
     async fn get_prices(&self) -> Result<PriceMap, ServerFnError>;
 }
 
 /// Provides price data from the public CoinGecko API.
-pub mod coin_gecko {
+pub(crate) mod coin_gecko {
     use super::*;
 
     /// The structure of the JSON response from CoinGecko's simple price API.
+    #[allow(dead_code)]
     #[derive(Deserialize, Debug)]
     struct CoinGeckoResponse {
         #[serde(rename = "neptune-cash")]
@@ -112,12 +114,11 @@ pub mod coin_gecko {
 }
 
 /// Provides price data from the CoinPaprika API.
-pub mod coin_paprika {
+pub(crate) mod coin_paprika {
     use super::*;
     use serde_json::Value;
 
     /// An implementation of the `PriceProvider` trait for CoinPaprika.
-    #[allow(dead_code)]
     pub struct CoinPaprika;
 
     impl PriceProviderMeta for CoinPaprika {

@@ -190,16 +190,12 @@ mod wasm32 {
             }))
         });
 
-        let error_display = if let Some(err) = error_message.read().as_ref() {
-            Some(rsx! {
+        let error_display = error_message.read().as_ref().map(|err| rsx! {
                 p {
                     style: "color: var(--pico-color-red-500);",
                     "{err}"
                 }
-            })
-        } else {
-            None
-        };
+            });
         let progress_indicator = if *is_scanning.read() {
             Some(if *total_parts.read() > 0 {
                 rsx! {
@@ -310,11 +306,15 @@ mod wasm32 {
         let window = web_sys::window().expect("no global `window` exists");
         let navigator = window.navigator();
         let media_devices = navigator.media_devices()?;
+
+        let constraints = MediaStreamConstraints::new();
+        constraints.set_video(&true.into());
         let stream = JsFuture::from(
             media_devices
-                .get_user_media_with_constraints(MediaStreamConstraints::new().video(&true.into()))?,
+                .get_user_media_with_constraints(&constraints)?,
         )
         .await?;
+
         MediaStream::from(stream)
             .get_tracks()
             .for_each(&mut |track, _, _| {
@@ -339,11 +339,13 @@ mod wasm32 {
         let window = web_sys::window().expect("no global `window` exists");
         let navigator = window.navigator();
         let media_devices = navigator.media_devices()?;
-        let mut constraints = MediaStreamConstraints::new();
-        let mut video_constraints = web_sys::MediaTrackConstraints::new();
+        let constraints = MediaStreamConstraints::new();
+        let video_constraints = web_sys::MediaTrackConstraints::new();
+
         if !device_id.is_empty() {
-            video_constraints.device_id(&device_id.into());
+            video_constraints.set_device_id(&device_id.into());
         }
+
         let advanced_constraint = js_sys::Object::new();
         let width_constraint = js_sys::Object::new();
         js_sys::Reflect::set(&width_constraint, &"ideal".into(), &4096.into())?;
@@ -359,9 +361,11 @@ mod wasm32 {
             &"height".into(),
             &height_constraint,
         )?;
-        video_constraints.advanced(&js_sys::Array::of1(&advanced_constraint));
-        constraints.video(&video_constraints.into());
-        constraints.audio(&JsValue::from(false));
+
+        video_constraints.set_advanced(&js_sys::Array::of1(&advanced_constraint));
+        constraints.set_video(&video_constraints.into());
+        constraints.set_audio(&JsValue::from(false));
+
         let stream_promise = media_devices.get_user_media_with_constraints(&constraints)?;
         let stream = JsFuture::from(stream_promise).await?;
         Ok(MediaStream::from(stream))
@@ -393,11 +397,11 @@ mod desktop {
         stop_signal: Arc<Mutex<bool>>,
     ) {
         std::thread::spawn(move || {
-            let cam_result = camera_capture::create(0).map_err(|e| e.into()).and_then(|builder| {
+            let cam_result = camera_capture::create(0).and_then(|builder| {
                 builder
                     .fps(15.0)
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
-                    .and_then(|b| b.start().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))))
+                    .map_err(|e| std::io::Error::other(format!("{:?}", e)))
+                    .and_then(|b| b.start().map_err(|e| std::io::Error::other(format!("{:?}", e))))
             });
 
             let cam = match cam_result {
@@ -467,8 +471,8 @@ mod desktop {
         let state_updater = use_coroutine(move |mut rx: futures_channel::mpsc::UnboundedReceiver<Message>| {
             // Clone the Arcs/handles needed for the async block inside.
             let window = window.clone();
-            let on_scan = on_scan.clone();
-            let on_close = on_close.clone();
+            let on_scan = on_scan;
+            let on_close = on_close;
             let stop_signal = stop_signal.clone();
 
             async move {
@@ -568,7 +572,7 @@ mod desktop {
         // This effect manages the background camera thread. Its only job
         // is to forward messages to the state_updater coroutine.
         use_effect(move || {
-            let state_updater_clone = state_updater.clone();
+            let state_updater_clone = state_updater;
             let stop_signal_clone = stop_signal2.clone();
 
             spawn(async move {
@@ -590,16 +594,12 @@ mod desktop {
             }
         });
 
-        let error_display = if let Some(err) = error_message.read().as_ref() {
-            Some(rsx! {
+        let error_display = error_message.read().as_ref().map(|err| rsx! {
                 p {
                     style: "color: var(--pico-color-red-500);",
                     "{err}"
                 }
-            })
-        } else {
-            None
-        };
+            });
         let progress_indicator = if *is_scanning.read() {
             Some(if *total_parts.read() > 0 {
                 rsx! {
@@ -704,4 +704,3 @@ mod mobile {
         }
     }
 }
-

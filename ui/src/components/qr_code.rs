@@ -3,9 +3,10 @@
 //=============================================================================
 use base64::Engine;
 use dioxus::prelude::*;
-use futures::StreamExt;
 use qrcode::render::svg;
 use qrcode::{EcLevel, QrCode};
+#[cfg(not(target_arch = "wasm32"))]
+use futures::StreamExt;
 
 const STATIC_CHUNK_SIZE: usize = 120;
 

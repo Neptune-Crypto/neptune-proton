@@ -11,10 +11,11 @@ pub mod wasm32 {
     use tokio::sync::oneshot;
     use wasm_bindgen::prelude::*;
     use wasm_bindgen_futures::JsFuture;
-    use web_sys::{self, Clipboard, FileReader, HtmlElement, HtmlInputElement, Navigator, Window};
+    use web_sys::{self, FileReader, HtmlInputElement, Window};
 
     pub mod interval {
-        use std::sync::{Arc, Mutex};
+        use std::sync::Arc;
+        use tokio::sync::Mutex;
         use std::time::Duration;
         use tokio::sync::mpsc;
 
@@ -38,7 +39,7 @@ pub mod wasm32 {
             }
 
             pub async fn tick(&mut self) {
-                if let Some(mut rx_lock) = self.rx.try_lock().ok() {
+                if let Ok(mut rx_lock) = self.rx.try_lock() {
                     let _ = rx_lock.recv().await;
                 }
             }
