@@ -2,15 +2,9 @@
 // File: src/components/qr_scanner.rs
 //=============================================================================
 
-// todo:  we should fix Cargo.toml features, so we have features
-// for desktop, web-wasm, web-server, mobile, mobile-android, mobile-ios
-
 // Conditionally export the correct module based on the target platform.
 #[cfg(target_arch = "wasm32")]
 pub use self::wasm32::*;
-
-#[cfg(all(not(target_arch = "wasm32"), not(feature = "dioxus-desktop")))]
-pub use self::server::*;
 
 #[cfg(feature = "dioxus-desktop")]
 pub use self::desktop::*;
@@ -21,7 +15,6 @@ pub use self::mobile::*;
 /// Contains the QR scanner implementation for the WebAssembly target.
 #[cfg(target_arch = "wasm32")]
 mod wasm32 {
-    use crate::components::qr_processor::{QrProcessResult, QrProcessor};
     use dioxus::prelude::*;
     use std::collections::HashMap;
     use wasm_bindgen::prelude::*;
@@ -47,8 +40,8 @@ mod wasm32 {
         let mut is_scanning = use_signal(|| false);
         let mut video_devices = use_signal(Vec::<MediaDeviceInfo>::new);
         let mut selected_device_id = use_signal(String::new);
-        let mut qr_processor = use_signal(QrProcessor::new);
-        let mut scan_progress = use_signal(|| (0, 0)); // (found, total)
+        let mut scanned_parts = use_signal(HashMap::<usize, String>::new);
+        let mut total_parts = use_signal(|| 0_usize);
 
         use_hook(move || {
             spawn(async move {
@@ -94,7 +87,7 @@ mod wasm32 {
                 let _stream_guard = StreamGuard(stream);
 
                 loop {
-                    crate::compat::sleep(std::time::Duration::from_millis(100)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                     let video_element: Option<HtmlVideoElement> = get_element_by_id("qr-video");
                     let canvas_element: Option<HtmlCanvasElement> = get_element_by_id("qr-canvas");
 
@@ -111,6 +104,7 @@ mod wasm32 {
                                 .unwrap();
                             ctx.draw_image_with_html_video_element(&video, 0.0, 0.0)
                                 .unwrap();
+
                             if let Ok(image_data) =
                                 ctx.get_image_data(0.0, 0.0, width as f64, height as f64)
                             {
@@ -121,22 +115,69 @@ mod wasm32 {
                                     .map(|p| {
                                         (p[0] as f32 * 0.299
                                             + p[1] as f32 * 0.587
-                                            + p[2] as f32 * 0.114)
-                                            as u8
+                                            + p[2] as f32 * 0.114) as u8
                                     })
                                     .collect();
+
                                 if let Some(image) =
                                     image::GrayImage::from_raw(width, height, luma_data)
                                 {
-                                    match qr_processor.write().process_image(image) {
-                                        QrProcessResult::Complete(data) => {
-                                            on_scan.call(data);
-                                            break;
-                                        }
-                                        QrProcessResult::Incomplete(found, total) => {
-                                            scan_progress.set((found, total));
-                                        }
-                                        QrProcessResult::Error(_) => { /* Ignore and try next frame */
+                                    let mut img = rqrr::PreparedImage::prepare(image);
+                                    if let Some(grid) = img.detect_grids().first() {
+                                        if let Ok((_meta, content)) = grid.decode() {
+                                            if content.is_empty() {
+                                                continue;
+                                            }
+
+                                            let mut scan_is_complete = false;
+                                            if !content.starts_with('P')
+                                                || content.chars().filter(|&c| c == '/').count()
+                                                    != 2
+                                            {
+                                                on_scan.call(content);
+                                                scan_is_complete = true;
+                                            } else {
+                                                let parts: Vec<&str> =
+                                                    content.splitn(3, '/').collect();
+                                                if parts.len() == 3 {
+                                                    if let (Ok(part_num), Ok(total)) = (
+                                                        parts[0][1..].parse::<usize>(),
+                                                        parts[1].parse::<usize>(),
+                                                    ) {
+                                                        if *total_parts.read() == 0 {
+                                                            total_parts.set(total);
+                                                        }
+                                                        scanned_parts.write().entry(part_num).or_insert_with(|| parts[2].to_string());
+                                                        if scanned_parts.read().len() == total {
+                                                            let mut result = String::new();
+                                                            let mut reassembly_ok = true;
+                                                            for i in 1..=total {
+                                                                if let Some(chunk) =
+                                                                    scanned_parts.read().get(&i)
+                                                                {
+                                                                    result.push_str(chunk);
+                                                                } else {
+                                                                    error_message.set(Some(
+                                                                        format!(
+                                                                            "Reassembly failed: Missing part {}",
+                                                                            i
+                                                                        ),
+                                                                    ));
+                                                                    reassembly_ok = false;
+                                                                    break;
+                                                                }
+                                                            }
+                                                            if reassembly_ok {
+                                                                on_scan.call(result);
+                                                                scan_is_complete = true;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if scan_is_complete {
+                                                break;
+                                            }
                                         }
                                     }
                                 }
@@ -150,46 +191,25 @@ mod wasm32 {
         });
 
         let error_display = if let Some(err) = error_message.read().as_ref() {
-            Some(rsx! {
-                p {
-                    style: "color: var(--pico-color-red-500);",
-                    "{err}"
-                }
-            })
+            Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
         } else {
             None
         };
         let progress_indicator = if *is_scanning.read() {
-            let (found, total) = *scan_progress.read();
-            Some(if total > 0 {
+            Some(if *total_parts.read() > 0 {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label {
-
-
-                            "Scan Progress: {found} of {total}"
-                        }
-                        progress {
-                            max: "{total}",
-                            value: "{found}",
-                        }
+                        label { "Scan Progress: {scanned_parts.read().len()} of {total_parts.read()}" },
+                        progress { max: "{total_parts.read()}", value: "{scanned_parts.read().len()}" }
                     }
                 }
             } else {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label {
-
-
-                            "Aim camera at QR code..."
-                        }
-                        progress {
-
-
-
-                        }
+                        label { "Aim camera at QR code..." },
+                        progress {}
                     }
                 }
             })
@@ -200,15 +220,8 @@ mod wasm32 {
             Some(rsx! {
                 div {
                     style: "position: relative; width: 100%; max-width: 400px; margin: auto; border-radius: var(--pico-border-radius); overflow: hidden; border: 1px solid var(--pico-form-element-border-color);",
-                    video {
-                        id: "qr-video",
-                        autoplay: true,
-                        playsinline: true,
-                    }
-                    canvas {
-                        id: "qr-canvas",
-                        style: "display: none;",
-                    }
+                    video { id: "qr-video", autoplay: true, playsinline: true }
+                    canvas { id: "qr-canvas", style: "display: none;" }
                 }
             })
         } else {
@@ -248,11 +261,7 @@ mod wasm32 {
         rsx! {
             div {
                 style: "display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: auto;",
-                h3 {
-
-
-                    "Scan QR Code"
-                }
+                h3 { "Scan QR Code" }
                 {error_display}
                 {progress_indicator}
                 {scanner_display}
@@ -261,9 +270,7 @@ mod wasm32 {
                     style: "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;",
                     button {
                         class: "secondary",
-                        onclick: move |_| {
-                            on_close.call(());
-                        },
+                        onclick: move |_| { on_close.call(()); },
                         "Cancel"
                     }
                 }
@@ -275,11 +282,11 @@ mod wasm32 {
         let window = web_sys::window().expect("no global `window` exists");
         let navigator = window.navigator();
         let media_devices = navigator.media_devices()?;
-        let stream =
-            JsFuture::from(media_devices.get_user_media_with_constraints(
-                MediaStreamConstraints::new().video(&true.into()),
-            )?)
-            .await?;
+        let stream = JsFuture::from(
+            media_devices
+                .get_user_media_with_constraints(MediaStreamConstraints::new().video(&true.into()))?,
+        )
+        .await?;
         MediaStream::from(stream)
             .get_tracks()
             .for_each(&mut |track, _, _| {
@@ -314,8 +321,16 @@ mod wasm32 {
         js_sys::Reflect::set(&width_constraint, &"ideal".into(), &4096.into())?;
         let height_constraint = js_sys::Object::new();
         js_sys::Reflect::set(&height_constraint, &"ideal".into(), &2160.into())?;
-        js_sys::Reflect::set(&advanced_constraint, &"width".into(), &width_constraint)?;
-        js_sys::Reflect::set(&advanced_constraint, &"height".into(), &height_constraint)?;
+        js_sys::Reflect::set(
+            &advanced_constraint,
+            &"width".into(),
+            &width_constraint,
+        )?;
+        js_sys::Reflect::set(
+            &advanced_constraint,
+            &"height".into(),
+            &height_constraint,
+        )?;
         video_constraints.advanced(&js_sys::Array::of1(&advanced_constraint));
         constraints.video(&video_constraints.into());
         constraints.audio(&JsValue::from(false));
@@ -328,17 +343,19 @@ mod wasm32 {
 /// Contains the QR scanner implementation for desktop platforms.
 #[cfg(feature = "dioxus-desktop")]
 mod desktop {
-    use crate::components::qr_processor::{QrProcessResult, QrProcessor};
+    // This code block will only be compiled if the `desktop` feature is enabled.
     use base64::engine::{general_purpose::STANDARD as BASE64_STANDARD, Engine};
     use dioxus::prelude::*;
-    use dioxus_desktop::use_window;
     use futures::StreamExt;
+    use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
+    use dioxus_desktop::use_window;
 
     #[derive(Debug)]
     enum Message {
         Frame((Vec<u8>, u32, u32)),
+        Content(String),
         Error(String),
         Done,
     }
@@ -348,19 +365,12 @@ mod desktop {
         stop_signal: Arc<Mutex<bool>>,
     ) {
         std::thread::spawn(move || {
-            let cam_result = camera_capture::create(0)
-                .and_then(|builder| {
-                    builder
-                        .fps(15.0)
-                        .map_err(|e| {
-                            std::io::Error::other(format!("{:?}", e))
-                        })
-                        .and_then(|b| {
-                            b.start().map_err(|e| {
-                                std::io::Error::other(format!("{:?}", e))
-                            })
-                        })
-                });
+            let cam_result = camera_capture::create(0).map_err(|e| e.into()).and_then(|builder| {
+                builder
+                    .fps(15.0)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e)))
+                    .and_then(|b| b.start().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))))
+            });
 
             let cam = match cam_result {
                 Ok(c) => c,
@@ -370,13 +380,43 @@ mod desktop {
                 }
             };
 
+            let mut last_scan_time = Instant::now();
+            let scan_interval = Duration::from_millis(100);
+
             for frame in cam {
                 if *stop_signal.lock().unwrap() {
                     break;
                 }
+
                 let (width, height) = (frame.width(), frame.height());
                 let raw_pixels: Vec<u8> = frame.to_vec();
-                let _ = tx.send(Message::Frame((raw_pixels, width, height)));
+
+                // Always send the frame for display to ensure smooth video.
+                let _ = tx.send(Message::Frame((raw_pixels.clone(), width, height)));
+
+                // Only perform expensive QR detection on a timer.
+                if last_scan_time.elapsed() >= scan_interval {
+                    last_scan_time = Instant::now();
+                    let luma_data: Vec<u8> = raw_pixels
+                        .chunks_exact(3)
+                        .map(|p| {
+                            ((p[0] as f32 * 0.299)
+                                + (p[1] as f32 * 0.587)
+                                + (p[2] as f32 * 0.114)) as u8
+                        })
+                        .collect();
+
+                    if let Some(image) = image::GrayImage::from_raw(width, height, luma_data) {
+                        let mut img = rqrr::PreparedImage::prepare(image);
+                        if let Some(grid) = img.detect_grids().first() {
+                            if let Ok((_meta, content)) = grid.decode() {
+                                if !content.is_empty() {
+                                    let _ = tx.send(Message::Content(content));
+                                }
+                            }
+                        }
+                    }
+                }
             }
             let _ = tx.send(Message::Done);
         });
@@ -386,46 +426,46 @@ mod desktop {
     pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> Element {
         let mut error_message = use_signal(|| None::<String>);
         let mut is_scanning = use_signal(|| false);
+        let mut scanned_parts = use_signal(HashMap::<usize, String>::new);
+        let mut total_parts = use_signal(|| 0_usize);
         let stop_signal = use_hook(|| Arc::new(Mutex::new(false)));
         let stop_signal2 = stop_signal.clone();
         let stop_signal3 = stop_signal.clone();
         let mut frame_dims = use_signal(|| (0u32, 0u32));
+
         let window = use_window();
-        let mut qr_processor = use_signal(QrProcessor::new);
-        let mut scan_progress = use_signal(|| (0, 0));
 
-        let state_updater = use_coroutine(
-            move |mut rx: futures_channel::mpsc::UnboundedReceiver<Message>| {
-                let window = window.clone();
-                let on_scan = on_scan;
-                let on_close = on_close;
-                let stop_signal = stop_signal.clone();
-                let mut last_scan_time = std::time::Instant::now();
-                let scan_interval = Duration::from_millis(100);
+        // This coroutine runs on the main thread and handles all state updates.
+        let state_updater = use_coroutine(move |mut rx: futures_channel::mpsc::UnboundedReceiver<Message>| {
+            // Clone the Arcs/handles needed for the async block inside.
+            let window = window.clone();
+            let on_scan = on_scan.clone();
+            let on_close = on_close.clone();
+            let stop_signal = stop_signal.clone();
 
-                async move {
-                    while let Some(msg) = rx.next().await {
-                        match msg {
-                            Message::Error(e) => {
-                                error_message.set(Some(e));
-                                is_scanning.set(false);
+            async move {
+                while let Some(msg) = rx.next().await {
+                    match msg {
+                        Message::Error(e) => {
+                            error_message.set(Some(e));
+                            is_scanning.set(false);
+                        }
+                        Message::Frame((rgb_pixels, width, height)) => {
+                            if frame_dims.read().0 != width || frame_dims.read().1 != height {
+                                frame_dims.set((width, height));
                             }
-                            Message::Frame((rgb_pixels, width, height)) => {
-                                if frame_dims.read().0 != width || frame_dims.read().1 != height {
-                                    frame_dims.set((width, height));
-                                }
-                                let mut rgba_pixels =
-                                    Vec::with_capacity((width * height * 4) as usize);
-                                for chunk in rgb_pixels.chunks_exact(3) {
-                                    rgba_pixels.push(chunk[0]); // R
-                                    rgba_pixels.push(chunk[1]); // G
-                                    rgba_pixels.push(chunk[2]); // B
-                                    rgba_pixels.push(255); // A
-                                }
-                                let base64_frame = BASE64_STANDARD.encode(&rgba_pixels);
+                            let mut rgba_pixels =
+                                Vec::with_capacity((width * height * 4) as usize);
+                            for chunk in rgb_pixels.chunks_exact(3) {
+                                rgba_pixels.push(chunk[0]); // R
+                                rgba_pixels.push(chunk[1]); // G
+                                rgba_pixels.push(chunk[2]); // B
+                                rgba_pixels.push(255); // A
+                            }
+                            let base64_frame = BASE64_STANDARD.encode(&rgba_pixels);
 
-                                let js_code = format!(
-                                    r#"
+                            let js_code = format!(
+                                r#"
                                 try {{
                                     const canvas = document.getElementById('qr-canvas');
                                     if (canvas) {{
@@ -445,60 +485,70 @@ mod desktop {
                                     console.error("Failed to render frame:", e);
                                 }}
                                 "#,
-                                    base64_frame = base64_frame,
-                                    width = width,
-                                    height = height
-                                );
-                                let _ = window.webview.evaluate_script(&js_code);
-
-                                if last_scan_time.elapsed() >= scan_interval {
-                                    last_scan_time = std::time::Instant::now();
-                                    let luma_data: Vec<u8> = rgb_pixels
-                                        .chunks_exact(3)
-                                        .map(|p| {
-                                            ((p[0] as f32 * 0.299)
-                                                + (p[1] as f32 * 0.587)
-                                                + (p[2] as f32 * 0.114))
-                                                as u8
-                                        })
-                                        .collect();
-
-                                    if let Some(image) =
-                                        image::GrayImage::from_raw(width, height, luma_data)
-                                    {
-                                        match qr_processor.write().process_image(image) {
-                                            QrProcessResult::Complete(data) => {
-                                                on_scan.call(data);
+                            );
+                            let _ = window.webview.evaluate_script(&js_code);
+                        }
+                        Message::Content(content) => {
+                            if !content.starts_with('P')
+                                || content.chars().filter(|&c| c == '/').count() != 2
+                            {
+                                on_scan.call(content);
+                                *stop_signal.lock().unwrap() = true;
+                            } else {
+                                let parts: Vec<&str> = content.splitn(3, '/').collect();
+                                if parts.len() == 3 {
+                                    if let (Ok(part_num), Ok(total)) = (
+                                        parts[0][1..].parse::<usize>(),
+                                        parts[1].parse::<usize>(),
+                                    ) {
+                                        if *total_parts.read() == 0 {
+                                            total_parts.set(total);
+                                        }
+                                        scanned_parts
+                                            .write()
+                                            .entry(part_num)
+                                            .or_insert_with(|| parts[2].to_string());
+                                        if scanned_parts.read().len() == *total_parts.read() {
+                                            let mut result = String::new();
+                                            let reassembly_ok =
+                                                (1..=*total_parts.read()).all(|i| {
+                                                    scanned_parts
+                                                        .read()
+                                                        .get(&i)
+                                                        .map(|chunk| result.push_str(chunk))
+                                                        .is_some()
+                                                });
+                                            if reassembly_ok {
+                                                on_scan.call(result);
                                                 *stop_signal.lock().unwrap() = true;
-                                            }
-                                            QrProcessResult::Incomplete(found, total) => {
-                                                scan_progress.set((found, total));
-                                            }
-                                            QrProcessResult::Error(_) => { /* Ignore and try next frame */
                                             }
                                         }
                                     }
                                 }
                             }
-                            Message::Done => {
-                                on_close.call(());
-                                is_scanning.set(false);
-                                break;
-                            }
+                        }
+                        Message::Done => {
+                            on_close.call(());
+                            is_scanning.set(false);
+                            break;
                         }
                     }
                 }
-            },
-        );
+            }
+        });
 
+        // This effect manages the background camera thread. Its only job
+        // is to forward messages to the state_updater coroutine.
         use_effect(move || {
             let state_updater_clone = state_updater.clone();
-            let stop_signal = stop_signal2.clone();
+            let stop_signal_clone = stop_signal2.clone();
+
             spawn(async move {
                 is_scanning.set(true);
                 error_message.set(None);
                 let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-                start_camera_thread(tx, stop_signal);
+                start_camera_thread(tx, stop_signal_clone);
+
                 while let Some(msg) = rx.recv().await {
                     state_updater_clone.send(msg);
                 }
@@ -513,54 +563,31 @@ mod desktop {
         });
 
         let error_display = if let Some(err) = error_message.read().as_ref() {
-            Some(rsx! {
-                p {
-                    style: "color: var(--pico-color-red-500);",
-                    "{err}"
-                }
-            })
+            Some(rsx! { p { style: "color: var(--pico-color-red-500);", "{err}" } })
         } else {
             None
         };
-
         let progress_indicator = if *is_scanning.read() {
-            let (found, total) = *scan_progress.read();
-            Some(if total > 0 {
+            Some(if *total_parts.read() > 0 {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label {
-
-
-                            "Scan Progress: {found} of {total}"
-                        }
-                        progress {
-                            max: "{total}",
-                            value: "{found}",
-                        }
+                        label { "Scan Progress: {scanned_parts.read().len()} of {total_parts.read()}" },
+                        progress { max: "{total_parts.read()}", value: "{scanned_parts.read().len()}" }
                     }
                 }
             } else {
                 rsx! {
                     div {
                         style: "display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: 400px; margin: auto;",
-                        label {
-
-
-                            "Aim camera at QR code..."
-                        }
-                        progress {
-
-
-
-                        }
+                        label { "Aim camera at QR code..." },
+                        progress {}
                     }
                 }
             })
         } else {
             None
         };
-
         let (width, height) = *frame_dims.read();
         let scanner_display = if *is_scanning.read() || (width > 0 && height > 0) {
             Some(rsx! {
@@ -570,7 +597,7 @@ mod desktop {
                         id: "qr-canvas",
                         width: "{width}",
                         height: "{height}",
-                        style: "width: 100%; height: auto; display: block; background-color: #333;",
+                        style: "width: 100%; height: auto; display: block; background-color: #333;"
                     }
                 }
             })
@@ -581,11 +608,7 @@ mod desktop {
         rsx! {
             div {
                 style: "display: flex; flex-direction: column; gap: 1.5rem; max-width: 500px; margin: auto;",
-                h3 {
-
-
-                    "Scan QR Code"
-                }
+                h3 { "Scan QR Code" }
                 {error_display}
                 {progress_indicator}
                 {scanner_display}
@@ -593,25 +616,12 @@ mod desktop {
                     style: "display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;",
                     button {
                         class: "secondary",
-                        onclick: move |_| {
-                            on_close.call(());
-                        },
+                        onclick: move |_| { on_close.call(()); },
                         "Cancel"
                     }
                 }
             }
         }
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-mod server {
-    use dioxus::prelude::*;
-
-    #[component]
-    #[allow(unused_variables)]
-    pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> Element {
-        unimplemented!()
     }
 }
 
@@ -623,19 +633,13 @@ mod mobile {
     #[component]
     #[allow(unused_variables)]
     pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> Element {
+        // This is a stub for mobile. You would integrate a mobile-specific camera
+        // crate here and enable it via features in Cargo.toml.
         rsx! {
             div {
                 style: "color: var(--pico-color-red-500); border: 1px solid var(--pico-color-red-500); padding: 1rem; border-radius: var(--pico-border-radius);",
-                h4 {
-
-
-                    "Not Implemented"
-                }
-                p {
-
-
-                    "QR code scanning is not yet available on mobile devices."
-                }
+                h4 { "Not Implemented" },
+                p { "QR code scanning is not yet available on mobile devices." },
                 button {
                     style: "margin-top: 1rem;",
                     onclick: move |_| on_close.call(()),
@@ -645,3 +649,4 @@ mod mobile {
         }
     }
 }
+
