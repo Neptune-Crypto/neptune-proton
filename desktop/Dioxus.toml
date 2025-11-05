@@ -1,10 +1,10 @@
 [application]
-name = "neptune-wallet-gui" # Replace with your application's name
-product_name = "Neptune GUI Wallet" # A more user-friendly name, optional
+name = "neptune-gui" # Replace with your application's name
+product_name = "Neptune GUI" # A more user-friendly name, optional
 version = "0.1.0" # Your application's version
 # For a desktop app, the `main_binary` should point to the name of your crate's binary
 # If your desktop crate is named `desktop`, and it produces a binary `desktop`, use that.
-main_binary = "neptune-wallet-gui" # This should match the name of the executable produced by your desktop crate
+main_binary = "neptune-gui" # This should match the name of the executable produced by your desktop crate
 
 
 [bundle]
@@ -13,4 +13,5 @@ publisher = "neptune.cash"
 
 icon = [
     "assets/icon/logo-128x128.png", 
+    "assets/icon/logo-1024x1024.png", 
 ]

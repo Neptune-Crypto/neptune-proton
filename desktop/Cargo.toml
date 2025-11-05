@@ -12,3 +12,7 @@ ui = { workspace = true, features = ["dioxus-desktop"] }
 default = []
 desktop = ["dioxus/desktop"]
 server = ["dioxus/server"]
+
+[[bin]]
+name = "neptune-gui"
+path = "src/main.rs"
