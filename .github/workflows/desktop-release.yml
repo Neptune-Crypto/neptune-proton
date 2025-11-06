@@ -15,6 +15,7 @@ jobs:
     # 2. Run this job on all three platforms
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         
@@ -26,7 +27,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dioxus-cli (v0.6.3)
-        run: cargo install dioxus-cli --version 0.6.3 --locked
+        uses: DioxusLabs/setup-dioxus-cli@v0.5.0 # Use the latest v0.5 action
+        with:
+          version: 0.6.3          
 
       # 3. Install Dioxus desktop dependencies (Linux only)
       #    This is critical for the AppImage build
