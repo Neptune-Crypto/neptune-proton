@@ -25,8 +25,8 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dioxus-cli
-        run: cargo install dioxus-cli
+      - name: Install dioxus-cli (v0.6.3)
+        run: cargo install dioxus-cli --version 0.6.3
 
       # 3. Install Dioxus desktop dependencies (Linux only)
       #    This is critical for the AppImage build
