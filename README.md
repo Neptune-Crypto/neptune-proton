@@ -61,6 +61,7 @@ As of 2025-07-09:
 
 for desktop platform:
 * libv4l-dev  ubuntu: apt install libv4l-dev
+* libxdo-dev  ubuntu: apt install libxdo-dev
 
 ### Start neptune-core
 

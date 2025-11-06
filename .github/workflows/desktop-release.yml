@@ -17,7 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Changed 'ubuntu-latest' to 'ubuntu-22.04'
+        os: [ubuntu-22.04, windows-latest, macos-latest]
         
     steps:
       - name: Checkout code
@@ -35,7 +36,8 @@ jobs:
       # 3. Install Dioxus desktop dependencies (Linux only)
       #    This is critical for the AppImage build
       - name: Install Linux Dependencies
-        if: matrix.os == 'ubuntu-latest'
+        # Updated this condition to match the matrix
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -45,7 +47,8 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            libv4l-dev 
+            libv4l-dev \
+            libxdo-dev
 
       # 4. 'cd' into the 'desktop' dir and run the bundle command
       #    This will find your desktop/Dioxus.toml automatically
