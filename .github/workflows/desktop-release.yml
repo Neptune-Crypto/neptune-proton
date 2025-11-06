@@ -52,7 +52,7 @@ jobs:
       - name: Bundle Dioxus App
         run: |
           cd desktop
-          dx bundle --release
+          dx bundle --release --platform desktop
 
       # 5. Upload the final installer to the GitHub Release
       - name: Upload Artifact
