@@ -6,14 +6,18 @@
 #[cfg(target_arch = "wasm32")]
 pub use self::wasm32::*;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub use self::server::*;
-
 #[cfg(feature = "dioxus-desktop")]
 pub use self::desktop::*;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub use self::mobile::*;
+
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    not(feature = "dioxus-desktop"),
+    not(any(target_os = "android", target_os = "ios"))
+))]
+pub use self::server::*;
 
 /// Contains the QR scanner implementation for the WebAssembly target.
 #[cfg(target_arch = "wasm32")]
