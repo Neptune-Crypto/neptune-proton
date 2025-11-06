@@ -50,12 +50,17 @@ jobs:
             libv4l-dev \
             libxdo-dev
 
+      - name: Debug - Run Cargo Build Directly
+        run: |
+          cd desktop
+          cargo build --release --features desktop --verbose
+
       # 4. 'cd' into the 'desktop' dir and run the bundle command
       #    This will find your desktop/Dioxus.toml automatically
       - name: Bundle Dioxus App
         run: |
           cd desktop
-          dx bundle --release --platform desktop --verbose
+          dx bundle --release --platform desktop --verbose --trace
 
       # 5. Upload the final installer to the GitHub Release
       - name: Upload Artifact
