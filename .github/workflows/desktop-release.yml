@@ -12,7 +12,7 @@ jobs:
   build-and-release:
     name: Build on ${{ matrix.os }}
     
-    # 2. Run this job on all three platforms
+    # Run this job on all three platforms
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -33,8 +33,8 @@ jobs:
       - name: Install dioxus-cli (v0.6.3)
         run: cargo binstall dioxus-cli --version 0.6.3 --force          
 
-      # 3. Install Dioxus desktop dependencies (Linux only)
-      #    This is critical for the AppImage build
+      # Install Dioxus desktop dependencies (Linux only)
+      # This is critical for the AppImage build
       - name: Install Linux Dependencies
         # Updated this condition to match the matrix
         if: matrix.os == 'ubuntu-22.04'
@@ -44,25 +44,41 @@ jobs:
             libwebkit2gtk-4.1-dev \
             build-essential \
             pkg-config \
-            libssl-dev \
-            libayatana-appindicator3-dev \
             librsvg2-dev \
             libv4l-dev \
             libxdo-dev
+
+      - name: Install macOS Dependencies
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install leveldb
+          brew install snappy
+
+      # Install cargo-tree (for debugging)
+      - name: Install cargo-tree
+        run: cargo install cargo-tree
+
+      # Show Build Dependency Tree (for debugging)
+      - name: Show Build Dependency Tree
+        if: matrix.os == 'windows-latest' # Only run on the failing OS
+        run: |
+          cd desktop
+          cargo tree --features desktop --target x86_64-pc-windows-msvc -e build
+        continue-on-error: true # Don't stop the build if this fails          
 
       - name: Debug - Run Cargo Build Directly
         run: |
           cd desktop
           cargo build --release --features desktop --verbose
 
-      # 4. 'cd' into the 'desktop' dir and run the bundle command
-      #    This will find your desktop/Dioxus.toml automatically
+      # 'cd' into the 'desktop' dir and run the bundle command
+      #    This will find the desktop/Dioxus.toml automatically
       - name: Bundle Dioxus App
         run: |
           cd desktop
           dx bundle --release --platform desktop --verbose --trace
 
-      # 5. Upload the final installer to the GitHub Release
+      # Upload the final installer to the GitHub Release
       - name: Upload Artifact
         uses: softprops/action-gh-release@v1
         with:
