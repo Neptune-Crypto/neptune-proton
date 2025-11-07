@@ -19,6 +19,11 @@ jobs:
       matrix:
         # Changed 'ubuntu-latest' to 'ubuntu-22.04'
         os: [ubuntu-22.04, windows-latest, macos-latest]
+
+    env:
+      # Set RUSTFLAGS to increase the stack size to 8MB
+      # This flag is *only* set on Windows and is empty on other OSes
+      RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C link-arg=/STACK:8388608' || '' }}
         
     steps:
       - name: Checkout code
@@ -51,8 +56,19 @@ jobs:
       - name: Install macOS Dependencies
         if: matrix.os == 'macos-latest'
         run: |
-          brew install leveldb
-          brew install snappy
+          brew install leveldb snappy
+
+          # This is the critical part.
+          # We are telling Cargo's build scripts where to find the libraries
+          # we just installed via Homebrew.
+          echo "SNAPPY_LIB_DIR=/opt/homebrew/lib" >> $GITHUB_ENV
+          echo "SNAPPY_INCLUDE_DIR=/opt/homebrew/include" >> $GITHUB_ENV
+          echo "LEVELDB_LIB_DIR=/opt/homebrew/lib" >> $GITHUB_ENV
+          echo "LEVELDB_INCLUDE_DIR=/opt/homebrew/include" >> $GITHUB_ENV
+          
+          # This is the generic way for pkg-config to find them
+          echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
+
 
       # Install cargo-tree (for debugging)
       - name: Install cargo-tree
