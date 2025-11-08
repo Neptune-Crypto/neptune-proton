@@ -21,9 +21,13 @@ jobs:
         os: [ubuntu-22.04, windows-latest, macos-latest]
 
     env:
-      # Set RUSTFLAGS to increase the stack size to 8MB
-      # This flag is *only* set on Windows and is empty on other OSes
-      RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '-C link-arg=/STACK:8388608' || '' }}
+      # Fix 1 & 2 (Windows): Set tokio flag AND 8MB stack size
+      RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '--cfg tokio_unstable -C link-arg=/STACK:8388608' ||
+                     # Fix 1 (Linux/macOS): Just set tokio flag
+                     '--cfg tokio_unstable' }}
+
+      # Fix 3 (macOS): Force-fix the ancient cmake script
+      CMAKE_FLAGS: ${{ matrix.os == 'macos-latest' && '-DCMAKE_POLICY_VERSION_MINIMUM=3.5' || '' }}
         
     steps:
       - name: Checkout code
@@ -57,14 +61,6 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew install leveldb snappy
-
-          # This is the critical part.
-          # We are telling Cargo's build scripts where to find the libraries
-          # we just installed via Homebrew.
-          echo "SNAPPY_LIB_DIR=/opt/homebrew/lib" >> $GITHUB_ENV
-          echo "SNAPPY_INCLUDE_DIR=/opt/homebrew/include" >> $GITHUB_ENV
-          echo "LEVELDB_LIB_DIR=/opt/homebrew/lib" >> $GITHUB_ENV
-          echo "LEVELDB_INCLUDE_DIR=/opt/homebrew/include" >> $GITHUB_ENV
           
           # This is the generic way for pkg-config to find them
           echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
