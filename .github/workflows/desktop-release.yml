@@ -70,10 +70,23 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew install leveldb snappy
- 
-          # This is the generic way for pkg-config to find them
-          echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
 
+          # --- Fix for OpenSSL (reqwest) ---
+          OPENSSL_DIR=$(brew --prefix openssl@3)
+          echo "OPENSSL_ROOT_DIR=$OPENSSL_DIR" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=$OPENSSL_DIR/lib" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=$OPENSSL_DIR/include" >> $GITHUB_ENV
+
+          # --- Fix for CMake (leveldb-sys) ---
+          echo "CMAKE_POLICY_VERSION_MINIMUM=3.5" >> $GITHUB_ENV
+
+          # --- Fix for LevelDB/Snappy (just in case) ---
+          # Build the PKG_CONFIG_PATH safely
+          PKG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig"
+          PKG_PATH="$PKG_PATH:$(brew --prefix leveldb)/lib/pkgconfig"
+          PKG_PATH="$PKG_PATH:$(brew --prefix snappy)/lib/pkgconfig"
+          echo "PKG_CONFIG_PATH=$PKG_PATH" >> $GITHUB_ENV
+                
 
       # Install cargo-tree (for debugging)
       - name: Install cargo-tree
@@ -92,7 +105,7 @@ jobs:
       - name: Bundle Dioxus App
         run: |
           cd desktop
-          dx bundle --release --platform desktop --verbose --trace          
+          dx bundle --platform desktop --trace
 
       # Upload the final installer to the GitHub Release
       - name: Upload Artifact
