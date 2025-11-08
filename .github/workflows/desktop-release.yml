@@ -19,7 +19,24 @@ jobs:
       matrix:
         # Changed 'ubuntu-latest' to 'ubuntu-22.04'
         os: [ubuntu-22.04, windows-latest, macos-latest]
- 
+
+    env:
+      # Fix 1 (tokio) & 2 (Stack Overflow) for Windows
+      RUSTFLAGS: >
+        ${{
+          matrix.os == 'windows-latest' &&
+          '--cfg tokio_unstable -C link-arg=/STACK:8388608' ||
+          '--cfg tokio_unstable'
+        }}
+
+      # Fix 2 (macOS): Force-fix the ancient leveldb-sys cmake script
+      CMAKE_FLAGS: >
+        ${{
+          matrix.os == 'macos-latest' &&
+          '-DCMAKE_POLICY_VERSION_MINIMUM=3.5' ||
+          ''
+        }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,7 +91,7 @@ jobs:
       - name: Bundle Dioxus App
         run: |
           cd desktop
-          dx bundle --release --platform desktop --verbose --trace --json-output 
+          dx bundle --release --platform desktop --verbose --trace 
 
       # Upload the final installer to the GitHub Release
       - name: Upload Artifact
