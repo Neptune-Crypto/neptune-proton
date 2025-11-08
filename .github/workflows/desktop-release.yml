@@ -4,6 +4,7 @@ name: Publish Desktop Release
 
 # 1. Trigger this workflow when you push a tag like 'v1.0.0'
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
@@ -91,7 +92,7 @@ jobs:
       - name: Bundle Dioxus App
         run: |
           cd desktop
-          dx bundle --release --platform desktop --verbose --trace 
+          dx bundle --release --platform desktop --verbose --trace          
 
       # Upload the final installer to the GitHub Release
       - name: Upload Artifact
@@ -100,3 +101,14 @@ jobs:
           # This glob finds the artifact (e.g., .msi, .dmg)
           # 'target/release/bundle' is relative to the workspace root
           files: target/release/bundle/*/*
+
+      - name: Start tmate debug session
+        uses: mxschmitt/action-tmate@v3
+        # This step will run on all OSes.
+        # It will only run if the workflow is manually triggered
+        # or if a previous step has failed.
+        if: ${{ failure() || github.event_name == 'workflow_dispatch' }}
+        with:
+          # This makes the job wait for 30 minutes for you to connect
+          limit-access-to-actor: true
+          timeout: 1800 # 30 minutes            
