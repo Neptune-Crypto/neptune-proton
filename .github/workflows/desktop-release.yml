@@ -115,9 +115,12 @@ jobs:
       - name: Upload Artifact
         uses: softprops/action-gh-release@v1
         with:
-          # Use brace expansion to match all installer types
-          files: >
-            target/dx/neptune-gui/bundle/*/*/*/*.{AppImage,deb,rpm,msi,dmg}
+          files: |
+            target/dx/neptune-gui/bundle/*/*/*/*.AppImage
+            target/dx/neptune-gui/bundle/*/*/*/*.deb
+            target/dx/neptune-gui/bundle/*/*/*/*.rpm
+            target/dx/neptune-gui/bundle/*/*/*/*.msi
+            target/dx/neptune-gui/bundle/*/*/*/*.dmg          
 
       - name: Start tmate debug session
         uses: mxschmitt/action-tmate@v3
