@@ -9,6 +9,10 @@ on:
     tags:
       - 'v*'
 
+# so the upload step can work
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     name: Build on ${{ matrix.os }}
@@ -111,9 +115,9 @@ jobs:
       - name: Upload Artifact
         uses: softprops/action-gh-release@v1
         with:
-          # This glob finds the artifact (e.g., .msi, .dmg)
-          # 'target/release/bundle' is relative to the workspace root
-          files: target/release/bundle/*/*
+          # Use brace expansion to match all installer types
+          files: >
+            target/dx/neptune-gui/bundle/*/*/*/*.{AppImage,deb,rpm,msi,dmg}
 
       - name: Start tmate debug session
         uses: mxschmitt/action-tmate@v3
