@@ -12,7 +12,7 @@ identifier = "cash.neptune"
 publisher = "neptune.cash"
 
 icon = [
-    "assets/icon/logo-128x128.png", 
-    "assets/icon/logo-1024x1024.png", 
-    "assets/icon/icon.ico", 
+    "icons/logo-128x128.png", 
+    "icons/logo-1024x1024.png", 
+    "icons/icon.ico", 
 ]
