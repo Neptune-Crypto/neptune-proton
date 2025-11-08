@@ -11,7 +11,7 @@ on:
 jobs:
   build-and-release:
     name: Build on ${{ matrix.os }}
-    
+ 
     # Run this job on all three platforms
     runs-on: ${{ matrix.os }}
     strategy:
@@ -19,16 +19,7 @@ jobs:
       matrix:
         # Changed 'ubuntu-latest' to 'ubuntu-22.04'
         os: [ubuntu-22.04, windows-latest, macos-latest]
-
-    env:
-      # Fix 1 & 2 (Windows): Set tokio flag AND 8MB stack size
-      RUSTFLAGS: ${{ matrix.os == 'windows-latest' && '--cfg tokio_unstable -C link-arg=/STACK:8388608' ||
-                     # Fix 1 (Linux/macOS): Just set tokio flag
-                     '--cfg tokio_unstable' }}
-
-      # Fix 3 (macOS): Force-fix the ancient cmake script
-      CMAKE_FLAGS: ${{ matrix.os == 'macos-latest' && '-DCMAKE_POLICY_VERSION_MINIMUM=3.5' || '' }}
-        
+ 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -61,7 +52,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           brew install leveldb snappy
-          
+ 
           # This is the generic way for pkg-config to find them
           echo "PKG_CONFIG_PATH=/opt/homebrew/lib/pkgconfig" >> $GITHUB_ENV
 
@@ -78,17 +69,12 @@ jobs:
           cargo tree --features desktop --target x86_64-pc-windows-msvc -e build
         continue-on-error: true # Don't stop the build if this fails          
 
-      - name: Debug - Run Cargo Build Directly
-        run: |
-          cd desktop
-          cargo build --release --features desktop --verbose
-
       # 'cd' into the 'desktop' dir and run the bundle command
       #    This will find the desktop/Dioxus.toml automatically
       - name: Bundle Dioxus App
         run: |
           cd desktop
-          dx bundle --release --platform desktop --verbose --trace
+          dx bundle --release --platform desktop -- --message-format=json
 
       # Upload the final installer to the GitHub Release
       - name: Upload Artifact
