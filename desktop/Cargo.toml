@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dioxus = { workspace = true, features = ["router", "desktop"] }
+dioxus = { workspace = true, features = ["fullstack"] }
 dioxus-logger.workspace = true
-ui = { workspace = true, features = ["dioxus-desktop"] }
+ui = { workspace = true }
 
 [features]
 default = []
 desktop = ["dioxus/desktop"]
-server = ["dioxus/server"]
+server = ["dioxus/server", "ui/server"]
 
 [[bin]]
 name = "neptune-gui"

@@ -9,7 +9,7 @@ dioxus-logger.workspace = true
 api.workspace = true
 thiserror.workspace = true
 twenty-first.workspace = true
-dioxus-web = "0.6.3"
+dioxus-web = "0.7.1"
 qrcode = "0.12"
 neptune-types.workspace = true
 serde_json.workspace = true
@@ -62,10 +62,8 @@ strum = { version = "0.27.2", features = ["derive"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 camera_capture = "0.5.0"
 # For native camera access
-dioxus-desktop = { version = "0.6.3", optional = true }
+dioxus-desktop = { version = "0.7.1", optional = true }
 rfd = { version = "0.14.1", default-features = false, features = ["tokio", "xdg-portal"] }
 
-#[features]
-# This links the optional dioxus-desktop dependency to the existing "desktop"
-# feature that is passed in from your main desktop application's Cargo.toml.
-#desktop = ["dioxus/desktop"]
+[features]
+server = ["api/server"]

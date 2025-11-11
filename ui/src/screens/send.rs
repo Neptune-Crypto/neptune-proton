@@ -395,7 +395,7 @@ pub fn SendScreen() -> Element {
     }
     let mut wizard_step = use_signal(|| WizardStep::AddRecipients);
     let mut api_response = use_signal::<
-        Option<Result<(TransactionKernelId, TransactionDetails), ServerFnError>>,
+        Option<Result<(TransactionKernelId, TransactionDetails), api::ApiError>>,
     >(|| None);
     let mut recipients = use_signal(move || {
         let initial_kind = if display_as_fiat {
@@ -739,7 +739,7 @@ pub fn SendScreen() -> Element {
                         div {
                             style: "flex-grow: 0; overflow-y: auto; padding: 0 0.5rem;",
                             Card {
-                    
+
                                 for (i , recipient) in recipients.iter().enumerate() {
                                     EditableRecipientRow {
                                         key: "{recipient.read().id}",
@@ -801,7 +801,7 @@ pub fn SendScreen() -> Element {
                             div {
                                 style: "text-align: right; line-height: 1.2;",
                                 div {
-                    
+
                                     Amount {
                                         amount: subtotals().0,
                                         fiat_equivalent: Some(subtotals().1),
@@ -850,15 +850,15 @@ pub fn SendScreen() -> Element {
                         let total_spend_fiat = subtotal_fiat + fee_fiat;
                         rsx! {
                             Card {
-                            
+
                                 h3 {
-                            
+
                                     "Set Fee"
                                 }
                                 p {
-                            
+
                                     span {
-                            
+
                                         "Subtotal: "
                                     }
                                     Amount {
@@ -870,7 +870,7 @@ pub fn SendScreen() -> Element {
                                         span {
                                             style: "color: var(--pico-muted-color);",
                                             span {
-                            
+
                                                 " ("
                                             }
                                             Amount {
@@ -879,18 +879,18 @@ pub fn SendScreen() -> Element {
                                                 fixed: Some(AmountType::Fiat),
                                             }
                                             span {
-                            
+
                                                 ")"
                                             }
                                         }
                                     }
                                 }
                                 hr {
-                                
-                            
+
+
                                 }
                                 label {
-                            
+
                                     if !display_as_fiat {
                                         "Fee (NPT)"
                                     } else {
@@ -968,7 +968,7 @@ pub fn SendScreen() -> Element {
                                 div {
                                     style: "margin-top: 1rem; text-align: right;",
                                     h4 {
-                            
+
                                         "Total Spend"
                                     }
                                     Amount {
@@ -988,7 +988,7 @@ pub fn SendScreen() -> Element {
                                     }
                                 }
                                 footer {
-                            
+
                                     Button {
                                         button_type: ButtonType::Secondary,
                                         outline: true,
@@ -1014,13 +1014,13 @@ pub fn SendScreen() -> Element {
                         let fiat_total_display = subtotals().1 + fiat_fee_display;
                         rsx! {
                             Card {
-                            
+
                                 h3 {
-                            
+
                                     "Review Transaction"
                                 }
                                 p {
-                            
+
                                     "Please review the details below. This action cannot be undone."
                                 }
                                 h5 {
@@ -1030,7 +1030,7 @@ pub fn SendScreen() -> Element {
                                 table {
                                     role: "grid",
                                     tbody {
-                            
+
                                         for recipient_signal in recipients.read().iter() {
                                             {
                                                 let recipient = recipient_signal.read();
@@ -1041,9 +1041,9 @@ pub fn SendScreen() -> Element {
                                                 );
                                                 rsx! {
                                                     tr {
-                                                    
+
                                                         td {
-                                                    
+
                                                             Address {
                                                                 address: addr.clone(),
                                                             }
@@ -1064,7 +1064,7 @@ pub fn SendScreen() -> Element {
                                 div {
                                     style: "text-align: right; margin-top: 1rem;",
                                     strong {
-                            
+
                                         "Fee: "
                                     }
                                     Amount {
@@ -1092,7 +1092,7 @@ pub fn SendScreen() -> Element {
                                         "Total Spend: "
                                     }
                                     div {
-                            
+
                                         Amount {
                                             amount: total_spend_npt,
                                             fiat_equivalent: Some(fiat_total_display),
@@ -1100,7 +1100,7 @@ pub fn SendScreen() -> Element {
                                         }
                                         if fiat_mode_active {
                                             small {
-                            
+
                                                 span {
                                                     style: "color: var(--pico-muted-color); font-weight: normal; margin-left: 0.5rem;",
                                                     " ("
@@ -1116,7 +1116,7 @@ pub fn SendScreen() -> Element {
                                     }
                                 }
                                 footer {
-                            
+
                                     Button {
                                         button_type: ButtonType::Secondary,
                                         outline: true,
@@ -1163,49 +1163,44 @@ pub fn SendScreen() -> Element {
                     }
                 },
                 WizardStep::Status => rsx! {
-                    if let Some(response_result) = api_response() {
+                    if let Some(response_result) = api_response.read().as_ref() {
                         Card {
-                    
-                            h3 {
-                    
-                                "Transaction Status"
-                            }
+                            h3 { "Transaction Status" }
+
                             match response_result {
-                                Ok((kernel_id, _details)) => rsx! {
-                                    p {
-                                        style: "color: var(--pico-color-green-500);",
-                                        "Transaction sent successfully!"
-                                    }
-                                    div {
-                                        style: "display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 1.5rem; padding: 0.75rem; border: 1px solid var(--pico-secondary-border); border-radius: var(--pico-border-radius);",
-                                        strong {
-                                    
-                                            "Transaction ID"
+                                Ok((kernel_id, _details)) => {
+                                    let kernel_id_clone = kernel_id.clone();
+
+                                    rsx! {
+                                        p {
+                                            style: "color: var(--pico-color-green-500);",
+                                            "Transaction sent successfully!"
                                         }
                                         div {
-                                            style: "display: flex; align-items: center; gap: 0.5rem;",
-                                            code {
-                                    
-                                                "{kernel_id}"
-                                            }
-                                            CopyButton {
-                                                text_to_copy: kernel_id.to_string(),
+                                            style: "display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 1.5rem; padding: 0.75rem; border: 1px solid var(--pico-secondary-border); border-radius: var(--pico-border-radius);",
+                                            strong { "Transaction ID" }
+                                            div {
+                                                style: "display: flex; align-items: center; gap: 0.5rem;",
+                                                code { "{kernel_id}" }
+                                                CopyButton {
+                                                    text_to_copy: kernel_id.to_string(),
+                                                }
                                             }
                                         }
-                                    }
-                                    div {
-                                        style: "display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;",
-                                        Button {
-                                            button_type: ButtonType::Primary,
-                                            outline: true,
-                                            on_click: move |_| {
-                                                active_screen.set(Screen::MempoolTx(kernel_id));
-                                            },
-                                            "View in Mempool"
-                                        }
-                                        Button {
-                                            on_click: move |_| reset_screen(),
-                                            "Send Another Transaction"
+                                        div {
+                                            style: "display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;",
+                                            Button {
+                                                button_type: ButtonType::Primary,
+                                                outline: true,
+                                                on_click: move |_| {
+                                                    active_screen.set(Screen::MempoolTx(kernel_id_clone));
+                                                },
+                                                "View in Mempool"
+                                            }
+                                            Button {
+                                                on_click: move |_| reset_screen(),
+                                                "Send Another Transaction"
+                                            }
                                         }
                                     }
                                 },
@@ -1214,10 +1209,7 @@ pub fn SendScreen() -> Element {
                                         style: "color: var(--pico-color-red-500);",
                                         "Error Sending Transaction"
                                     }
-                                    p {
-                                    
-                                        "{err}"
-                                    }
+                                    p { "{err}" }
                                     div {
                                         style: "display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;",
                                         Button {
@@ -1235,20 +1227,11 @@ pub fn SendScreen() -> Element {
                             }
                         }
                     } else {
+                        // The signal is still None (loading)
                         Card {
-                    
-                            h3 {
-                    
-                                "Sending Transaction..."
-                            }
-                            p {
-                    
-                                "Please wait."
-                            }
-                            progress {
-                            
-                    
-                            }
+                            h3 { "Sending Transaction..." }
+                            p { "Please wait." }
+                            progress { }
                         }
                     }
                 },

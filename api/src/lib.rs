@@ -10,7 +10,6 @@ pub mod price_providers;
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
 
-use dioxus::prelude::server_fn::codec::Json;
 use dioxus::prelude::*;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
@@ -33,22 +32,24 @@ use prefs::user_prefs::UserPrefs;
 use price_map::PriceMap;
 use twenty_first::tip5::Digest;
 
+pub type ApiError = anyhow::Error;
+
 /// Retrieves the user's preferences.
 ///
 /// In the future this may read from a settings file.  For now it just
 /// returns the default settings, which read from env vars.
-#[server(input = Json, output = Json)]
-pub async fn get_user_prefs() -> Result<UserPrefs, ServerFnError> {
+#[post("/api/get_user_prefs")]
+pub async fn get_user_prefs() -> Result<UserPrefs, ApiError> {
     Ok(UserPrefs::default())
 }
 
-#[server(NetworkApi, input = Json, output = Json)]
-pub async fn network() -> Result<Network, ServerFnError> {
+#[post("/api/network")]
+pub async fn network() -> Result<Network, ApiError> {
     neptune_rpc::network().await
 }
 
-#[server(input = Json, output = Json)]
-pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ServerFnError> {
+#[post("/api/wallet_balance")]
+pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -56,14 +57,14 @@ pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ServerFnError> {
         .confirmed_available_balance(tarpc::context::current(), *token)
         .await??;
 
-    let json = serde_json_wasm::to_string(&balance).unwrap();
+    let json = serde_json::to_string(&balance)?;
     dioxus_logger::tracing::info!("balance json: {}", json);
 
     Ok(balance)
 }
 
-#[server(BlockHeightApi, input = Json, output = Json)]
-pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
+#[post("/api/block_height")]
+pub async fn block_height() -> Result<BlockHeight, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -73,8 +74,8 @@ pub async fn block_height() -> Result<BlockHeight, ServerFnError> {
     Ok(height.into())
 }
 
-#[server(input = Json, output = Json)]
-pub async fn known_keys() -> Result<Vec<SpendingKey>, ServerFnError> {
+#[post("/api/known_keys")]
+pub async fn known_keys() -> Result<Vec<SpendingKey>, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -84,8 +85,8 @@ pub async fn known_keys() -> Result<Vec<SpendingKey>, ServerFnError> {
     Ok(known_keys)
 }
 
-#[server(input = Json, output = Json)]
-pub async fn next_receiving_address(key_type: KeyType) -> Result<ReceivingAddress, ServerFnError> {
+#[post("/api/next_receiving_address")]
+pub async fn next_receiving_address(key_type: KeyType) -> Result<ReceivingAddress, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -95,18 +96,19 @@ pub async fn next_receiving_address(key_type: KeyType) -> Result<ReceivingAddres
     Ok(address)
 }
 
-#[server(SendApi, input = Json, output = Json)]
+#[post("/api/send")]
 pub async fn send(
     outputs: Vec<OutputFormat>,
     change_policy: ChangePolicy,
     fee: NativeCurrencyAmount,
-) -> Result<(TransactionKernelId, TransactionDetails), ServerFnError> {
+) -> Result<(TransactionKernelId, TransactionDetails), ApiError> {
     neptune_rpc::send(outputs, change_policy, fee).await
 }
 
 #[server(input = Json, output = Json)]
+#[post("/api/history")]
 pub async fn history(
-) -> Result<Vec<(Digest, BlockHeight, Timestamp, NativeCurrencyAmount)>, ServerFnError> {
+) -> Result<Vec<(Digest, BlockHeight, Timestamp, NativeCurrencyAmount)>, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -114,11 +116,11 @@ pub async fn history(
     Ok(history)
 }
 
-#[server(input = Json, output = Json)]
+#[post("/api/mempool_overview")]
 pub async fn mempool_overview(
     start_index: usize,
     number: usize,
-) -> Result<Vec<MempoolTransactionInfo>, ServerFnError> {
+) -> Result<Vec<MempoolTransactionInfo>, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -128,10 +130,10 @@ pub async fn mempool_overview(
     Ok(data)
 }
 
-#[server(input = Json, output = Json)]
+#[post("/api/mempool_tx_kernel")]
 pub async fn mempool_tx_kernel(
     txid: TransactionKernelId,
-) -> Result<Option<TransactionKernel>, ServerFnError> {
+) -> Result<Option<TransactionKernel>, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -141,8 +143,8 @@ pub async fn mempool_tx_kernel(
     Ok(data)
 }
 
-#[server(BlockInfoApi, input = Json, output = Json)]
-pub async fn block_info(selector: BlockSelector) -> Result<Option<BlockInfo>, ServerFnError> {
+#[post("/api/block_info")]
+pub async fn block_info(selector: BlockSelector) -> Result<Option<BlockInfo>, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -152,8 +154,8 @@ pub async fn block_info(selector: BlockSelector) -> Result<Option<BlockInfo>, Se
     Ok(data)
 }
 
-#[server(input = Json, output = Json)]
-pub async fn dashboard_overview_data() -> Result<DashBoardOverviewDataFromClient, ServerFnError> {
+#[post("/api/dashboard_overview_data")]
+pub async fn dashboard_overview_data() -> Result<DashBoardOverviewDataFromClient, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -163,8 +165,8 @@ pub async fn dashboard_overview_data() -> Result<DashBoardOverviewDataFromClient
     Ok(data)
 }
 
-#[server(input = Json, output = Json)]
-pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ServerFnError> {
+#[post("/api/peer_info")]
+pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
@@ -174,16 +176,16 @@ pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ServerFnError> {
     Ok(data)
 }
 
-#[server(FiatPricesApi, input = Json, output = Json)]
-pub async fn fiat_prices() -> Result<PriceMap, ServerFnError> {
-    price_caching::get_cached_fiat_prices().await
+#[post("/api/fiat_prices")]
+pub async fn fiat_prices() -> Result<PriceMap, ApiError> {
+    Ok(price_caching::get_cached_fiat_prices().await?)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]
 mod neptune_rpc {
     use super::rpc_api;
-    use dioxus::prelude::ServerFnError;
+    use super::ApiError;
     // use neptune_cash::api::export::Transaction;
     // use neptune_cash::api::export::TransactionDetails;
 
@@ -213,7 +215,7 @@ mod neptune_rpc {
             .unwrap_or(DEFAULT_PORT)
     }
 
-    async fn gen_rpc_client() -> Result<rpc_api::RPCClient, ServerFnError> {
+    async fn gen_rpc_client() -> Result<rpc_api::RPCClient, ApiError> {
         let server_socket = SocketAddr::new(
             std::net::IpAddr::V4(Ipv4Addr::LOCALHOST),
             neptune_core_rpc_port(),
@@ -223,7 +225,7 @@ mod neptune_rpc {
         Ok(rpc_api::RPCClient::new(client::Config::default(), transport).spawn())
     }
 
-    async fn gen_nc_rpc_client() -> Result<RPCClient, ServerFnError> {
+    async fn gen_nc_rpc_client() -> Result<RPCClient, ApiError> {
         let server_socket = SocketAddr::new(
             std::net::IpAddr::V4(Ipv4Addr::LOCALHOST),
             neptune_core_rpc_port(),
@@ -233,52 +235,52 @@ mod neptune_rpc {
         Ok(RPCClient::new(client::Config::default(), transport).spawn())
     }
 
-    pub async fn rpc_client() -> Result<&'static rpc_api::RPCClient, ServerFnError> {
-        static STATE: OnceCell<Result<rpc_api::RPCClient, ServerFnError>> = OnceCell::const_new();
+    pub async fn rpc_client() -> Result<&'static rpc_api::RPCClient, ApiError> {
+        static STATE: OnceCell<Result<rpc_api::RPCClient, ApiError>> = OnceCell::const_new();
 
         STATE
             .get_or_init(|| async { gen_rpc_client().await })
             .await
             .as_ref()
-            .map_err(|err| err.clone())
+            .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
-    pub async fn cookie_hint() -> Result<rpc_auth::CookieHint, ServerFnError> {
+    pub async fn cookie_hint() -> Result<rpc_auth::CookieHint, ApiError> {
         let client = rpc_client().await?;
         Ok(client.cookie_hint(context::current()).await??)
     }
 
-    async fn gen_token() -> Result<rpc_auth::Token, ServerFnError> {
+    async fn gen_token() -> Result<rpc_auth::Token, ApiError> {
         let hint = cookie_hint().await?;
         Ok(rpc_auth::Cookie::try_load(&hint.data_directory)
             .await?
             .into())
     }
 
-    pub async fn get_token() -> Result<&'static rpc_auth::Token, ServerFnError> {
-        static STATE: OnceCell<Result<rpc_auth::Token, ServerFnError>> = OnceCell::const_new();
+    pub async fn get_token() -> Result<&'static rpc_auth::Token, ApiError> {
+        static STATE: OnceCell<Result<rpc_auth::Token, ApiError>> = OnceCell::const_new();
 
         STATE
             .get_or_init(|| async { gen_token().await })
             .await
             .as_ref()
-            .map_err(|err| err.clone())
+            .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
-    async fn get_network() -> Result<Network, ServerFnError> {
+    async fn get_network() -> Result<Network, ApiError> {
         let client = rpc_client().await?;
         let network = client.network(tarpc::context::current()).await??;
         Ok(network)
     }
 
-    pub async fn network() -> Result<Network, ServerFnError> {
-        static STATE: OnceCell<Result<Network, ServerFnError>> = OnceCell::const_new();
+    pub async fn network() -> Result<Network, ApiError> {
+        static STATE: OnceCell<Result<Network, ApiError>> = OnceCell::const_new();
 
         STATE
             .get_or_init(|| async { get_network().await })
             .await
             .as_ref()
-            .map_err(|err| err.clone())
+            .map_err(|e| anyhow::anyhow!(e.to_string()))
             .copied()
     }
 
@@ -286,7 +288,7 @@ mod neptune_rpc {
         outputs: Vec<OutputFormat>,
         change_policy: ChangePolicy,
         fee: NativeCurrencyAmount,
-    ) -> Result<(TransactionKernelId, TransactionDetails), ServerFnError> {
+    ) -> Result<(TransactionKernelId, TransactionDetails), ApiError> {
         let serialized = bincode::serialize(&outputs).unwrap();
         let nc_outputs: Vec<neptune_cash::api::export::OutputFormat> =
             bincode::deserialize(&serialized).unwrap();
@@ -321,7 +323,7 @@ mod neptune_rpc {
         Ok((tx_kernel_id, tx_details))
     }
 
-    // fn tx_artifacts_to_tx_details(tx_artifacts: TxCreationArtifacts) -> Result<TransactionDetails, ServerFnError> {
+    // fn tx_artifacts_to_tx_details(tx_artifacts: TxCreationArtifacts) -> Result<TransactionDetails, ApiError> {
     //     let json = serde_json::to_string(tx_artifacts.details())?;
     //     let tx_details: TransactionDetails = serde_json::from_str(&json)?;
     //     Ok(tx_details)

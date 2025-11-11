@@ -390,6 +390,7 @@ mod desktop {
     use std::sync::{Arc, Mutex};
     use std::time::{Duration, Instant};
     use dioxus_desktop::use_window;
+    use crate::dioxus_core::use_drop;
 
     #[derive(Debug)]
     enum Message {

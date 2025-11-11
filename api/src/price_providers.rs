@@ -3,7 +3,6 @@
 use crate::fiat_amount::FiatAmount;
 use crate::fiat_currency::FiatCurrency;
 use crate::price_map::PriceMap;
-use dioxus::prelude::ServerFnError;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -41,7 +40,7 @@ impl PriceProviderMeta for PriceProviderKind {
 }
 
 impl PriceProvider for PriceProviderKind {
-    async fn get_prices(&self) -> Result<PriceMap, ServerFnError> {
+    async fn get_prices(&self) -> Result<PriceMap, anyhow::Error> {
         match self {
             Self::CoinGecko => coin_gecko::CoinGecko.get_prices().await,
             Self::CoinPaprika => coin_paprika::CoinPaprika.get_prices().await,
@@ -53,7 +52,7 @@ impl PriceProvider for PriceProviderKind {
 #[allow(dead_code)]
 pub(crate) trait PriceProvider: PriceProviderMeta {
     /// Fetches the latest price map.
-    async fn get_prices(&self) -> Result<PriceMap, ServerFnError>;
+    async fn get_prices(&self) -> Result<PriceMap, anyhow::Error>;
 }
 
 /// Provides price data from the public CoinGecko API.
@@ -82,7 +81,7 @@ pub(crate) mod coin_gecko {
     }
 
     impl PriceProvider for CoinGecko {
-        async fn get_prices(&self) -> Result<PriceMap, ServerFnError> {
+        async fn get_prices(&self) -> Result<PriceMap, anyhow::Error> {
             // 1. Build the comma-separated list of currency codes from the enum.
             let currency_codes = FiatCurrency::iter()
                 .map(|c| c.code().to_lowercase())
@@ -132,7 +131,7 @@ pub(crate) mod coin_paprika {
     }
 
     impl PriceProvider for CoinPaprika {
-        async fn get_prices(&self) -> Result<PriceMap, ServerFnError> {
+        async fn get_prices(&self) -> Result<PriceMap, anyhow::Error> {
             // 1. Build the comma-separated list of currency codes from the enum.
             let currency_codes = FiatCurrency::iter().map(|c| c.code()).collect::<Vec<_>>().join(",");
 
