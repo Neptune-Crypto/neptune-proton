@@ -94,7 +94,7 @@ mod wasm32 {
                 let _stream_guard = StreamGuard(stream);
 
                 loop {
-                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                    crate::compat::sleep(std::time::Duration::from_millis(10)).await;
                     let video_element: Option<HtmlVideoElement> = get_element_by_id("qr-video");
                     let canvas_element: Option<HtmlCanvasElement> = get_element_by_id("qr-canvas");
 
