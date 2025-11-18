@@ -10,7 +10,7 @@ ui = { workspace = true }
 
 [features]
 default = []
-desktop = ["dioxus/desktop"]
+desktop = ["dioxus/desktop", "ui/dioxus-desktop"]
 server = ["dioxus/server", "ui/server"]
 
 [[bin]]
