@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dioxus = { workspace = true, features = ["router"] }
+dioxus = { workspace = true, features = ["fullstack"] }
 dioxus-logger.workspace = true
 ui.workspace = true
 getrandom.workspace = true
@@ -14,4 +14,4 @@ serde_json = "1.0.140"
 [features]
 default = []
 web = ["dioxus/web"]
-server = ["dioxus/server"]
+server = ["dioxus/server", "ui/server"]

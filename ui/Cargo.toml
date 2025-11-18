@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dioxus = { workspace = true, features = ["web", "fullstack", "logger"] }
+dioxus = { workspace = true, features = ["logger"] }
 dioxus-logger.workspace = true
 api.workspace = true
 thiserror.workspace = true
