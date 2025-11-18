@@ -109,7 +109,7 @@ fn HistoryRow(
                 "{tx_type}"
             }
             td {
-
+                style: "min-width: 21ch",
 
                 Amount {
                     amount,
@@ -140,30 +140,30 @@ pub fn HistoryScreen() -> Element {
         match &*history.read() {
             None => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "History"
                     }
                     p {
-                
+
                         "Loading..."
                     }
                     progress {
-                    
-                
+
+
                     }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Error"
                     }
                     p {
-                
+
                         "Failed to load history: {e}"
                     }
                     button {
@@ -214,19 +214,19 @@ pub fn HistoryScreen() -> Element {
                     });
                 rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "History"
                         }
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {
-                    
+
                                 thead {
-                    
+
                                     tr {
-                    
+
                                         SortableHeader {
                                             title: "Date",
                                             column: SortableColumn::Date,
@@ -254,7 +254,7 @@ pub fn HistoryScreen() -> Element {
                                     }
                                 }
                                 tbody {
-                    
+
                                     {
                                         block_summaries
                                             .into_iter()
@@ -273,9 +273,9 @@ pub fn HistoryScreen() -> Element {
                             }
                         }
                         p {
-                    
+
                             em {
-                    
+
                                 "Note: Unconfirmed transactions will appear once confirmed by the network."
                             }
                         }

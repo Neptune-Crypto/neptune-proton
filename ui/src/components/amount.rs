@@ -11,6 +11,7 @@ pub enum AmountType {
     #[default]
     Npt,
     Fiat,
+    Current,
 }
 
 #[allow(dead_code)] // (Amount callers may use in the future)

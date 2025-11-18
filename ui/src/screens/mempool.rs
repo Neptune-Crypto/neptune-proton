@@ -2,6 +2,7 @@
 // File: src/screens/mempool.rs
 //=============================================================================
 use crate::components::amount::Amount;
+use crate::components::amount::AmountType;
 use crate::components::pico::Card;
 use crate::Screen;
 use dioxus::prelude::*;
@@ -123,6 +124,7 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
     let balance_effect_display = rsx! {
         Amount {
             amount: delta,
+            fixed: Some(AmountType::Current)
         }
     };
 
@@ -169,6 +171,7 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
                 style: "padding: 8px 4px;",
                 Amount {
                     amount: tx.fee,
+                    fixed: Some(AmountType::Current)
                 }
             }
             td {
@@ -209,30 +212,30 @@ pub fn MempoolScreen() -> Element {
         match &*mempool_overview.read() {
             None => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Mempool"
                     }
                     p {
-                
+
                         "Loading..."
                     }
                     progress {
-                    
-                
+
+
                     }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Error"
                     }
                     p {
-                
+
                         "Failed to load mempool data: {e}"
                     }
                     button {
@@ -267,23 +270,23 @@ pub fn MempoolScreen() -> Element {
                     });
                 rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Mempool"
                         }
                         p {
-                    
+
                             "Transactions: {tx_list.len()}"
                         }
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {
-                    
+
                                 thead {
-                    
+
                                     tr {
-                    
+
                                         SortableHeader {
                                             title: "Id",
                                             column: SortableColumn::Id,
@@ -329,7 +332,7 @@ pub fn MempoolScreen() -> Element {
                                     }
                                 }
                                 tbody {
-                    
+
                                     {
                                         sorted_txs
                                             .into_iter()
