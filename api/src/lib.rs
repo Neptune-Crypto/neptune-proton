@@ -192,8 +192,8 @@ mod neptune_rpc {
     use std::net::Ipv4Addr;
     use std::net::SocketAddr;
 
-    use neptune_cash::rpc_auth;
-    use neptune_cash::rpc_server::RPCClient;
+    use neptune_cash::application::rpc::auth as rpc_auth;
+    use neptune_cash::application::rpc::server::RPCClient;
 
     use neptune_types::change_policy::ChangePolicy;
     use neptune_types::native_currency_amount::NativeCurrencyAmount;

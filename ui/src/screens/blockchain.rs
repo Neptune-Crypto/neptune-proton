@@ -5,6 +5,7 @@ use crate::components::pico::Card;
 use crate::Screen;
 use dioxus::prelude::*;
 use neptune_types::block_selector::BlockSelector;
+use neptune_types::block_selector::BlockSelectorLiteral;
 use twenty_first::prelude::Digest;
 
 #[component]
@@ -105,13 +106,13 @@ pub fn BlockChainScreen() -> Element {
                             "Quick Lookup: "
                             a {
                                 href: "#",
-                                onclick: move |_| active_screen.set(Screen::Block(BlockSelector::Genesis)),
+                                onclick: move |_| active_screen.set(Screen::Block(BlockSelector::Special(BlockSelectorLiteral::Genesis))),
                                 "Genesis Block"
                             }
                             " | "
                             a {
                                 href: "#",
-                                onclick: move |_| active_screen.set(Screen::Block(BlockSelector::Tip)),
+                                onclick: move |_| active_screen.set(Screen::Block(BlockSelector::Special(BlockSelectorLiteral::Tip))),
                                 "Tip"
                             }
                         }

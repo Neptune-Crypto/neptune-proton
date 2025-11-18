@@ -24,7 +24,7 @@ strum = { version = "0.27.2", features = ["derive"] }
 anyhow = "1.0.100"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "v0.4.0" }
+neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "v0.5.0" }
 #neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "08a26dd134c5205017633e11a266ccd704d522d2" }
 #neptune-cash = { git = "https://github.com/dan-da/neptune-core.git", rev = "2353aec5adcb61c4da37f271aa82cec3fe6d191b" }
 #neptune-cash = { git = "https://github.com/Neptune-Crypto/neptune-core.git", rev = "2f360c778498948ff787497e28c7606751844577" }

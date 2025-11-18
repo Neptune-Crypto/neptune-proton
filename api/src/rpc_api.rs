@@ -1,5 +1,5 @@
-use neptune_cash::rpc_auth;
-use neptune_cash::rpc_server::RpcResult;
+use neptune_cash::application::rpc::auth as rpc_auth;
+use neptune_cash::application::rpc::server::RpcResult;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
 use neptune_types::address::SpendingKey;

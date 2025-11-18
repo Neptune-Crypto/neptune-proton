@@ -9,11 +9,11 @@ members = [
 ]
 
 [workspace.dependencies]
-twenty-first = "0.50"
+twenty-first = "1.0"
 dioxus = { version = "0.7.1", features = ["router", "logger"] }
 dioxus-logger = "0.7.1"
 getrandom = { version = "0.3", features = ["wasm_js"] }
-neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", rev = "eb9d1d337b8108dafc2c640f7fd617ffe3c943e8"}
+neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", rev = "56e16568098ef18aad7377e21ce59d372bd3f4f9"}
 thiserror = "1.0"
 serde_json = "1.0.145"
 

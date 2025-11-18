@@ -32,7 +32,7 @@ web-sys = { version = "0.3.69", features = [
   'ImageData',
 ], optional = true}
 
-wasm-bindgen = {version = "0.2.92", optional = true}
+wasm-bindgen = {version = "0.2", optional = true}
 wasm-bindgen-futures = {version = "0.4.42", optional = true}
 gloo-timers = { version = "0.3.0", features = ["futures"], optional = true }
 serde-json-wasm = {version = "1.0.1", optional = true}
