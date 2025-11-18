@@ -30,18 +30,19 @@ web-sys = { version = "0.3.69", features = [
   'HtmlCanvasElement',
   'CanvasRenderingContext2d',
   'ImageData',
-]}
-# For handling JavaScript Promises in Rust
-wasm-bindgen = "0.2.92"
-wasm-bindgen-futures = "0.4.42"
-gloo-timers = { version = "0.3.0", features = ["futures"] }
+], optional = true}
+
+wasm-bindgen = {version = "0.2.92", optional = true}
+wasm-bindgen-futures = {version = "0.4.42", optional = true}
+gloo-timers = { version = "0.3.0", features = ["futures"], optional = true }
+serde-json-wasm = {version = "1.0.1", optional = true}
+chrono = { version = "0.4.42", features = ["wasm-bindgen"] }
+
 num-traits = "0.2.19"
-serde-json-wasm = "1.0.1"
 itertools = "0.14.0"
 tokio = { version = "1.47.1", features = ["time", "sync", "macros"] }
 dioxus-clipboard = "0.2.0"
 rqrr = "0.10"
-js-sys = "0.3.69"
 anyhow = "1.0.100"
 image = { version = "0.25", features = ["jpeg"] }
 base64 = "0.22"
@@ -54,16 +55,18 @@ tiny-skia = "0.11.4"
 quick-xml = "0.31.0"
 futures = "0.3.31"
 futures-channel = "0.3.31"
-chrono = { version = "0.4.42", features = ["wasm-bindgen"] }
 num-bigint = "0.4.6"
 strum = { version = "0.27.2", features = ["derive"] }
 # end SVG QR files
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-camera_capture = "0.5.0"
+js-sys = {version = "0.3", optional = true}
+
+#[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # For native camera access
+camera_capture = {version = "0.5.0", optional = true}
 dioxus-desktop = { version = "0.7.1", optional = true }
-rfd = { version = "0.14.1", default-features = false, features = ["tokio", "xdg-portal"] }
+rfd = { version = "0.14.1", default-features = false, features = ["tokio", "xdg-portal"], optional = true}
 
 [features]
-server = ["api/server"]
+web = ["dioxus/web", "api/web", "dep:js-sys", "dep:web-sys", "dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:gloo-timers", "dep:serde-json-wasm"]
+server = ["dioxus/server", "api/server", "dep:camera_capture", "dep:dioxus-desktop", "dep:rfd"]
