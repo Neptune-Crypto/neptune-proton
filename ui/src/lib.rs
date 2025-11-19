@@ -147,9 +147,9 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                         }
                     }
                     hr {
-                    
 
-                    
+
+
                     }
                     a {
                         class: "custom-dropdown-item",
@@ -174,106 +174,82 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
 #[allow(non_snake_case)]
 pub fn App() -> Element {
     let responsive_css = r#"
-    /* --- Responsive Navigation Logic --- */
-    .hamburger-menu-container { display: none; }
-    .tab-menu { display: block; }
+    /* --- RESET --- */
+    * { box-sizing: border-box; }
 
-    @media (max-width: 767px) {
-        .hamburger-menu-container { display: block; position: relative; }
-        .tab-menu { display: none; }
-    }
-
-    .mobile-view-wrapper .hamburger-menu-container {
-        display: block;
-        position: relative;
-    }
-    .mobile-view-wrapper .tab-menu { display: none; }
-
-    /* --- Custom Dropdown Styles --- */
-    .menu-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: transparent;
-        z-index: 9;
-    }
-
-    article.custom-dropdown-menu {
-        position: absolute;
-        right: 0;
-        top: calc(100% + 5px);
-        z-index: 10;
-        min-width: 180px;
-        padding: 0.5rem;
-    }
-
-    .custom-dropdown-item {
-        display: block;
-        text-decoration: none;
-        color: var(--color);
-        padding: 0.5rem 1rem;
-        text-align: right;
-        border-radius: var(--border-radius);
-        white-space: nowrap;
-    }
-    .custom-dropdown-item:hover {
-        background-color: var(--muted-border-color);
-    }
-
-    /* --- Styles for the active tab --- */
-    .active-tab {
-        // font-weight: 700;
-        text-decoration: none;
-        background-color: var(--pico-muted-border-color);
-        border-bottom-color: var(--pico-primary);
-        border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0;
-    }
-
-    html {
-        overflow-y: scroll;
-    }
-
-    body {
-        min-height: 100vh;
-    }
-
-    /* --- Mobile View Simulation Frame Styles --- */
-    .mobile-view-wrapper {
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        padding-top: 2rem;
-        min-height: 100vh;
-        background-color: var(--muted-border-color);
-    }
-
-    .mobile-view-content {
+    html, body {
+        height: 100%;
         width: 100%;
-        max-width: 400px;
-        height: 800px;
-        border-radius: 1.5rem;
+        margin: 0;
+        padding: 0;
         overflow: hidden;
+        background-color: var(--muted-border-color);
+    }
+
+    /* --- APP FRAME --- */
+    .app-main-container {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        padding: 10px; /* Margin from window edge */
+
         display: flex;
         flex-direction: column;
-        border: 4px solid #374151;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.25);
-        background-color: var(--card-background-color);
+        overflow: hidden;
+        background-color: var(--background-color);
+        z-index: 100;
     }
 
-    .mobile-view-content header {
+    /* --- PICO CONTAINER OVERRIDE --- */
+    .app-main-container > * {
+        flex: 1;
+        display: flex !important;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .app-main-container header {
         flex-shrink: 0;
-        padding: 1rem;
-        border-bottom: 1px solid var(--card-border-color);
-        background-color: var(--card-background-color);
+        padding: 0 1rem;
+        margin-bottom: 0;
+        border solid black 1px;
+        --pico-nav-element-spacing-vertical: 0.5rem;
     }
 
-    .mobile-view-content .content {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding: 1rem;
+    /* --- CONTENT AREA --- */
+    .app-main-container .content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-height: 0;
+        padding: 0 1rem;
+        margin-top: 0;
     }
+
+    /* FIX: FORCE SCREEN ROOT (e.g., CARD) TO BE FLEX COLUMN
+       This allows us to control the Card layout without passing 'style' props */
+    .app-main-container .content > * {
+        flex: 1;                /* Fill the .content area */
+        display: flex;          /* Become a flex container itself */
+        flex-direction: column; /* Stack H3, Table, etc. */
+        overflow: hidden;       /* Prevent outer scroll */
+        min-height: 0;
+
+        /* Optional: Reset Pico margins if Card adds them */
+        margin-bottom: 1rem;
+    }
+
+    /* --- Mobile Styles --- */
+    .mobile-view-wrapper { display: flex; justify-content: center; align-items: flex-start; padding-top: 2rem; min-height: 100vh; background-color: var(--muted-border-color); }
+    .mobile-view-content { width: 100%; max-width: 400px; height: 800px; border-radius: 1.5rem; overflow: hidden; display: flex; flex-direction: column; border: 4px solid #374151; box-shadow: 0 10px 40px rgba(0,0,0,0.25); background-color: var(--card-background-color); }
+    .mobile-view-content header { flex-shrink: 0; padding: 1rem; border-bottom: 1px solid var(--card-border-color); background-color: var(--card-background-color); }
+    .mobile-view-content .content { flex-grow: 1; overflow-y: auto; padding: 1rem; }
 "#;
 
     rsx! {
@@ -290,9 +266,9 @@ pub fn App() -> Element {
             "{responsive_css}"
         }
         AppBody {
-        
 
-        
+
+
         }
     }
 }
@@ -428,103 +404,105 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
     };
     rsx! {
         if view_mode() == ViewMode::Desktop {
-            Container {
+            div {
+                class: "app-main-container",
+                Container {
+
+                    header {
 
 
-                header {
+                        nav {
 
 
-                    nav {
+                            ul {
 
 
-                        ul {
+                                // Conditionally render the button based on the environment variable.
+                                if option_env!("VIEW_MODE_TOGGLE") == Some("1") {
+                                    li {
 
 
-                            // Conditionally render the button based on the environment variable.
-                            if option_env!("VIEW_MODE_TOGGLE") == Some("1") {
+                                        Button {
+                                            button_type: ButtonType::Contrast,
+                                            outline: true,
+                                            on_click: move |_| view_mode.set(ViewMode::Mobile),
+                                            "Mobile View"
+                                        }
+                                    }
+                                }
                                 li {
 
 
-                                    Button {
-                                        button_type: ButtonType::Contrast,
-                                        outline: true,
-                                        on_click: move |_| view_mode.set(ViewMode::Mobile),
-                                        "Mobile View"
+                                    Tabs {
+                                        active_screen,
                                     }
-                                }
-                            }
-                            li {
-
-
-                                Tabs {
-                                    active_screen,
                                 }
                             }
                         }
                     }
-                }
-                div {
-                    class: "content",
-                    match active_screen() {
-                        Screen::Balance => rsx! {
-                            BalanceScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::Send => rsx! {
-                            SendScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::Receive => rsx! {
-                            ReceiveScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::History => rsx! {
-                            HistoryScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::Addresses => rsx! {
-                            AddressesScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::Peers => rsx! {
-                            PeersScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::BlockChain => rsx! {
-                            BlockChainScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::Mempool => rsx! {
-                            MempoolScreen {
-                            
-                            
-                            }
-                        },
-                        Screen::MempoolTx(tx_id) => rsx! {
-                            MempoolTxScreen {
-                                tx_id,
-                            }
-                        },
-                        Screen::Block(selector) => {
-                            let key = std::fmt::format(format_args!("{:?}", selector));
-                            rsx! {
-                                BlockScreen {
-                                    key: "{key}",
-                                    selector,
+                    div {
+                        class: "content",
+                        match active_screen() {
+                            Screen::Balance => rsx! {
+                                BalanceScreen {
+
+
+                                }
+                            },
+                            Screen::Send => rsx! {
+                                SendScreen {
+
+
+                                }
+                            },
+                            Screen::Receive => rsx! {
+                                ReceiveScreen {
+
+
+                                }
+                            },
+                            Screen::History => rsx! {
+                                HistoryScreen {
+
+
+                                }
+                            },
+                            Screen::Addresses => rsx! {
+                                AddressesScreen {
+
+
+                                }
+                            },
+                            Screen::Peers => rsx! {
+                                PeersScreen {
+
+
+                                }
+                            },
+                            Screen::BlockChain => rsx! {
+                                BlockChainScreen {
+
+
+                                }
+                            },
+                            Screen::Mempool => rsx! {
+                                MempoolScreen {
+
+
+                                }
+                            },
+                            Screen::MempoolTx(tx_id) => rsx! {
+                                MempoolTxScreen {
+                                    tx_id,
+                                }
+                            },
+                            Screen::Block(selector) => {
+                                let key = std::fmt::format(format_args!("{:?}", selector));
+                                rsx! {
+                                    BlockScreen {
+                                        key: "{key}",
+                                        selector,
+                                    }
                                 }
                             }
                         }
@@ -573,50 +551,50 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                         match active_screen() {
                             Screen::Balance => rsx! {
                                 BalanceScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::Send => rsx! {
                                 SendScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::Receive => rsx! {
                                 ReceiveScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::History => rsx! {
                                 HistoryScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::Addresses => rsx! {
                                 AddressesScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::Peers => rsx! {
                                 PeersScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::BlockChain => rsx! {
                                 BlockChainScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::Mempool => rsx! {
                                 MempoolScreen {
-                                
-                                
+
+
                                 }
                             },
                             Screen::MempoolTx(tx_id) => rsx! {

@@ -273,6 +273,7 @@ pub fn HistoryScreen() -> Element {
                             }
                         }
                         p {
+                            style: "margin-top: 0.5rem",
 
                             em {
 
