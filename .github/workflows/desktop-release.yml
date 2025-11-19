@@ -52,8 +52,8 @@ jobs:
       - name: Install cargo-binstall
         run: cargo install cargo-binstall
 
-      - name: Install dioxus-cli (v0.6.3)
-        run: cargo binstall dioxus-cli --version 0.6.3 --force          
+      - name: Install dioxus-cli (v0.7.1)
+        run: cargo binstall dioxus-cli --version 0.7.1 --force
 
       # Install Dioxus desktop dependencies (Linux only)
       # This is critical for the AppImage build
