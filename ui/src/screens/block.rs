@@ -111,116 +111,19 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
                         "Next Block ❯"
                     }
                 }
-                DigestDisplay {
-                    digest: info.digest,
-                    label: "Digest".to_string(),
-                    is_link: false,
-                    current_selector,
-                }
-                hr {
-                
-
-                
-                }
                 div {
-                    style: "display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;",
-                    div {
+                    style: "display: block; max-height: 70vh; overflow-y: auto;",
 
-
-                        strong {
-
-
-                            "Timestamp"
-                        }
-                        p {
-
-
-                            "{info.timestamp.standard_format()}"
-                        }
+                    DigestDisplay {
+                        digest: info.digest,
+                        label: "Digest".to_string(),
+                        is_link: false,
+                        current_selector,
                     }
-                    div {
+                    hr {
 
 
-                        strong {
 
-
-                            "Size (BFE)"
-                        }
-                        p {
-
-
-                            "{info.size}"
-                        }
-                    }
-                    div {
-
-
-                        strong {
-
-
-                            "Difficulty"
-                        }
-                        p {
-
-
-                            "{info.difficulty}"
-                        }
-                    }
-                    div {
-
-
-                        strong {
-
-
-                            "Proof of Work"
-                        }
-                        p {
-
-
-                            "{info.cumulative_proof_of_work}"
-                        }
-                    }
-                    div {
-
-
-                        strong {
-
-
-                            "Coinbase"
-                        }
-                        p {
-
-
-                            "{info.coinbase_amount}"
-                        }
-                    }
-                    div {
-
-
-                        strong {
-
-
-                            "Fee"
-                        }
-                        p {
-
-
-                            "{info.fee}"
-                        }
-                    }
-                }
-                hr {
-                
-
-                
-                }
-                details {
-
-
-                    summary {
-
-
-                        "Transaction Info"
                     }
                     div {
                         style: "display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;",
@@ -230,12 +133,12 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
                             strong {
 
 
-                                "Inputs:"
+                                "Timestamp"
                             }
                             p {
 
 
-                                "{info.num_inputs}"
+                                "{info.timestamp.standard_format()}"
                             }
                         }
                         div {
@@ -244,12 +147,12 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
                             strong {
 
 
-                                "Outputs:"
+                                "Size (BFE)"
                             }
                             p {
 
 
-                                "{info.num_outputs}"
+                                "{info.size}"
                             }
                         }
                         div {
@@ -258,45 +161,146 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
                             strong {
 
 
-                                "Announcements:"
+                                "Difficulty"
                             }
                             p {
 
 
-                                "{info.num_announcements}"
+                                "{info.difficulty}"
+                            }
+                        }
+                        div {
+
+
+                            strong {
+
+
+                                "Proof of Work"
+                            }
+                            p {
+
+
+                                "{info.cumulative_proof_of_work}"
+                            }
+                        }
+                        div {
+
+
+                            strong {
+
+
+                                "Coinbase"
+                            }
+                            p {
+
+
+                                "{info.coinbase_amount}"
+                            }
+                        }
+                        div {
+
+
+                            strong {
+
+
+                                "Fee"
+                            }
+                            p {
+
+
+                                "{info.fee}"
                             }
                         }
                     }
-                }
-                details {
+                    hr {
 
 
-                    summary {
 
-
-                        "Block Status"
                     }
-                    ul {
-                        style: "margin-top: 1rem;",
-                        li {
+                    details {
 
 
-                            "Is Genesis: {info.is_genesis}"
+                        summary {
+
+
+                            "Transaction Info"
                         }
-                        li {
+                        div {
+                            style: "display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;",
+                            div {
 
 
-                            "Is Tip: {info.is_tip}"
+                                strong {
+
+
+                                    "Inputs:"
+                                }
+                                p {
+
+
+                                    "{info.num_inputs}"
+                                }
+                            }
+                            div {
+
+
+                                strong {
+
+
+                                    "Outputs:"
+                                }
+                                p {
+
+
+                                    "{info.num_outputs}"
+                                }
+                            }
+                            div {
+
+
+                                strong {
+
+
+                                    "Announcements:"
+                                }
+                                p {
+
+
+                                    "{info.num_announcements}"
+                                }
+                            }
                         }
-                        li {
+                    }
+                    details {
 
 
-                            "Is Canonical: {info.is_canonical}"
+                        summary {
+
+
+                            "Block Status"
                         }
-                        li {
+                        ul {
+                            style: "margin-top: 1rem;",
+                            li {
 
 
-                            "Sibling Blocks: {info.sibling_blocks.len()}"
+                                "Is Genesis: {info.is_genesis}"
+                            }
+                            li {
+
+
+                                "Is Tip: {info.is_tip}"
+                            }
+                            li {
+
+
+                                "Is Canonical: {info.is_canonical}"
+                            }
+                            li {
+
+
+                                "Sibling Blocks: {info.sibling_blocks.len()}"
+                            }
                         }
                     }
                 }
@@ -307,30 +311,30 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
             match &*block_resource.read() {
                 None => rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "View Block"
                         }
                         p {
-                    
+
                             "Loading block details..."
                         }
                         progress {
-                        
-                    
+
+
                         }
                     }
                 },
                 Some(Err(e)) => rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Error"
                         }
                         p {
-                    
+
                             "Failed to load block data: {e}"
                         }
                         button {
@@ -341,20 +345,20 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
                 },
                 Some(Ok(None)) => rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Block Not Found"
                         }
                         p {
-                    
+
                             "The requested block was not found."
                         }
                     }
                 },
                 _ => rsx! {
                     p {
-                    
+
                         " "
                     }
                 },
