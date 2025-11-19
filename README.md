@@ -123,7 +123,7 @@ The wallet app should appear in a native desktop window.
 
 ### Environment variables
 
-Some env vars can be set to affect how neptune-gui runs.
+Some env vars can be set to affect how neptune-proton iruns.
 
 They apply to any platform, eg web, desktop, android, ios, etc.
 

@@ -13,5 +13,5 @@ desktop = ["dioxus/desktop", "ui/dioxus-desktop"]
 server = ["dioxus/server", "ui/server"]
 
 [[bin]]
-name = "neptune-gui"
+name = "neptune-proton"
 path = "src/main.rs"
