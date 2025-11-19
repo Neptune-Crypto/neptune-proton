@@ -14,6 +14,10 @@ The "proto" in `neptune-proton` refers to the prototype nature of this wallet.
 
 `neptune-proton` is a first attempt to build a cross-platform desktop and mobile wallet that interfaces with the RPC interface of [neptune-core](https://github.com/Neptune-Crypto/neptune-core/).
 
+It can be thought of as a GUI dashboard for neptune-core.
+
+This means that neptune-proton is an interface for neptune-core's built-in wallet.  neptune-proton does not generate any wallet keys of its own.
+
 ## Project Goals
 
 The prototype has a few primary objectives:
@@ -37,6 +41,18 @@ The prototype has a few primary objectives:
 
 ## Status
 
+As of 2025-11-18:
+
+* fetching price data from goingecko and coinpaprika.
+* displaying and entering amounts in many national currencies.
+* generation and scanning of animated QR codes.
+* export and import of animated QR code files.
+* builds for web and desktop (linux, windows, mac coming soon)
+* mempool screen works
+* history screen works
+* a new peers screen works
+* blockchain screen works -- has a minimalistic block explorer
+
 As of 2025-07-09:
 
 * Connectivity with neptune-core is working via RPC (only for localhost so far)
@@ -56,7 +72,7 @@ As of 2025-07-09:
 ### Dependencies
 
 1. Rust compiler -- [Instructions](https://www.rust-lang.org/tools/install).
-2. Dioxus 0.6 -- [Instructions](https://dioxuslabs.com/learn/0.6/getting_started/)
+2. Dioxus 0.7.1 -- [Instructions](https://dioxuslabs.com/learn/0.7.1/getting_started/)
 3. neptune-core -- [Instructions](https://github.com/Neptune-Crypto/neptune-core/)
 
 for desktop platform:
@@ -93,25 +109,44 @@ Open [http://localhost:9999](http://localhost:9999) in your browser.  You should
 
 ```
 cd neptune-proton/desktop
-dx run --platform desktop
+dx run
+```
+
+### Bundle desktop release packages
+
+```
+cd neptune-proton/desktop
+dx bundle --release
 ```
 
 The wallet app should appear in a native desktop window.
 
+### Environment variables
 
-### Setting neptune-core RPC port
+Some env vars can be set to affect how neptune-gui runs.
 
-If you need to connect with neptune-core running on a non-default port use the
-`NEPTUNE_CORE_RPC_PORT` environment variable.
+They apply to any platform, eg web, desktop, android, ios, etc.
 
-Example:
 
 ```
-NEPTUNE_CORE_RPC_PORT=19980 dx run --platform desktop
+- NEPTUNE_CORE_RPC_PORT: <port>
+
+- NPT_ONLY: 1 or 0
+    1 --> NPT-only mode. (default)
+    0 --> Fiat/NPT toggle mode
+
+- FIAT_CURRENCY:
+    "USD", "EUR", "JPY", etc.
+
+- DISPLAY_AS_FIAT:
+    "true" to make fiat the default display.
+
+- PRICE_PROVIDER:
+    "coingecko" or "coinpaprika".
+
+- VIEW_MODE_TOGGLE:
+    enables display of the desktop/mobile toggle button. for dev purposes.  1 or 0
 ```
-
-The env var applies to any platform, eg web, desktop, android, ios, etc.
-
 
 
 ## Development
