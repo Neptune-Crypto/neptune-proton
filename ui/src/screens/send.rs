@@ -988,6 +988,7 @@ pub fn SendScreen() -> Element {
                                     }
                                 }
                                 footer {
+                                    style: "flex-shrink: 1; display: flex; justify-content: space-between;",
 
                                     Button {
                                         button_type: ButtonType::Secondary,
@@ -1116,6 +1117,7 @@ pub fn SendScreen() -> Element {
                                     }
                                 }
                                 footer {
+                                    style: "flex-shrink: 1; display: flex; justify-content: space-between;",
 
                                     Button {
                                         button_type: ButtonType::Secondary,
