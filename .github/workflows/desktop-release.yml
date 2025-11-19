@@ -1,4 +1,7 @@
 # .github/workflows/desktop-release.yml
+#
+# note: we build on ubuntu 22.04 instead of ubuntu-latest so that our binary
+# is compatible with older GLIBC.
 
 name: Publish Desktop Release
 
@@ -49,11 +52,22 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      # Install cargo-binstall only if NOT running on ubuntu-22.04, 
+      # as we'll be installing from source on that specific OS.
       - name: Install cargo-binstall
-        run: cargo install cargo-binstall
+        if: runner.os != 'Linux' || matrix.os != 'ubuntu-22.04'
+        run: cargo install cargo-binstall          
 
-      - name: Install dioxus-cli (v0.7.1)
+      # Install dioxus-cli from Source on ubuntu-22.04
+      - name: Install dioxus-cli (v0.7.1) from Source on ubuntu-22.04
+        if: runner.os == 'Linux' && matrix.os == 'ubuntu-22.04'
+        run: cargo install dioxus-cli --version 0.7.1 --force
+
+      # Install dioxus-cli via binstall for all other OSes
+      - name: Install dioxus-cli (v0.7.1) via binstall
+        if: runner.os != 'Linux' || matrix.os != 'ubuntu-22.04'
         run: cargo binstall dioxus-cli --version 0.7.1 --force
+
 
       # Install Dioxus desktop dependencies (Linux only)
       # This is critical for the AppImage build
