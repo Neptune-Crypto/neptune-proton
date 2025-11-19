@@ -12,25 +12,32 @@ The "proto" in `neptune-proton` refers to the prototype nature of this wallet.
 
 ## Overview
 
-`neptune-proton` is a first attempt to build a cross-platform desktop and mobile wallet that interfaces with the RPC interface of [neptune-core](https://github.com/Neptune-Crypto/neptune-core/).
+`neptune-proton` is a first attempt to build a cross-platform desktop
+wallet that interfaces with the RPC interface of
+[neptune-core](https://github.com/Neptune-Crypto/neptune-core/).
 
 It can be thought of as a GUI dashboard for neptune-core.
 
-This means that neptune-proton is an interface for neptune-core's built-in wallet.  neptune-proton does not generate any wallet keys of its own.
+This means that neptune-proton is an interface for neptune-core's built-in
+wallet.  neptune-proton does not generate any wallet keys of its own.
 
 ## Project Goals
 
 The prototype has a few primary objectives:
 
-1. Help identify and hopefully overcome rough edges and problem areas for any developers of Neptune wallet software.
+1. Help identify and hopefully overcome rough edges and problem areas for
+   developers of Neptune wallet software.
 
-2. Build a wallet app that is truly cross platform and runs on Desktop (Mac, Linux, Windows) and mobile (Android, Iphone).
+2. Build a wallet foundation that is truly cross platform with possibility to
+   run on Desktop (Mac, Linux, Windows) and mobile (Android, Iphone).
 
 3. Pioneer usage of neptune-cash data types in a browser (wasm) environment.
 
-4. Provide a starting point for wallet developers to launch from.
+4. Provide a starting point for wallet developers to launch from for more
+   advanced wallets.
 
-5. Eventually provide a functional, if simple, GUI wallet app for the neptune-cash community.
+5. Eventually provide a functional, if simple, GUI wallet/dashboard for
+   the neptune-cash community to interact with neptune-core.
 
 ## Non Goals (at this time)
 
