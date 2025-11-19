@@ -4,12 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dioxus = { workspace = true, features = ["fullstack"] }
+dioxus = { workspace = true, features = ["fullstack", "desktop", "server"] }
 dioxus-logger.workspace = true
-ui = { workspace = true }
+ui = { workspace = true, features = ["dioxus-desktop", "server"] }
 
 [features]
-default = []
 desktop = ["dioxus/desktop", "ui/dioxus-desktop"]
 server = ["dioxus/server", "ui/server"]
 

@@ -11,7 +11,7 @@ fn main() {
 fn launch_without_menubar() {
 
     // 1. Define a custom WindowBuilder
-    let custom_window = WindowBuilder::new();
+    let custom_window = WindowBuilder::new()
         .with_title("neptune-core dashboard");
 
     // 2. Define a custom Desktop Config using the custom WindowBuilder
