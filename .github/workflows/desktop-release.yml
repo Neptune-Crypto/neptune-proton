@@ -29,6 +29,9 @@ jobs:
         os: [ubuntu-22.04, windows-latest, macos-latest]
 
     env:
+      # disable incremental builds
+      CARGO_INCREMENTAL: '0'
+
       # Fix 1 (tokio) & 2 (Stack Overflow) for Windows
       RUSTFLAGS: >
         ${{
