@@ -19,7 +19,7 @@ permissions:
 jobs:
   build-and-release:
     name: Build on ${{ matrix.os }}
- 
+
     # Run this job on all three platforms
     runs-on: ${{ matrix.os }}
     strategy:
@@ -55,22 +55,17 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      # Install cargo-binstall only if NOT running on ubuntu-22.04, 
-      # as we'll be installing from source on that specific OS.
-      - name: Install cargo-binstall
-        if: runner.os != 'Linux' || matrix.os != 'ubuntu-22.04'
-        run: cargo install cargo-binstall          
-
-      # Install dioxus-cli from Source on ubuntu-22.04
-      - name: Install dioxus-cli (v0.7.1) from Source on ubuntu-22.04
-        if: runner.os == 'Linux' && matrix.os == 'ubuntu-22.04'
-        run: cargo install dioxus-cli --version 0.7.1 --force
-
-      # Install dioxus-cli via binstall for all other OSes
-      - name: Install dioxus-cli (v0.7.1) via binstall
-        if: runner.os != 'Linux' || matrix.os != 'ubuntu-22.04'
-        run: cargo binstall dioxus-cli --version 0.7.1 --force
-
+      # install dioxus-cli from source.
+      # Includes fix for windows link error:
+      # https://github.com/DioxusLabs/dioxus/issues/4998
+      - name: Install dioxus-cli (v0.7.1, patched) from Source
+        # Use a shell that recognizes '\' continuation char
+        shell: bash
+        run: |
+          cargo install dioxus-cli \
+            --git https://github.com/DioxusLabs/dioxus \
+            --rev 84efc00757c5aac67177821d05769a653a809f66 \
+            --force
 
       # Install Dioxus desktop dependencies (Linux only)
       # This is critical for the AppImage build
@@ -107,7 +102,7 @@ jobs:
           PKG_PATH="$PKG_PATH:$(brew --prefix leveldb)/lib/pkgconfig"
           PKG_PATH="$PKG_PATH:$(brew --prefix snappy)/lib/pkgconfig"
           echo "PKG_CONFIG_PATH=$PKG_PATH" >> $GITHUB_ENV
-                
+
 
       # Install cargo-tree (for debugging)
       - name: Install cargo-tree
@@ -115,11 +110,13 @@ jobs:
 
       # Show Build Dependency Tree (for debugging)
       - name: Show Build Dependency Tree
-        if: matrix.os == 'windows-latest' # Only run on the failing OS
+        # Only run on the failing OS
+        if: matrix.os == 'windows-latest'
         run: |
           cd desktop
           cargo tree --features desktop --target x86_64-pc-windows-msvc -e build
-        continue-on-error: true # Don't stop the build if this fails          
+        # Don't stop the build if this fails
+        continue-on-error: true
 
       # 'cd' into the 'desktop' dir and run the bundle command
       #    This will find the desktop/Dioxus.toml automatically
@@ -137,7 +134,7 @@ jobs:
             target/dx/neptune-proton/bundle/*/*/*/*.deb
             target/dx/neptune-proton/bundle/*/*/*/*.rpm
             target/dx/neptune-proton/bundle/*/*/*/*.msi
-            target/dx/neptune-proton/bundle/*/*/*/*.dmg          
+            target/dx/neptune-proton/bundle/*/*/*/*.dmg
 
       - name: Start tmate debug session
         uses: mxschmitt/action-tmate@v3
@@ -148,4 +145,5 @@ jobs:
         with:
           # This makes the job wait for 30 minutes for you to connect
           limit-access-to-actor: true
-          timeout: 1800 # 30 minutes            
+          # 30 minutes
+          timeout: 1800
