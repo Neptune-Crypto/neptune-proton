@@ -5,6 +5,7 @@ echo "=== Setting up Build Environment ==="
 
 # 1. Compile the Rustc Wrapper
 echo "Compiling rustc-wrapper..."
+mkdir -p target
 rustc tools/windows/rustc-wrapper/rustc-wrapper.rs -o target/rustc-wrapper.exe
 
 # 2. Configure Environment Variables
