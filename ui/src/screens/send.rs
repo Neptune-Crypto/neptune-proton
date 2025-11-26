@@ -1194,7 +1194,8 @@ pub fn SendScreen() -> Element {
                                             Button {
                                                 button_type: ButtonType::Primary,
                                                 outline: true,
-                                                on_click: move |_| {
+                                                on_click: move |evt: Event<MouseData>| {
+                                                    evt.prevent_default();
                                                     active_screen.set(Screen::MempoolTx(kernel_id_clone));
                                                 },
                                                 "View in Mempool"

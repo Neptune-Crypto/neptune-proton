@@ -7,6 +7,7 @@ use dioxus::prelude::*;
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::block_selector::BlockSelectorLiteral;
 use twenty_first::prelude::Digest;
+use crate::components::action_link::ActionLink;
 
 #[component]
 pub fn BlockChainScreen() -> Element {
@@ -50,12 +51,10 @@ pub fn BlockChainScreen() -> Element {
                     
                             "Current Block Height"
                         }
-                        a {
-                            href: "#",
-                            onclick: move |_| {
-                                active_screen.set(Screen::Block(BlockSelector::Height(owned_height)));
-                            },
-                            "{height}"
+                        ActionLink {
+                             state: active_screen,
+                             to: Screen::Block(BlockSelector::Height(owned_height)),
+                             "{height}"
                         }
                     }
                     // New card for looking up a block
@@ -70,7 +69,9 @@ pub fn BlockChainScreen() -> Element {
                             "Provide a block height (number) or digest (hex string) to look up a block."
                         }
                         form {
-                            onsubmit: move |_| {
+                            onsubmit: move |evt| {
+                                evt.prevent_default();
+
                                 let input_str = lookup_input.read().trim().to_string();
                                 if input_str.is_empty() {
                                     return;
@@ -104,16 +105,16 @@ pub fn BlockChainScreen() -> Element {
                         div {
                             style: "margin-top: 1rem;",
                             "Quick Lookup: "
-                            a {
-                                href: "#",
-                                onclick: move |_| active_screen.set(Screen::Block(BlockSelector::Special(BlockSelectorLiteral::Genesis))),
+                            ActionLink {
+                                state: active_screen,
+                                to: Screen::Block(BlockSelector::Special(BlockSelectorLiteral::Genesis)),
                                 "Genesis Block"
-                            }
+                            }                                
                             " | "
-                            a {
-                                href: "#",
-                                onclick: move |_| active_screen.set(Screen::Block(BlockSelector::Special(BlockSelectorLiteral::Tip))),
-                                "Tip"
+                            ActionLink {
+                                state: active_screen,
+                                to: Screen::Block(BlockSelector::Special(BlockSelectorLiteral::Tip)),
+                                "Tip Block"
                             }
                         }
                     }

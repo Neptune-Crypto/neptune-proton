@@ -4,6 +4,7 @@
 use crate::components::amount::Amount;
 use crate::components::amount::AmountType;
 use crate::components::pico::Card;
+use crate::components::action_link::ActionLink;
 use crate::Screen;
 use dioxus::prelude::*;
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
@@ -107,7 +108,7 @@ fn SortableHeader(
 /// A self-contained component for rendering a single row in the mempool table.
 #[component]
 fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
-    let mut active_screen = use_context::<Signal<Screen>>();
+    let active_screen = use_context::<Signal<Screen>>();
     let mut is_hovered = use_signal(|| false);
 
     // note: as of neptune-core v0.3.0, the negative and positive balance
@@ -142,12 +143,9 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
 
             td {
                 style: "padding: 8px 4px;",
-                a {
-                    href: "#",
-                    title: "{tx_id_str}",
-                    onclick: move |_| {
-                        active_screen.set(Screen::MempoolTx(tx.id));
-                    },
+                ActionLink {
+                    state: active_screen,
+                    to: Screen::MempoolTx(tx.id),
                     "{abbreviated_tx_id}"
                 }
             }
