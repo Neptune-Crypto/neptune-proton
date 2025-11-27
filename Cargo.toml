@@ -16,6 +16,7 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", rev = "56e16568098ef18aad7377e21ce59d372bd3f4f9"}
 thiserror = "1.0"
 serde_json = "1.0.145"
+serde = { version = "1.0", features = ["derive"] }
 
 # workspace
 ui = { path = "ui" }

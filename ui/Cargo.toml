@@ -13,6 +13,7 @@ dioxus-web = "0.7.1"
 qrcode = "0.12"
 neptune-types.workspace = true
 serde_json.workspace = true
+serde.workspace = true
 
 web-sys = { version = "0.3.69", features = [
   "console",
@@ -42,7 +43,6 @@ num-traits = "0.2.19"
 itertools = "0.14.0"
 tokio = { version = "1.47.1", features = ["time", "sync", "macros"] }
 rqrr = "0.10"
-anyhow = "1.0.100"
 image = { version = "0.25", features = ["jpeg"] }
 base64 = "0.22"
 web-time = { version = "1.1.0", features = ["serde"] }
@@ -61,8 +61,6 @@ strum = { version = "0.27.2", features = ["derive"] }
 js-sys = {version = "0.3", optional = true}
 
 #[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-# For native camera access
-camera_capture = {version = "0.5.0"}
 dioxus-desktop = { version = "0.7.1", optional = true}
 rfd = { version = "0.14.1", default-features = false, features = ["tokio", "xdg-portal"]}
 dioxus-clipboard = "0.3.0"
