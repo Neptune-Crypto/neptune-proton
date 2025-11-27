@@ -5,10 +5,13 @@
 
 name: Publish Desktop Release
 
-# 1. Trigger this workflow when you push a tag like 'v1.0.0'
+# 1. Trigger on tags OR pushes to main/master branches
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*'
 
@@ -133,8 +136,10 @@ jobs:
           dx bundle --release --trace
 
       # Upload the final installer to the GitHub Release
+      # We only run this step if the reference is a tag
       - name: Upload Artifact
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             target/dx/neptune-proton/bundle/*/*/*/*.AppImage
