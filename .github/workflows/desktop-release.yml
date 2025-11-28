@@ -152,13 +152,14 @@ jobs:
       - name: ⬆️ Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
+          name: ${{ matrix.os }}-installers
           path: |
-            target/dx/neptune-proton/bundle/**/*.AppImage
-            target/dx/neptune-proton/bundle/**/*.deb
-            target/dx/neptune-proton/bundle/**/*.rpm
-            target/dx/neptune-proton/bundle/**/*.msi
-            target/dx/neptune-proton/bundle/**/*.exe
-            target/dx/neptune-proton/bundle/**/*.dmg
+            target/dx/neptune-proton/bundle/*/*/*/*.AppImage
+            target/dx/neptune-proton/bundle/*/*/*/*.deb
+            target/dx/neptune-proton/bundle/*/*/*/*.rpm
+            target/dx/neptune-proton/bundle/*/*/*/*.msi
+            target/dx/neptune-proton/bundle/*/*/*/*.exe
+            target/dx/neptune-proton/bundle/*/*/*/*.dmg
           # Keep artifact for 1 day
           retention-days: 1             
 
