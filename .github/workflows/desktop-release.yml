@@ -149,19 +149,59 @@ jobs:
             target/dx/neptune-proton/bundle/*/*/*/*.exe
             target/dx/neptune-proton/bundle/*/*/*/*.dmg
 
-      - name: ⬆️ Upload Build Artifacts
+      - name: ⬆️ Upload macOS DMG Installer
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-installers
-          path: |
-            target/dx/neptune-proton/bundle/*/*/*/*.AppImage
-            target/dx/neptune-proton/bundle/*/*/*/*.deb
-            target/dx/neptune-proton/bundle/*/*/*/*.rpm
-            target/dx/neptune-proton/bundle/*/*/*/*.msi
-            target/dx/neptune-proton/bundle/*/*/*/*.exe
-            target/dx/neptune-proton/bundle/*/*/*/*.dmg
-          # Keep artifact for 1 day
-          retention-days: 1             
+          name: ${{ matrix.os }}-dmg-installer
+          # Your specified path for DMG files:
+          path: target/dx/neptune-proton/bundle/*/*/*/*.dmg
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: ⬆️ Upload Windows MSI Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-msi-installer
+          # Your specified path for MSI files:
+          path: target/dx/neptune-proton/bundle/*/*/*/*.msi
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: ⬆️ Upload Windows EXE Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-exe-installer
+          # Your specified path for EXE files:
+          path: target/dx/neptune-proton/bundle/*/*/*/*.exe
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: ⬆️ Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-appimage
+          # Your specified path for AppImage files:
+          path: target/dx/neptune-proton/bundle/*/*/*/*.AppImage
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: ⬆️ Upload Linux DEB Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-deb-package
+          # Your specified path for DEB files:
+          path: target/dx/neptune-proton/bundle/*/*/*/*.deb
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: ⬆️ Upload Linux RPM Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-rpm-package
+          # Your specified path for RPM files:
+          path: target/dx/neptune-proton/bundle/*/*/*/*.rpm
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Start tmate debug session
         uses: mxschmitt/action-tmate@v3
