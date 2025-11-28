@@ -65,6 +65,10 @@ dioxus-desktop = { version = "0.7.1", optional = true}
 rfd = { version = "0.14.1", default-features = false, features = ["tokio", "xdg-portal"]}
 dioxus-clipboard = "0.3.0"
 
+# for linux/gtk qr_scanner.rs. can be removed when dioxus issue 5037 resolved.
+nokhwa = { version = "0.10", features = ["input-native", "output-threaded"], optional = true }
+
 [features]
+dioxus-desktop = ["dep:dioxus-desktop", "dep:nokhwa"]
 web = ["dioxus/web", "api/web", "dep:js-sys", "dep:web-sys", "dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:gloo-timers", "dep:serde-json-wasm"]
 server = ["dioxus/server", "api/server"]
