@@ -8,17 +8,18 @@ use std::collections::HashMap;
 
 // --- Platform Implementation Selector ---
 
-// Tier 1 (Fast: JS/WebView) -> Windows, macOS, WASM, Android, iOS
+// Tier 1 (Web/Mobile): Uses WebView/JS APIs.
+// Now strictly for WASM and Mobile targets.
 #[cfg(any(
     target_arch = "wasm32",
     target_os = "android",
-    target_os = "ios",
-    all(feature = "dioxus-desktop", any(target_os = "windows", target_os = "macos"))
+    target_os = "ios"
 ))]
 use self::web_impl as platform_impl;
 
-// Tier 2 (Robust Linux Fix: Native Rust)
-#[cfg(all(feature = "dioxus-desktop", target_os = "linux"))]
+// Tier 2 (Desktop): Uses Native Rust (Nokhwa).
+// UNIFIED: Linux, Windows, and macOS all use the native path now.
+#[cfg(all(feature = "dioxus-desktop", any(target_os = "linux", target_os = "windows", target_os = "macos")))]
 use self::native_impl as platform_impl;
 
 // Tier 3 (Server/Unknown): Stub
@@ -95,7 +96,7 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
                         }
                     },
                     ScannerMessage::FrameBase64 { data, width, height } => {
-                        // Nokhwa (Desktop Linux) uses this to render frames via JS eval
+                        // Nokhwa (Desktop) uses this to render frames via JS eval
                         let js = format!(
                             r#"
                             try {{
@@ -118,13 +119,13 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
                 }
             }
         });
-    }); // FIX E0061: Removed dependency tuple, relying on move capture for simplicity.
+    });
 
     let error_display = error_message.read().as_ref().map(|err| rsx! {
         p { style: "color: var(--pico-color-red-500);", "{err}" }
     });
 
-    // UI FIX: Determine status text and consolidate.
+    // Determine status text
     let is_scanning_live = scanner_status.read().contains("Live Feed");
 
     let status_text = if *total_parts.read() > 0 {
@@ -186,16 +187,11 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
         rsx! {}
     };
 
-
     let flip_style = if *mirror_feed.read() { "scaleX(-1)" } else { "scaleX(1)" };
-
-    // UI FIX: Simplified button text using Unicode symbol (⇄)
     let flip_button_text = "Flip \u{21C6}".to_string();
 
-
-    // --- UI Layout (Conditional Elements) ---
+    // --- UI Layout ---
     rsx! {
-        // UI FIX: Tighter vertical gap
         div {
             style: "display: flex; flex-direction: column; gap: 0.5rem; max-width: 500px; margin: auto;",
 
@@ -216,34 +212,26 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
             div {
                 style: "position: relative; width: 100%; max-width: 400px; margin: auto; border-radius: var(--pico-border-radius); overflow: hidden; border: 1px solid var(--pico-form-element-border-color);",
 
-                // Tier 1 (Web/Win/Mac/Mobile): Uses Video (streamed by JS)
-                if !cfg!(all(feature = "dioxus-desktop", target_os = "linux")) {
+                // Tier 1: WASM/Mobile uses <video>
+                if cfg!(any(target_arch = "wasm32", target_os = "android", target_os = "ios")) {
                     video {
                         id: "qr-video",
                         autoplay: true,
                         playsinline: true,
-                        // FIX: Apply horizontal flip using the state signal
                         style: "width: 100%; height: auto; display: block; background-color: #000; transform: {flip_style};",
                     }
                 }
 
-                // Tier 2 (Linux/Nokhwa) + Hidden Canvas for JS: Uses Canvas
-                if cfg!(all(feature = "dioxus-desktop", target_os = "linux")) || !cfg!(feature = "dioxus-desktop") {
+                // Tier 2: Desktop (Linux/Windows/Mac) uses <canvas> for Native Frames
+                if cfg!(all(feature = "dioxus-desktop", any(target_os = "linux", target_os = "windows", target_os = "macos"))) {
                     canvas {
                         id: "qr-canvas",
-                        style: if cfg!(all(feature = "dioxus-desktop", target_os = "linux")) {
-                            // Show Canvas for Native Rust drawing
-                            // FIX: Use format! which returns a String, ensuring type compatibility
-                            format!("width: 100%; height: auto; display: block; background-color: #000; transform: {};", flip_style)
-                        } else {
-                            // Hide Canvas for JS processing
-                            "display: none;".to_string()
-                        },
+                        style: format!("width: 100%; height: auto; display: block; background-color: #000; transform: {};", flip_style),
                     }
                 }
             }
 
-            // Controls: Flip and Cancel on the same line (FIX 2)
+            // Controls: Flip and Cancel
             div {
                 // Use space-around to separate the two buttons nicely
                 style: "display: flex; justify-content: space-around; align-items: center; width: 100%; max-width: 400px; margin: 1rem auto 0 auto; gap: 1rem;",
@@ -297,13 +285,12 @@ fn handle_scan_result(
 }
 
 //=============================================================================
-// IMPLEMENTATION 1: WEB/WIN/MAC/MOBILE (JS / WebView)
+// IMPLEMENTATION 1: WEB/MOBILE (JS / WebView)
 //=============================================================================
 #[cfg(any(
     target_arch = "wasm32",
     target_os = "android",
-    target_os = "ios",
-    all(feature = "dioxus-desktop", any(target_os = "windows", target_os = "macos"))
+    target_os = "ios"
 ))]
 mod web_impl {
     use super::{ScannerMessage, VideoDevice};
@@ -345,8 +332,6 @@ mod web_impl {
                     video.setAttribute('playsinline', 'true');
                     await video.play();
 
-                    // FIX: Send status update after stream is active
-                    // This is for web/non-Linux desktop targets.
                     dioxus.send({{type: "status", msg: "Scanning (Live Feed)..."}});
 
                     try {{
@@ -398,8 +383,9 @@ mod web_impl {
 }
 
 //=============================================================================
-// IMPLEMENTATION 2: LINUX DESKTOP (Native Rust / Nokhwa)
-#[cfg(all(feature = "dioxus-desktop", target_os = "linux"))]
+// IMPLEMENTATION 2: LINUX/WINDOWS/MACOS (Native Rust / Nokhwa)
+//=============================================================================
+#[cfg(all(feature = "dioxus-desktop", any(target_os = "linux", target_os = "windows", target_os = "macos")))]
 mod native_impl {
     use super::{ScannerMessage, VideoDevice};
     use base64::engine::{general_purpose::STANDARD as BASE64_STANDARD, Engine};
@@ -409,21 +395,6 @@ mod native_impl {
     use std::collections::HashSet;
     use std::thread;
 
-    /*
-    * WORKAROUND: Linux WebKitGTK Permission Issue
-    *
-    * On Linux Desktop, the WebView (WebKitGTK) defaults to denying camera access
-    * (`NotAllowedError`) unless the host application (Dioxus) provides a specific
-    * permission grant callback, which is not currently exposed via the Dioxus API.
-    * * To ensure QR scanning works reliably on Linux, we bypass the WebView media
-    * API entirely and use the native Nokhwa library to grab frames directly from
-    * the OS camera stack.
-    * * This thread:
-    * 1. Uses Nokhwa to capture frames.
-    * 2. Encodes frames to Base64 JPEG.
-    * 3. Sends Base64 frames to the WebView for rendering on the dedicated `<canvas>`.
-    * 4. Scans the frame using the Rust 'rqrr' library.
-    */
     pub async fn start_scanner(device_id: &str) -> tokio::sync::mpsc::UnboundedReceiver<ScannerMessage> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -448,8 +419,6 @@ mod native_impl {
 
             let mut camera = match camera_result {
                 Ok(mut c) => {
-                    // Attempt to open the stream. We proceed even if this returns a non-fatal error.
-                    // This prevents the error path from triggering the UI message prematurely.
                     let _ = c.open_stream();
                     c
                 },
@@ -465,6 +434,7 @@ mod native_impl {
                 }
             };
 
+            // Enumerate Devices
             // Enumerate Devices and Deduplicate
             if let Ok(devices) = nokhwa::query(nokhwa::utils::ApiBackend::Auto) {
                 let mut seen_labels = HashSet::new();
@@ -484,7 +454,7 @@ mod native_impl {
             }
 
             let mut last_scan = std::time::Instant::now();
-            let mut is_first_frame = true; // ADDED STATUS FLAG
+            let mut is_first_frame = true;
 
             loop {
                 if tx.is_closed() { break; }
@@ -499,7 +469,7 @@ mod native_impl {
                         }
 
                         let width = decoded.width();
-                        let height = decoded.height(); // FIX E0599: Changed from current_height() to height()
+                        let height = decoded.height();
 
                         let mut jpeg_data = Vec::new();
                         let dyn_img = image::DynamicImage::ImageRgb8(decoded.clone());
