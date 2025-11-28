@@ -12,7 +12,15 @@ identifier = "cash.neptune"
 publisher = "neptune.cash"
 
 icon = [
+    # master/source
+    "icons/logo-1024x1024.png",
+
+    # linux 
     "icons/logo-128x128.png", 
-    "icons/logo-1024x1024.png", 
-    "icons/icon.ico", 
+
+    # windows
+    "icons/icon.ico",
+
+    # macOS
+    "icons/tauri/icons/icon.icns" 
 ]
