@@ -31,15 +31,15 @@ impl DisplayPreference {
     ///
     /// # Environment Variables (case-insensitive for "true" or "false"):
     /// - `NPT_ONLY`:
-    ///   If "true", forces NPT-only mode. If "false", forces Fiat mode.
-    ///   If unset, the `const NPT_ONLY` value is used.
+    ///   If "true", forces NPT-only mode. If "false", use Fiat mode.
+    ///   defaults to false
     /// - `FIAT_CURRENCY`: "USD", "EUR", or "JPY".
     /// - `DISPLAY_AS_FIAT`: "true" to make fiat the default display.
     /// - `PRICE_PROVIDER`: "coingecko" or "coinpaprika".
     pub fn from_env() -> Self {
         /// **Easy toggle:** Set to `true` to make NPT-only the default mode.
         /// This is the lowest priority setting.
-        const NPT_ONLY: bool = true;
+        const NPT_ONLY: bool = false;
 
         let is_npt_mode = match env::var("NPT_ONLY") {
             Ok(val) => val.eq_ignore_ascii_case("true") || val == "1",

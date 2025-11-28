@@ -139,8 +139,8 @@ They apply to any platform, eg web, desktop, android, ios, etc.
 - NEPTUNE_CORE_RPC_PORT: <port>
 
 - NPT_ONLY: 1 or 0
-    1 --> NPT-only mode. (default)
-    0 --> Fiat/NPT toggle mode
+    0 --> Fiat/NPT toggle mode (default)
+    1 --> NPT-only mode.
 
 - FIAT_CURRENCY:
     "USD", "EUR", "JPY", etc.
