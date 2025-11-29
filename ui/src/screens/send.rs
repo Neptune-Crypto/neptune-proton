@@ -5,6 +5,7 @@ use crate::components::address::Address;
 use crate::components::amount::Amount;
 use crate::components::amount::AmountType;
 use crate::components::currency_amount_input::CurrencyAmountInput;
+use crate::components::digest_display::DigestDisplay;
 use crate::components::pico::{
     Button, ButtonType, Card, CloseButton, CopyButton, Modal, NoTitleModal,
 };
@@ -1181,12 +1182,9 @@ pub fn SendScreen() -> Element {
                                         div {
                                             style: "display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; margin-bottom: 1.5rem; padding: 0.75rem; border: 1px solid var(--pico-secondary-border); border-radius: var(--pico-border-radius);",
                                             strong { "Transaction ID" }
-                                            div {
-                                                style: "display: flex; align-items: center; gap: 0.5rem;",
-                                                code { "{kernel_id}" }
-                                                CopyButton {
-                                                    text_to_copy: kernel_id.to_string(),
-                                                }
+                                            DigestDisplay {
+                                                digest: (*kernel_id).into(),
+                                                as_code: true,
                                             }
                                         }
                                         div {
