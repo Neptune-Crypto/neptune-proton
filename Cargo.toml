@@ -17,6 +17,7 @@ neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", re
 thiserror = "1.0"
 serde_json = "1.0.145"
 serde = { version = "1.0", features = ["derive"] }
+image = { version = "0.25", features = ["jpeg", "png"] }
 
 # workspace
 ui = { path = "ui" }

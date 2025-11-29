@@ -7,6 +7,7 @@ edition = "2021"
 dioxus = { workspace = true, features = ["fullstack", "desktop", "server"] }
 dioxus-logger.workspace = true
 ui = { workspace = true, features = ["dioxus-desktop", "server"] }
+image.workspace = true
 
 [features]
 desktop = ["dioxus/desktop", "ui/dioxus-desktop"]

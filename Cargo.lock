@@ -1630,6 +1630,7 @@ version = "0.1.2"
 dependencies = [
  "dioxus",
  "dioxus-logger",
+ "image 0.25.9",
  "ui",
 ]
 

@@ -19,7 +19,7 @@ icon = [
     "icons/logo-128x128.png", 
 
     # windows
-    "icons/icon.ico",
+    "icons/tauri/icons/icon.ico",
 
     # macOS
     "icons/tauri/icons/icon.icns" 
