@@ -2,10 +2,6 @@
 
 This crate implements an experimental GUI wallet prototype for [neptune cash](https://neptune.cash).  This is a binary/application crate, built on the Dioxus framework.
 
-## WARNING: EXPERIMENTAL!
-
-This crate is in an early, very rough prototype state. Everything is subject to change, or it could be abandoned altogether.
-
 ## Naming
 
 The "proto" in `neptune-proton` refers to the prototype nature of this wallet.
@@ -20,6 +16,29 @@ It can be thought of as a GUI dashboard for neptune-core.
 
 This means that neptune-proton is an interface for neptune-core's built-in
 wallet.  neptune-proton does not generate any wallet keys of its own.
+
+## Quick Start
+
+1. Install neptune-core, if you haven't already.
+
+   https://github.com/Neptune-Crypto/neptune-core
+
+2. Run neptune-core.
+   
+3. Download neptune-proton binary for your platform from
+
+   https://github.com/Neptune-Crypto/neptune-proton/releases/latest
+
+4. Install neptune-proton using your operating system's package manager.
+
+5. run neptune-proton.
+
+   If everything is correct it should automatically connect to neptune-core and
+   display your wallet.
+
+   See the Environment Variables section below if you should need to modify the
+   RPC port or other settings.
+
 
 ## Project Goals
 
@@ -36,7 +55,7 @@ The prototype has a few primary objectives:
 4. Provide a starting point for wallet developers to launch from for more
    advanced wallets.
 
-5. Eventually provide a functional, if simple, GUI wallet/dashboard for
+5. Provide a functional, if simple, GUI wallet/dashboard for
    the neptune-cash community to interact with neptune-core.
 
 ## Non Goals (at this time)
@@ -48,13 +67,18 @@ The prototype has a few primary objectives:
 
 ## Status
 
+As of 2025-11-28:
+
+* windows, mac, and linux desktop binaries are available in `Releases` (v0.1.2)
+* web (wasm) build works, must build from source.
+
 As of 2025-11-18:
 
 * fetching price data from goingecko and coinpaprika.
 * displaying and entering amounts in many national currencies.
 * generation and scanning of animated QR codes.
 * export and import of animated QR code files.
-* builds for web and desktop (linux, windows, mac coming soon)
+* builds for web and desktop (linux)  windows, mac coming soon.
 * mempool screen works
 * history screen works
 * a new peers screen works
