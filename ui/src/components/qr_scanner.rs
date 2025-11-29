@@ -26,7 +26,8 @@ use self::native_impl as platform_impl;
 #[cfg(all(
     not(target_arch = "wasm32"),
     not(feature = "dioxus-desktop"),
-    not(any(target_os = "android", target_os = "ios", target_os = "linux", target_os = "windows", target_os = "macos"))
+    not(target_os = "android"),
+    not(target_os = "ios")    
 ))]
 use self::server_impl as platform_impl;
 
@@ -510,7 +511,8 @@ mod native_impl {
 #[cfg(all(
     not(target_arch = "wasm32"),
     not(feature = "dioxus-desktop"),
-    not(any(target_os = "android", target_os = "ios", target_os = "linux", target_os = "windows", target_os = "macos"))
+    not(target_os = "android"),
+    not(target_os = "ios")     
 ))]
 mod server_impl {
     use super::ScannerMessage;
