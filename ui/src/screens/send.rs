@@ -950,7 +950,7 @@ pub fn SendScreen() -> Element {
                                                 }
                                             },
                                             {
-                                                if !display_as_fiat {
+                                                if display_as_fiat {
                                                     fiat_currency.code().to_string()
                                                 } else {
                                                     "NPT".to_string()
