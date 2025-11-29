@@ -9,6 +9,10 @@ dioxus-logger.workspace = true
 ui = { workspace = true, features = ["dioxus-desktop", "server"] }
 image.workspace = true
 
+[build-dependencies]
+# for binding icon.ico to neptune-proton.exe. see build.rs.
+winres = "0.1"
+
 [features]
 desktop = ["dioxus/desktop", "ui/dioxus-desktop"]
 server = ["dioxus/server", "ui/server"]
