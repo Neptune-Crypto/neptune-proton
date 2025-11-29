@@ -83,20 +83,24 @@ fn Tabs(active_screen: Signal<Screen>) -> Element {
         nav {
             class: "tab-menu",
             ul {
-
-
                 for screen in ALL_SCREENS {
                     li {
-
-
                         a {
                             href: "#",
-                            class: if *active_screen.read() == screen { "active-tab" } else { "" },
+                            // LOGIC FIX: Determine active state including nested screens
+                            class: {
+                                let is_active = match (&*active_screen.read(), &screen) {
+                                    (Screen::MempoolTx(_), Screen::Mempool) => true,
+                                    (Screen::Block(_), Screen::BlockChain) => true,
+                                    (active, current) => active == current,
+                                };
+                                if is_active { "active-tab" } else { "" }
+                            },
                             "aria-current": {
                                 let is_active = match (&*active_screen.read(), &screen) {
-                                    (&Screen::MempoolTx(_), &Screen::Mempool) => true,
-                                    (&Screen::Block(_), &Screen::BlockChain) => true,
-                                    (active, screen) => active == screen,
+                                    (Screen::MempoolTx(_), Screen::Mempool) => true,
+                                    (Screen::Block(_), Screen::BlockChain) => true,
+                                    (active, current) => active == current,
                                 };
                                 if is_active { "page" } else { "false" }
                             },
@@ -136,7 +140,15 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                     class: "custom-dropdown-menu",
                     for screen in ALL_SCREENS {
                         a {
-                            class: if *active_screen.read() == screen { "custom-dropdown-item active-tab" } else { "custom-dropdown-item" },
+                            // LOGIC FIX: Apply active class to mobile items too using fuzzy match
+                            class: {
+                                let is_active = match (&*active_screen.read(), &screen) {
+                                    (Screen::MempoolTx(_), Screen::Mempool) => true,
+                                    (Screen::Block(_), Screen::BlockChain) => true,
+                                    (active, current) => active == current,
+                                };
+                                if is_active { "custom-dropdown-item active-tab" } else { "custom-dropdown-item" }
+                            },
                             href: "#",
                             onclick: move |event| {
                                 event.prevent_default();
@@ -146,11 +158,7 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
                             "{screen.name()}"
                         }
                     }
-                    hr {
-
-
-
-                    }
+                    hr {}
                     a {
                         class: "custom-dropdown-item",
                         href: "#",
@@ -173,6 +181,7 @@ fn HamburgerMenu(active_screen: Signal<Screen>, view_mode: Signal<ViewMode>) -> 
 
 #[allow(non_snake_case)]
 pub fn App() -> Element {
+    // CSS FIX: Added styling for .active-tab in both desktop (tab-menu) and mobile contexts
     let responsive_css = r#"
     /* --- RESET --- */
     * { box-sizing: border-box; }
@@ -221,6 +230,62 @@ pub fn App() -> Element {
         --pico-nav-element-spacing-vertical: 0.5rem;
     }
 
+    /* Active Tab: Rounded corners + Simulated Fading Borders */
+    .tab-menu a.active-tab {
+        color: var(--pico-primary) !important;
+        text-decoration: none;
+        opacity: 1 !important;
+
+        /* 1. The Shape */
+        border-radius: 10px 10px 0 0; /* Rounded top corners */
+        border: none;                 /* clear standard borders */
+
+        /* 2. Top Border (Real border, allows curving) */
+        /* 90% Transparent (10% opacity) - slightly darker than background */
+        border-top: 3px solid color-mix(in srgb, var(--pico-primary), transparent 90%) !important;
+
+        /* 4. The Magic: Multiple Backgrounds to fake the rest */
+        background:
+            /* Layer 1: Left "Border" (1px wide line, fading down) */
+            linear-gradient(
+                to bottom,
+                color-mix(in srgb, var(--pico-primary), transparent 90%),
+                transparent
+            ) left top / 2px 100% no-repeat, /* 2px width ensures visibility on high-res screens */
+
+            /* Layer 2: Right "Border" (1px wide line, fading down) */
+            linear-gradient(
+                to bottom,
+                color-mix(in srgb, var(--pico-primary), transparent 90%),
+                transparent
+            ) right top / 2px 100% no-repeat,
+
+            /* Layer 3: Main Background Fill (Fades from 97% transparent) */
+            linear-gradient(
+                to bottom,
+                color-mix(in srgb, var(--pico-primary), transparent 97%),
+                transparent
+            ) center / 100% 100% no-repeat
+
+            !important;
+    }
+
+    /* --- NAVIGATION TABS --- */
+
+    .tab-menu a:not(.active-tab) {
+        color: var(--pico-muted-color);
+        border-bottom: 3px solid transparent;
+    }
+
+    /* --- MOBILE MENU HIGHLIGHTS --- */
+    .custom-dropdown-item.active-tab {
+        color: var(--pico-primary);
+        font-weight: bold;
+        border-left: 4px solid var(--pico-primary);
+        padding-left: calc(1rem - 4px); /* Keep text aligned */
+        background-color: var(--pico-card-background-color);
+    }
+
     /* --- CONTENT AREA --- */
     .app-main-container .content {
         flex: 1;
@@ -261,15 +326,9 @@ pub fn App() -> Element {
             href: asset!("/assets/css/pico.cyan.min.css"),
         }
         style {
-
-
             "{responsive_css}"
         }
-        AppBody {
-
-
-
-        }
+        AppBody {}
     }
 }
 
@@ -313,15 +372,11 @@ fn AppBody() -> Element {
         }
         Some(Err(e)) => rsx! {
             p {
-
-
                 "An error occurred: {e}"
             }
         },
         _ => rsx! {
             p {
-
-
                 "Loading..."
             }
         },
@@ -407,21 +462,12 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
             div {
                 class: "app-main-container",
                 Container {
-
                     header {
-
-
                         nav {
-
-
                             ul {
-
-
                                 // Conditionally render the button based on the environment variable.
                                 if option_env!("VIEW_MODE_TOGGLE") == Some("1") {
                                     li {
-
-
                                         Button {
                                             button_type: ButtonType::Contrast,
                                             outline: true,
@@ -431,8 +477,6 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                                     }
                                 }
                                 li {
-
-
                                     Tabs {
                                         active_screen,
                                     }
@@ -444,52 +488,28 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                         class: "content",
                         match active_screen() {
                             Screen::Balance => rsx! {
-                                BalanceScreen {
-
-
-                                }
+                                BalanceScreen {}
                             },
                             Screen::Send => rsx! {
-                                SendScreen {
-
-
-                                }
+                                SendScreen {}
                             },
                             Screen::Receive => rsx! {
-                                ReceiveScreen {
-
-
-                                }
+                                ReceiveScreen {}
                             },
                             Screen::History => rsx! {
-                                HistoryScreen {
-
-
-                                }
+                                HistoryScreen {}
                             },
                             Screen::Addresses => rsx! {
-                                AddressesScreen {
-
-
-                                }
+                                AddressesScreen {}
                             },
                             Screen::Peers => rsx! {
-                                PeersScreen {
-
-
-                                }
+                                PeersScreen {}
                             },
                             Screen::BlockChain => rsx! {
-                                BlockChainScreen {
-
-
-                                }
+                                BlockChainScreen {}
                             },
                             Screen::Mempool => rsx! {
-                                MempoolScreen {
-
-
-                                }
+                                MempoolScreen {}
                             },
                             Screen::MempoolTx(tx_id) => rsx! {
                                 MempoolTxScreen {
@@ -515,17 +535,9 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                 div {
                     class: "{content_class}",
                     header {
-
-
                         nav {
-
-
                             ul {
-
-
                                 li {
-
-
                                     h1 {
                                         style: "margin: 0; font-size: 1.5rem;",
                                         "Neptune Wallet"
@@ -533,11 +545,7 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                                 }
                             }
                             ul {
-
-
                                 li {
-
-
                                     HamburgerMenu {
                                         active_screen,
                                         view_mode,
@@ -550,52 +558,28 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                         class: "content",
                         match active_screen() {
                             Screen::Balance => rsx! {
-                                BalanceScreen {
-
-
-                                }
+                                BalanceScreen {}
                             },
                             Screen::Send => rsx! {
-                                SendScreen {
-
-
-                                }
+                                SendScreen {}
                             },
                             Screen::Receive => rsx! {
-                                ReceiveScreen {
-
-
-                                }
+                                ReceiveScreen {}
                             },
                             Screen::History => rsx! {
-                                HistoryScreen {
-
-
-                                }
+                                HistoryScreen {}
                             },
                             Screen::Addresses => rsx! {
-                                AddressesScreen {
-
-
-                                }
+                                AddressesScreen {}
                             },
                             Screen::Peers => rsx! {
-                                PeersScreen {
-
-
-                                }
+                                PeersScreen {}
                             },
                             Screen::BlockChain => rsx! {
-                                BlockChainScreen {
-
-
-                                }
+                                BlockChainScreen {}
                             },
                             Screen::Mempool => rsx! {
-                                MempoolScreen {
-
-
-                                }
+                                MempoolScreen {}
                             },
                             Screen::MempoolTx(tx_id) => rsx! {
                                 MempoolTxScreen {
