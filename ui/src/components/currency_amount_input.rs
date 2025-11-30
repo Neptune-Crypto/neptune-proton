@@ -187,44 +187,57 @@ pub fn CurrencyAmountInput(
     };
     let mut handle_interaction_clone = handle_interaction;
 
-    let open_keypad = move |_| {
-        handle_interaction();
+    let open_keypad = {
+        let value = value.clone();
+        move |_| {
+            // Fix for issue 17
+            // https://github.com/Neptune-Crypto/neptune-proton/issues/17
+            // Ensure internal signal matches the current prop before starting the interaction.
+            // This fixes an issue where toggling currency leaves the keypad logic
+            // holding the old value.
+            if *value_signal.read() != value {
+                value_signal.set(value.clone());
+            }
 
-        spawn(async move {
-            let handle_keypad_press = move |key: String| {
-                let current_val = value_signal.read().clone();
-                let new_val = if key == "BACKSPACE" {
-                    let mut chars = current_val.chars();
-                    chars.next_back();
-                    chars.as_str().to_string()
-                } else {
-                    current_val + &key
+            handle_interaction();
+
+            spawn(async move {
+                let handle_keypad_press = move |key: String| {
+                    let current_val = value_signal.read().clone();
+                    let new_val = if key == "BACKSPACE" {
+                        let mut chars = current_val.chars();
+                        chars.next_back();
+                        chars.as_str().to_string()
+                    } else {
+                        current_val + &key
+                    };
+                    handle_new_input_clone(new_val);
                 };
-                handle_new_input_clone(new_val);
-            };
 
-            let keypad_popup = rsx! {
-                div {
-                    style: "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.1); z-index: 1000; display: flex; justify-content: center; align-items: center;",
-                    onclick: move |_| {
-                        spawn(async move {
-                            popup_state.set(None);
-                        });
-                    },
-                    NumericKeypad {
-                        on_key_press: handle_keypad_press,
-                        on_close: move |_| {
+                let keypad_popup = rsx! {
+                    div {
+                        style: "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.1); z-index: 1000; display: flex; justify-content: center; align-items: center;",
+                        onclick: move |_| {
                             spawn(async move {
                                 popup_state.set(None);
                             });
                         },
+                        NumericKeypad {
+                            on_key_press: handle_keypad_press,
+                            on_close: move |_| {
+                                spawn(async move {
+                                    popup_state.set(None);
+                                });
+                            },
+                        }
                     }
-                }
-            };
-            popup_state.set(Some(keypad_popup));
-        });
+                };
+                popup_state.set(Some(keypad_popup));
+            });
+        }
     };
-    let mut open_keypad_clone = open_keypad;
+
+    let mut open_keypad_clone = open_keypad.clone();
 
     let display_value = if is_zero { placeholder } else { value };
     let input_style = if is_zero {
