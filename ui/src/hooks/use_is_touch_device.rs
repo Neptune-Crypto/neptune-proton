@@ -14,7 +14,7 @@
 pub use self::fallback::*;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub use self::mobile::*;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(feature = "dioxus-desktop", target_arch = "wasm32"))]
 pub use self::web_desktop::*;
 
 /// # Unified Desktop & Web (WASM) Implementation
