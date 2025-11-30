@@ -1,21 +1,13 @@
 //=============================================================================
 // File: src/screens/send.rs
 //=============================================================================
-use crate::components::address::Address;
-use crate::components::amount::Amount;
-use crate::components::amount::AmountType;
-use crate::components::currency_amount_input::CurrencyAmountInput;
-use crate::components::digest_display::DigestDisplay;
-use crate::components::pico::{
-    Button, ButtonType, Card, CloseButton, CopyButton, Modal, NoTitleModal,
-};
-use crate::components::qr_scanner::QrScanner;
-use crate::components::qr_uploader::QrUploader;
-use crate::currency::{fiat_to_npt, npt_to_fiat};
-use api::prefs::display_preference::DisplayPreference;
-use crate::{AppState, AppStateMut, Screen};
+use std::rc::Rc;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
+
 use api::fiat_amount::FiatAmount;
 use api::fiat_currency::FiatCurrency;
+use api::prefs::display_preference::DisplayPreference;
 use dioxus::prelude::*;
 use neptune_types::address::ReceivingAddress;
 use neptune_types::change_policy::ChangePolicy;
@@ -25,8 +17,26 @@ use neptune_types::output_format::OutputFormat;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
 use num_traits::Zero;
-use std::rc::Rc;
-use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::components::address::Address;
+use crate::components::amount::Amount;
+use crate::components::amount::AmountType;
+use crate::components::currency_amount_input::CurrencyAmountInput;
+use crate::components::digest_display::DigestDisplay;
+use crate::components::pico::Button;
+use crate::components::pico::ButtonType;
+use crate::components::pico::Card;
+use crate::components::pico::CloseButton;
+use crate::components::pico::CopyButton;
+use crate::components::pico::Modal;
+use crate::components::pico::NoTitleModal;
+use crate::components::qr_scanner::QrScanner;
+use crate::components::qr_uploader::QrUploader;
+use crate::currency::fiat_to_npt;
+use crate::currency::npt_to_fiat;
+use crate::AppState;
+use crate::AppStateMut;
+use crate::Screen;
 
 static NEXT_RECIPIENT_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -72,7 +82,8 @@ impl SourcedAmount {
     pub fn as_fiat(&self, rate: &FiatAmount) -> Result<FiatAmount, String> {
         match self.source_kind {
             InputKind::Npt => {
-                let npt = NativeCurrencyAmount::coins_from_str(&self.source_value).map_err(|e| e.to_string())?;
+                let npt = NativeCurrencyAmount::coins_from_str(&self.source_value)
+                    .map_err(|e| e.to_string())?;
                 Ok(npt_to_fiat(&npt, rate))
             }
             InputKind::Fiat(fc) => {
@@ -87,7 +98,8 @@ impl SourcedAmount {
     }
 
     pub fn as_fiat_or_zero(&self, rate: &FiatAmount) -> FiatAmount {
-        self.as_fiat(rate).unwrap_or_else(|_| FiatAmount::new_from_minor(0, rate.currency()))
+        self.as_fiat(rate)
+            .unwrap_or_else(|_| FiatAmount::new_from_minor(0, rate.currency()))
     }
 
     #[allow(dead_code)]
@@ -107,7 +119,6 @@ impl SourcedAmount {
         }
     }
 }
-
 
 #[derive(Clone, PartialEq, Debug)]
 struct EditableRecipient {
@@ -569,7 +580,8 @@ pub fn SendScreen() -> Element {
             if let Ok(mut recs) = recipients.try_write() {
                 if let Some(recipient) = recs.get_mut(index) {
                     recipient.with_mut(|r| {
-                        r.amount.display_value = r.amount.as_needed_or_zero(new_display_as_fiat, &rate);
+                        r.amount.display_value =
+                            r.amount.as_needed_or_zero(new_display_as_fiat, &rate);
                     });
                 }
             }

@@ -1,13 +1,18 @@
 //=============================================================================
 // File: src/screens/receive.rs
 //=============================================================================
-use crate::app_state::AppState;
-use crate::components::pico::{Button, ButtonType, Card, CopyButton};
-use crate::components::qr_code::QrCode;
+use std::rc::Rc;
+
 use dioxus::prelude::*;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
-use std::rc::Rc;
+
+use crate::app_state::AppState;
+use crate::components::pico::Button;
+use crate::components::pico::ButtonType;
+use crate::components::pico::Card;
+use crate::components::pico::CopyButton;
+use crate::components::qr_code::QrCode;
 
 #[component]
 pub fn ReceiveScreen() -> Element {

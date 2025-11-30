@@ -1,9 +1,10 @@
 use dioxus::prelude::*;
+
 use crate::Screen; // Adjust this import to where your Screen enum is
 
 #[derive(Props, Clone, PartialEq)]
 pub struct ActionLinkProps {
-    // In 0.7, use Signal<T> instead of &UseState<T>. 
+    // In 0.7, use Signal<T> instead of &UseState<T>.
     // Signals are Copy, so we don't need lifetimes or references here.
     #[props(optional)]
     pub state: Option<Signal<Screen>>,

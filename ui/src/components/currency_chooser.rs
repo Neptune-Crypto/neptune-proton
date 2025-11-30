@@ -1,8 +1,8 @@
 // ui/src/components/currency_chooser.rs
 #![allow(non_snake_case)]
 
-use dioxus::prelude::*;
 use api::fiat_currency::FiatCurrency;
+use dioxus::prelude::*;
 
 #[derive(Props, PartialEq, Clone, Copy)]
 pub struct CurrencyInfo {
@@ -54,7 +54,8 @@ pub fn CurrencyChooser(mut props: CurrencyChooserProps) -> Element {
         displayed_id_val
     };
 
-    let preferred_fiat_long_name = props.all_fiats
+    let preferred_fiat_long_name = props
+        .all_fiats
         .iter()
         .find(|fiat| fiat.short_name == *props.preferred_fiat_id.read())
         .map(|fiat| fiat.long_name)
@@ -62,15 +63,19 @@ pub fn CurrencyChooser(mut props: CurrencyChooserProps) -> Element {
 
     let tooltip = format!(
         "Click to toggle between {} and {}.",
-        secondary_currency.long_name,
-        preferred_fiat_long_name
+        secondary_currency.long_name, preferred_fiat_long_name
     );
 
-    let filtered_fiats = props.all_fiats.iter().filter(|fiat| {
-        let filter_lower = filter_text.read().to_lowercase();
-        fiat.long_name.to_lowercase().contains(&filter_lower)
-            || fiat.short_name.to_lowercase().contains(&filter_lower)
-    }).copied().collect::<Vec<_>>();
+    let filtered_fiats = props
+        .all_fiats
+        .iter()
+        .filter(|fiat| {
+            let filter_lower = filter_text.read().to_lowercase();
+            fiat.long_name.to_lowercase().contains(&filter_lower)
+                || fiat.short_name.to_lowercase().contains(&filter_lower)
+        })
+        .copied()
+        .collect::<Vec<_>>();
 
     rsx! {
         div {
@@ -168,7 +173,7 @@ pub fn CurrencyChooser(mut props: CurrencyChooserProps) -> Element {
                                                     }
                                                 }
                                                 span {
-                                            
+
                                                     "{display_label}"
                                                 }
                                             }

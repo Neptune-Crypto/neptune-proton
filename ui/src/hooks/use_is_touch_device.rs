@@ -5,15 +5,6 @@
 // Conditionally export the correct module based on the target platform,
 // following the established pattern in `qr_scanner.rs`.
 
-#[cfg(target_arch = "wasm32")]
-pub use self::web_desktop::*;
-
-#[cfg(feature = "dioxus-desktop")]
-pub use self::web_desktop::*;
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-pub use self::mobile::*;
-
 // Fallback for any other platform (like a server) where touch is not applicable.
 #[cfg(all(
     not(target_arch = "wasm32"),
@@ -21,6 +12,10 @@ pub use self::mobile::*;
     not(any(target_os = "android", target_os = "ios"))
 ))]
 pub use self::fallback::*;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub use self::mobile::*;
+#[cfg(target_arch = "wasm32")]
+pub use self::web_desktop::*;
 
 /// # Unified Desktop & Web (WASM) Implementation
 /// Uses the `use_document` hook to get a handle to the document, which

@@ -1,12 +1,16 @@
 //=============================================================================
 // File: src/components/address.rs
 //=============================================================================
-use crate::components::pico::{Button, CopyButton, NoTitleModal};
-use crate::components::qr_code::QrCode;
-use crate::AppState;
+use std::rc::Rc;
+
 use dioxus::prelude::*;
 use neptune_types::address::ReceivingAddress;
-use std::rc::Rc;
+
+use crate::components::pico::Button;
+use crate::components::pico::CopyButton;
+use crate::components::pico::NoTitleModal;
+use crate::components::qr_code::QrCode;
+use crate::AppState;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct AddressProps {

@@ -1,6 +1,7 @@
-use super::display_preference::DisplayPreference;
-use serde::Serialize;
 use serde::Deserialize;
+use serde::Serialize;
+
+use super::display_preference::DisplayPreference;
 
 /// Represents all user prefs. Intended for saving to a file. editing in settings dialog, etc.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize, Default)]

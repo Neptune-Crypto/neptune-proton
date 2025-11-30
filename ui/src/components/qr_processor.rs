@@ -1,8 +1,9 @@
 //=============================================================================
 // File: src/components/qr_processor.rs
 //=============================================================================
-use image::GrayImage;
 use std::collections::HashMap;
+
+use image::GrayImage;
 
 /// The result of processing a single QR image frame.
 #[allow(dead_code)]

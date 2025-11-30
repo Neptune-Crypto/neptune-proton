@@ -1,9 +1,11 @@
-use crate::fiat_currency::FiatCurrency;
-use crate::price_providers::PriceProviderKind;
 use std::env;
 use std::str::FromStr;
-use serde::Serialize;
+
 use serde::Deserialize;
+use serde::Serialize;
+
+use crate::fiat_currency::FiatCurrency;
+use crate::price_providers::PriceProviderKind;
 
 /// Represents the user's complete currency display preference.
 #[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize, strum::EnumIs)]
@@ -25,7 +27,6 @@ pub enum DisplayPreference {
 }
 
 impl DisplayPreference {
-
     /// Creates a DisplayPreference instance from environment variables,
     /// with a conservative in-code default.
     ///
@@ -72,7 +73,6 @@ impl DisplayPreference {
         }
     }
 }
-
 
 impl Default for DisplayPreference {
     fn default() -> Self {

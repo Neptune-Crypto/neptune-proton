@@ -10,18 +10,25 @@ mod currency;
 pub mod hooks;
 mod screens;
 
-use app_state::AppState;
-use app_state_mut::AppStateMut;
 use api::prefs::user_prefs::UserPrefs;
 use api::price_map::PriceMap;
-use components::pico::{Button, ButtonType, Container};
+use app_state::AppState;
+use app_state_mut::AppStateMut;
+use components::pico::Button;
+use components::pico::ButtonType;
+use components::pico::Container;
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
-use screens::{
-    addresses::AddressesScreen, balance::BalanceScreen, block::BlockScreen,
-    blockchain::BlockChainScreen, history::HistoryScreen, mempool::MempoolScreen,
-    mempool_tx::MempoolTxScreen, peers::PeersScreen, receive::ReceiveScreen, send::SendScreen,
-};
+use screens::addresses::AddressesScreen;
+use screens::balance::BalanceScreen;
+use screens::block::BlockScreen;
+use screens::blockchain::BlockChainScreen;
+use screens::history::HistoryScreen;
+use screens::mempool::MempoolScreen;
+use screens::mempool_tx::MempoolTxScreen;
+use screens::peers::PeersScreen;
+use screens::receive::ReceiveScreen;
+use screens::send::SendScreen;
 
 /// Enum to represent the different screens in our application.
 #[derive(Clone, PartialEq, Default)]
@@ -336,15 +343,10 @@ pub fn App() -> Element {
 
 #[component]
 fn AppBody() -> Element {
-
     // this will be processed on server before initial page is delivered.
     let initial_data_future = use_server_future(move || async move {
-
         // call the server apis concurrently
-        let (network_result, prefs_result) = tokio::join!(
-            api::network(),
-            api::get_user_prefs()
-        );
+        let (network_result, prefs_result) = tokio::join!(api::network(), api::get_user_prefs());
 
         let network = match network_result {
             Ok(n) => n,

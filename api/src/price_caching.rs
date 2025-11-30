@@ -1,14 +1,17 @@
 //! Handles the caching logic for external price provider data.
 #![allow(dead_code)]
 
-use crate::price_map::PriceMap;
-use crate::price_providers::{coin_gecko::CoinGecko, PriceProvider};
+use std::sync::Arc;
+use std::time::Duration;
+use std::time::Instant;
+
 use dioxus::prelude::ServerFnError;
-use std::{
-    sync::Arc,
-    time::{Duration, Instant},
-};
-use tokio::sync::{OnceCell, RwLock};
+use tokio::sync::OnceCell;
+use tokio::sync::RwLock;
+
+use crate::price_map::PriceMap;
+use crate::price_providers::coin_gecko::CoinGecko;
+use crate::price_providers::PriceProvider;
 
 #[derive(Clone, Debug)]
 struct CachedPrices {

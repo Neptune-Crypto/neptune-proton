@@ -1,13 +1,14 @@
 //=============================================================================
 // File: src/screens/blockchain.rs
 //=============================================================================
-use crate::components::pico::Card;
-use crate::Screen;
 use dioxus::prelude::*;
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::block_selector::BlockSelectorLiteral;
 use twenty_first::prelude::Digest;
+
 use crate::components::action_link::ActionLink;
+use crate::components::pico::Card;
+use crate::Screen;
 
 #[component]
 pub fn BlockChainScreen() -> Element {
@@ -22,18 +23,18 @@ pub fn BlockChainScreen() -> Element {
             None => {
                 rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Blockchain"
                         }
                         p {
-                    
+
                             "Loading..."
                         }
                         progress {
-                        
-                    
+
+
                         }
                     }
                 }
@@ -42,13 +43,13 @@ pub fn BlockChainScreen() -> Element {
                 let owned_height = *height;
                 rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Blockchain"
                         }
                         h4 {
-                    
+
                             "Current Block Height"
                         }
                         ActionLink {
@@ -59,13 +60,13 @@ pub fn BlockChainScreen() -> Element {
                     }
                     // New card for looking up a block
                     Card {
-                    
+
                         h4 {
-                    
+
                             "Block Lookup"
                         }
                         p {
-                    
+
                             "Provide a block height (number) or digest (hex string) to look up a block."
                         }
                         form {
@@ -109,7 +110,7 @@ pub fn BlockChainScreen() -> Element {
                                 state: active_screen,
                                 to: Screen::Block(BlockSelector::Special(BlockSelectorLiteral::Genesis)),
                                 "Genesis Block"
-                            }                                
+                            }
                             " | "
                             ActionLink {
                                 state: active_screen,
@@ -123,13 +124,13 @@ pub fn BlockChainScreen() -> Element {
             Some(Err(e)) => {
                 rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Error"
                         }
                         p {
-                    
+
                             "Failed to load: {e}"
                         }
                         button {

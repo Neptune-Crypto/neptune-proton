@@ -1,10 +1,11 @@
 //! A component for displaying currency amounts with a toggle-on-hover feature.
 
-use crate::app_state_mut::AppStateMut;
-use api::prefs::display_preference::DisplayPreference;
 use api::fiat_amount::FiatAmount;
+use api::prefs::display_preference::DisplayPreference;
 use dioxus::prelude::*;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
+
+use crate::app_state_mut::AppStateMut;
 
 #[derive(PartialEq, Clone, Copy, Debug, Default)]
 pub enum AmountType {
@@ -34,7 +35,6 @@ impl CurrencyFormat {
     }
 }
 
-
 /// A component that displays a currency amount and flips to an alternative
 /// currency on hover or tap-and-hold. It now accepts an optional `fiat_equivalent`
 /// to ensure precision for display values and is fully reactive to prop changes.
@@ -59,24 +59,22 @@ pub fn Amount(
             fiat,
             display_as_fiat,
             ..
-        } => {
-            match fixed {
-                Some(AmountType::Npt) => ("NPT".to_string(), Some(fiat)),
-                Some(AmountType::Fiat) => (fiat.code().to_string(), Some(fiat)),
-                _ => {
-                    let current_display_is_fiat = if is_flipped() {
-                        !display_as_fiat
-                    } else {
-                        display_as_fiat
-                    };
-                    if current_display_is_fiat {
-                        (fiat.code().to_string(), Some(fiat))
-                    } else {
-                        ("NPT".to_string(), Some(fiat))
-                    }
+        } => match fixed {
+            Some(AmountType::Npt) => ("NPT".to_string(), Some(fiat)),
+            Some(AmountType::Fiat) => (fiat.code().to_string(), Some(fiat)),
+            _ => {
+                let current_display_is_fiat = if is_flipped() {
+                    !display_as_fiat
+                } else {
+                    display_as_fiat
+                };
+                if current_display_is_fiat {
+                    (fiat.code().to_string(), Some(fiat))
+                } else {
+                    ("NPT".to_string(), Some(fiat))
                 }
             }
-        }
+        },
     };
 
     // Helper function to calculate the fiat value using precise integer math.
@@ -101,9 +99,17 @@ pub fn Amount(
     let format_fiat = |amt: FiatAmount| -> String {
         format!(
             "{}{}{}",
-            if format.show_symbol() { amt.currency().symbol() } else { "" },
+            if format.show_symbol() {
+                amt.currency().symbol()
+            } else {
+                ""
+            },
             amt,
-            if format.show_code() { " ".to_owned() + amt.currency().code() } else { "".to_owned() },
+            if format.show_code() {
+                " ".to_owned() + amt.currency().code()
+            } else {
+                "".to_owned()
+            },
         )
     };
 

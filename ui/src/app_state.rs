@@ -1,7 +1,8 @@
-use api::price_map::PriceMap;
-use neptune_types::network::Network;
 use std::ops::Deref;
 use std::sync::Arc;
+
+use api::price_map::PriceMap;
+use neptune_types::network::Network;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AppStateData {

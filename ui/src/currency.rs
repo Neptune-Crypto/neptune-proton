@@ -2,7 +2,8 @@
 use api::fiat_amount::FiatAmount;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use num_bigint::BigInt;
-use num_traits::{ToPrimitive, Zero};
+use num_traits::ToPrimitive;
+use num_traits::Zero;
 
 /// Converts an NPT amount to a fiat amount using a given exchange rate.
 /// Uses high-precision math to avoid floating-point errors.

@@ -1,12 +1,14 @@
 //! Defines traits and implementations for external price data providers.
 
+use std::collections::HashMap;
+
+use serde::Deserialize;
+use serde::Serialize;
+use strum::IntoEnumIterator;
+
 use crate::fiat_amount::FiatAmount;
 use crate::fiat_currency::FiatCurrency;
 use crate::price_map::PriceMap;
-use serde::Deserialize;
-use serde::Serialize;
-use std::collections::HashMap;
-use strum::IntoEnumIterator;
 
 // The trait for provider metadata
 pub trait PriceProviderMeta {
@@ -14,7 +16,18 @@ pub trait PriceProviderMeta {
     fn website(&self) -> &'static str;
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Default, Serialize, Deserialize, strum::EnumIs, strum::EnumIter, strum::EnumString)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Default,
+    Serialize,
+    Deserialize,
+    strum::EnumIs,
+    strum::EnumIter,
+    strum::EnumString,
+)]
 #[strum(ascii_case_insensitive)]
 pub enum PriceProviderKind {
     #[default]
@@ -95,7 +108,12 @@ pub(crate) mod coin_gecko {
             );
 
             let client = reqwest::Client::new();
-            let resp = client.get(&url).send().await?.json::<CoinGeckoResponse>().await?;
+            let resp = client
+                .get(&url)
+                .send()
+                .await?
+                .json::<CoinGeckoResponse>()
+                .await?;
 
             let mut price_map = PriceMap::new();
 
@@ -114,8 +132,9 @@ pub(crate) mod coin_gecko {
 
 /// Provides price data from the CoinPaprika API.
 pub(crate) mod coin_paprika {
-    use super::*;
     use serde_json::Value;
+
+    use super::*;
 
     /// An implementation of the `PriceProvider` trait for CoinPaprika.
     pub struct CoinPaprika;
@@ -133,7 +152,10 @@ pub(crate) mod coin_paprika {
     impl PriceProvider for CoinPaprika {
         async fn get_prices(&self) -> Result<PriceMap, anyhow::Error> {
             // 1. Build the comma-separated list of currency codes from the enum.
-            let currency_codes = FiatCurrency::iter().map(|c| c.code()).collect::<Vec<_>>().join(",");
+            let currency_codes = FiatCurrency::iter()
+                .map(|c| c.code())
+                .collect::<Vec<_>>()
+                .join(",");
 
             // 2. Construct the full URL dynamically.
             let url = format!(
@@ -150,7 +172,10 @@ pub(crate) mod coin_paprika {
 
             // Helper closure to extract the price for a given currency code.
             let get_price = |currency_code: &str| -> Option<f64> {
-                resp.get("quotes")?.get(currency_code)?.get("price")?.as_f64()
+                resp.get("quotes")?
+                    .get(currency_code)?
+                    .get("price")?
+                    .as_f64()
             };
 
             // 3. Iterate over all supported currencies and populate the map from the response.

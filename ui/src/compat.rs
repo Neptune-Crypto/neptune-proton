@@ -1,23 +1,27 @@
 // Re-export the public API from the appropriate module
-#[cfg(target_arch = "wasm32")]
-pub use wasm32::*;
-
 #[cfg(not(target_arch = "wasm32"))]
 pub use non_wasm32::*;
+#[cfg(target_arch = "wasm32")]
+pub use wasm32::*;
 
 #[cfg(target_arch = "wasm32")]
 pub mod wasm32 {
     use std::time::Duration;
+
     use tokio::sync::oneshot;
     use wasm_bindgen::prelude::*;
     use wasm_bindgen_futures::JsFuture;
-    use web_sys::{self, FileReader, HtmlInputElement, Window};
+    use web_sys::FileReader;
+    use web_sys::HtmlInputElement;
+    use web_sys::Window;
+    use web_sys::{self};
 
     pub mod interval {
         use std::sync::Arc;
-        use tokio::sync::Mutex;
         use std::time::Duration;
+
         use tokio::sync::mpsc;
+        use tokio::sync::Mutex;
 
         pub struct Interval {
             inner: Option<gloo_timers::callback::Interval>,
@@ -127,11 +131,14 @@ pub mod wasm32 {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod non_wasm32 {
-    use dioxus_clipboard::prelude::*;
     use std::time::Duration;
 
+    use dioxus_clipboard::prelude::*;
+
     pub mod interval {
-        use tokio::time::{self, Duration, MissedTickBehavior};
+        use tokio::time::Duration;
+        use tokio::time::MissedTickBehavior;
+        use tokio::time::{self};
         pub struct Interval {
             inner: tokio::time::Interval,
         }

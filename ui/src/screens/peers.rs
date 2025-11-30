@@ -1,18 +1,23 @@
 // File: src/screens/peers.rs
 
-#[cfg(target_arch = "wasm32")]
-use web_time::{SystemTime, UNIX_EPOCH};
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::time::{SystemTime, UNIX_EPOCH};
-
 // Added for SocketAddr and IpAddr types
 use std::net::{IpAddr, SocketAddr};
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::SystemTime;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::UNIX_EPOCH;
 
-use crate::components::pico::Card;
-use chrono::{NaiveDateTime, TimeZone, Utc};
+use chrono::NaiveDateTime;
+use chrono::TimeZone;
+use chrono::Utc;
 use dioxus::prelude::*;
 use neptune_types::peer_info::PeerInfo;
+#[cfg(target_arch = "wasm32")]
+use web_time::SystemTime;
+#[cfg(target_arch = "wasm32")]
+use web_time::UNIX_EPOCH;
+
+use crate::components::pico::Card;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SortableColumn {
@@ -154,30 +159,30 @@ pub fn PeersScreen() -> Element {
         match &*peer_info.read() {
             None => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Connected Peers"
                     }
                     p {
-                
+
                         "Loading..."
                     }
                     progress {
-                    
-                
+
+
                     }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Error"
                     }
                     p {
-                
+
                         "Failed to load peer data: {e}"
                     }
                     button {
@@ -222,19 +227,19 @@ pub fn PeersScreen() -> Element {
                     });
                 rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Connected Peers ({peers.len()})"
                         }
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {
-                    
+
                                 thead {
-                    
+
                                     tr {
-                    
+
                                         SortableHeader {
                                             title: "IP Address",
                                             column: SortableColumn::Ip,
@@ -274,34 +279,34 @@ pub fn PeersScreen() -> Element {
                                     }
                                 }
                                 tbody {
-                    
+
                                     for peer in sorted_peers.iter() {
                                         tr {
-                    
+
                                             td {
-                    
+
                                                 code {
-                    
+
                                                     "{format_socket_addr(peer.connected_address())}"
                                                 }
                                             }
                                             td {
-                    
+
                                                 "{peer.version()}"
                                             }
                                             EstablishedCell {
                                                 time: peer.connection_established(),
                                             }
                                             td {
-                    
+
                                                 "{peer.standing.standing}"
                                             }
                                             td {
-                    
+
                                                 "{format_sanction(peer.standing.latest_punishment)}"
                                             }
                                             td {
-                    
+
                                                 "{format_sanction(peer.standing.latest_reward)}"
                                             }
                                         }

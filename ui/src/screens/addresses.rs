@@ -1,14 +1,21 @@
 //=============================================================================
 // File: src/screens/addresses.rs
 //=============================================================================
+use std::rc::Rc;
+
+use dioxus::prelude::*;
+use neptune_types::address::KeyType;
+use neptune_types::address::ReceivingAddress;
+use neptune_types::network::Network;
+
 use crate::app_state::AppState;
 use crate::components::address::Address;
-use crate::components::pico::{Button, ButtonType, Card, CopyButton, NoTitleModal};
+use crate::components::pico::Button;
+use crate::components::pico::ButtonType;
+use crate::components::pico::Card;
+use crate::components::pico::CopyButton;
+use crate::components::pico::NoTitleModal;
 use crate::components::qr_code::QrCode;
-use dioxus::prelude::*;
-use neptune_types::address::{KeyType, ReceivingAddress};
-use neptune_types::network::Network;
-use std::rc::Rc;
 
 /// A new, self-contained component for rendering a single row in the address table.
 #[component]
@@ -87,30 +94,30 @@ pub fn AddressesScreen() -> Element {
         match &*known_keys.read() {
             None => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "My Addresses"
                     }
                     p {
-                
+
                         "Loading..."
                     }
                     progress {
-                    
-                
+
+
                     }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Error"
                     }
                     p {
-                
+
                         "Failed to load addresses: {e}"
                     }
                     button {
@@ -143,20 +150,20 @@ pub fn AddressesScreen() -> Element {
                         }
                     }
                     Card {
-                    
+
                         h3 {
-                    
+
                             "My Addresses"
                         }
                         // This div is the scrollable container for the table.
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {
-                    
+
                                 thead {
-                    
+
                                     tr {
-                    
+
                                         // The 'th' elements are now sticky to the top of the scrollable container.
                                         th {
                                             style: "position: sticky; top: 0; background: var(--pico-card-background-color);",
@@ -173,7 +180,7 @@ pub fn AddressesScreen() -> Element {
                                     }
                                 }
                                 tbody {
-                    
+
                                     {
                                         addresses
                                             .into_iter()

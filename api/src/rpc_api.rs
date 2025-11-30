@@ -1,3 +1,6 @@
+use std::net::IpAddr;
+use std::net::SocketAddr;
+
 use neptune_cash::application::rpc::auth as rpc_auth;
 use neptune_cash::application::rpc::server::RpcResult;
 use neptune_types::address::KeyType;
@@ -15,9 +18,6 @@ use neptune_types::peer_info::PeerInfo;
 use neptune_types::timestamp::Timestamp;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
-use std::net::IpAddr;
-use std::net::SocketAddr;
-
 use twenty_first::prelude::*;
 
 #[tarpc::service]

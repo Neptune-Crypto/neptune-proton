@@ -1,27 +1,26 @@
-use dioxus::desktop::{Config, WindowBuilder};
-use dioxus::prelude::*;
-use dioxus::desktop::tao::window::Icon;
-use image::ImageReader;
 use std::io::Cursor;
+
+use dioxus::desktop::tao::window::Icon;
+use dioxus::desktop::Config;
+use dioxus::desktop::WindowBuilder;
+use dioxus::prelude::*;
+use image::ImageReader;
 
 fn main() {
     dioxus_logger::init(dioxus_logger::tracing::Level::INFO).expect("failed to init logger");
 
     launch_without_menubar();
-//    dioxus::launch(App);
+    //    dioxus::launch(App);
 }
 
 fn launch_without_menubar() {
-
     // 1. Define a custom WindowBuilder
     let custom_window = WindowBuilder::new()
         .with_title("neptune-core dashboard")
         .with_window_icon(Some(load_icon()));
 
     // 2. Define a custom Desktop Config using the custom WindowBuilder
-    let desktop_config = Config::new()
-        .with_menu(None)
-        .with_window(custom_window);
+    let desktop_config = Config::new().with_menu(None).with_window(custom_window);
 
     // 3. Use LaunchBuilder instead of simple launch() and apply the config
     dioxus::LaunchBuilder::desktop()
@@ -47,10 +46,8 @@ fn load_icon() -> Icon {
     let bytes = image_rgba.into_raw();
 
     // 4. Create the Icon
-    Icon::from_rgba(bytes, width, height)
-        .expect("Failed to create window icon from RGBA bytes.")
+    Icon::from_rgba(bytes, width, height).expect("Failed to create window icon from RGBA bytes.")
 }
-
 
 #[component]
 fn App() -> Element {

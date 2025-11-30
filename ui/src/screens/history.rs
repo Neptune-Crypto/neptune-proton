@@ -1,18 +1,19 @@
 //=============================================================================
 // File: src/screens/history.rs
 //=============================================================================
-use crate::components::amount::Amount;
-use crate::components::block::Block;
-use crate::components::pico::Card;
-use dioxus::prelude::*;
+use std::rc::Rc;
 
+use dioxus::prelude::*;
 use itertools::Itertools;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use neptune_types::timestamp::Timestamp;
 use num_traits::Zero;
-use std::rc::Rc;
 use twenty_first::tip5::Digest;
+
+use crate::components::amount::Amount;
+use crate::components::block::Block;
+use crate::components::pico::Card;
 
 // Enums to manage sorting state
 #[derive(Clone, Copy, PartialEq)]

@@ -1,19 +1,23 @@
 // ui/src/screens/balance.rs
-use crate::components::amount::Amount;
-use crate::components::block::Block;
-use crate::components::pico::Card;
-use crate::components::currency_chooser::{CurrencyChooser, CurrencyInfo};
-use crate::currency::npt_to_fiat;
-use api::prefs::display_preference::DisplayPreference;
-use crate::{AppState, AppStateMut};
+use std::rc::Rc;
+
 use api::fiat_amount::FiatAmount;
 use api::fiat_currency::FiatCurrency;
-use strum::IntoEnumIterator;
+use api::prefs::display_preference::DisplayPreference;
 use dioxus::prelude::*;
 use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use num_traits::CheckedSub;
 use num_traits::Zero;
-use std::rc::Rc;
+use strum::IntoEnumIterator;
+
+use crate::components::amount::Amount;
+use crate::components::block::Block;
+use crate::components::currency_chooser::CurrencyChooser;
+use crate::components::currency_chooser::CurrencyInfo;
+use crate::components::pico::Card;
+use crate::currency::npt_to_fiat;
+use crate::AppState;
+use crate::AppStateMut;
 
 /// A responsive container for a section of the dashboard.
 #[component]
@@ -97,7 +101,6 @@ fn BalanceRow(
     }
 }
 
-
 #[component]
 pub fn BalanceScreen() -> Element {
     let app_state = use_context::<AppState>();
@@ -118,30 +121,30 @@ pub fn BalanceScreen() -> Element {
         match &*dashboard_data.read() {
             None => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Wallet Overview"
                     }
                     p {
-                
+
                         "Loading..."
                     }
                     progress {
-                    
-                
+
+
                     }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Error"
                     }
                     p {
-                
+
                         "Failed to load dashboard data: {e}"
                     }
                     button {
@@ -247,7 +250,7 @@ pub fn BalanceScreen() -> Element {
                                 }
                                 {fiat_mode_active.then(|| rsx! {
                                     small {
-                                    
+
                                         CurrencyChooser {
                                             displayed_id,
                                             preferred_fiat_id,
@@ -288,7 +291,7 @@ pub fn BalanceScreen() -> Element {
                             InfoItem {
                                 label: "Network".to_string(),
                                 span {
-                    
+
                                     "{network}"
                                 }
                             }
@@ -312,14 +315,14 @@ pub fn BalanceScreen() -> Element {
                             InfoItem {
                                 label: "Transactions".to_string(),
                                 span {
-                    
+
                                     "{data.mempool_total_tx_count}"
                                 }
                             }
                             InfoItem {
                                 label: "Size (bytes)".to_string(),
                                 span {
-                    
+
                                     "{data.mempool_size}"
                                 }
                             }
@@ -329,14 +332,14 @@ pub fn BalanceScreen() -> Element {
                             InfoItem {
                                 label: "Connected Peers".to_string(),
                                 span {
-                    
+
                                     "{data.peer_count.unwrap_or_default()}"
                                 }
                             }
                             InfoItem {
                                 label: "Max Peers".to_string(),
                                 span {
-                    
+
                                     "{data.max_num_peers}"
                                 }
                             }
@@ -346,14 +349,14 @@ pub fn BalanceScreen() -> Element {
                             InfoItem {
                                 label: "Mining Status".to_string(),
                                 span {
-                    
+
                                     "{mining_status_str}"
                                 }
                             }
                             InfoItem {
                                 label: "Proving Capability".to_string(),
                                 code {
-                    
+
                                     "{proving_capability_str}"
                                 }
                             }

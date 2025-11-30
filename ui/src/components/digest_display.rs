@@ -1,13 +1,11 @@
-use crate::components::pico::CopyButton;
 use dioxus::prelude::*;
 use twenty_first::tip5::Digest;
 
+use crate::components::pico::CopyButton;
+
 /// A small helper component to display a Digest with a label and copy button.
 #[component]
-pub fn DigestDisplay(
-    digest: Digest,
-    as_code: bool,
-) -> Element {
+pub fn DigestDisplay(digest: Digest, as_code: bool) -> Element {
     let digest_str = digest.to_hex();
     let abbreviated_digest = format!(
         "{}...{}",

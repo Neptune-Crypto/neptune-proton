@@ -4,9 +4,10 @@
 #![allow(non_snake_case)] // Allow PascalCase for component function names
 #![allow(dead_code)] // Allow PascalCase for component function names
 
+use std::time::Duration;
+
 use dioxus::html::input_data::keyboard_types::Key;
 use dioxus::prelude::*;
-use std::time::Duration;
 
 //=============================================================================
 // Layout Components
@@ -326,7 +327,6 @@ pub fn CopyButton(props: CopyButtonProps) -> Element {
     }
 }
 
-
 //=============================================================================
 // Chooser Component
 //=============================================================================
@@ -357,13 +357,14 @@ pub struct ChooserProps {
 pub fn Chooser(mut props: ChooserProps) -> Element {
     let mut is_open = use_signal(|| false);
 
-    let selected_label = props.options
+    let selected_label = props
+        .options
         .iter()
         .find(|(id, _label)| id == &*props.selected.read())
         .map(|(_id, label)| label.clone())
         .unwrap_or_else(|| "Select...".to_string());
 
-    let maybe_label = props.label.as_ref().map(|l| rsx!{ "{l}" });
+    let maybe_label = props.label.as_ref().map(|l| rsx! { "{l}" });
     let style = props.style.as_deref().unwrap_or("");
 
     rsx! {
@@ -419,7 +420,7 @@ pub fn Chooser(mut props: ChooserProps) -> Element {
                                                 }
                                             }
                                             span {
-                                        
+
                                                 "{label}"
                                             }
                                         }

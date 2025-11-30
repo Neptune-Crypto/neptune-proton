@@ -1,14 +1,27 @@
 // ui/src/components/currency_amount_input.rs
-use crate::hooks::use_is_touch_device::use_is_touch_device;
 use dioxus::prelude::*;
-use crate::components::pico::{
-    Button, ButtonType,
-};
+
+use crate::components::pico::Button;
+use crate::components::pico::ButtonType;
+use crate::hooks::use_is_touch_device::use_is_touch_device;
 
 // The NumericKeypad component is unchanged.
 #[component]
 pub fn NumericKeypad(on_key_press: EventHandler<String>, on_close: EventHandler<()>) -> Element {
-    let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "BACKSPACE"];
+    let keys = [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        ".",
+        "0",
+        "BACKSPACE",
+    ];
     let mut active_key_local = use_signal::<Option<String>>(|| None);
 
     let handle_key_down = move |event: Event<KeyboardData>| {
@@ -161,8 +174,14 @@ pub fn CurrencyAmountInput(
         for ch in new_value.chars() {
             if ch.is_ascii_digit() {
                 if has_decimal {
-                    if decimal_digits < max_decimals { sanitized.push(ch); decimal_digits += 1; }
-                } else if integer_digits < max_integers { sanitized.push(ch); integer_digits += 1; }
+                    if decimal_digits < max_decimals {
+                        sanitized.push(ch);
+                        decimal_digits += 1;
+                    }
+                } else if integer_digits < max_integers {
+                    sanitized.push(ch);
+                    integer_digits += 1;
+                }
             } else if ch == '.' && !has_decimal {
                 sanitized.push(ch);
                 has_decimal = true;
@@ -176,7 +195,9 @@ pub fn CurrencyAmountInput(
     let mut handle_new_input_clone = handle_new_input;
 
     let handle_input_keydown = move |event: Event<KeyboardData>| {
-        if is_popup_visible() { event.stop_propagation(); }
+        if is_popup_visible() {
+            event.stop_propagation();
+        }
     };
 
     let mut handle_interaction = move || {

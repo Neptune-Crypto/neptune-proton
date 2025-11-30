@@ -184,28 +184,26 @@ pub async fn fiat_prices() -> Result<PriceMap, ApiError> {
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]
 mod neptune_rpc {
-    use super::rpc_api;
-    use super::ApiError;
     // use neptune_cash::api::export::Transaction;
     // use neptune_cash::api::export::TransactionDetails;
-
     use std::net::Ipv4Addr;
     use std::net::SocketAddr;
 
     use neptune_cash::application::rpc::auth as rpc_auth;
     use neptune_cash::application::rpc::server::RPCClient;
-
     use neptune_types::change_policy::ChangePolicy;
     use neptune_types::native_currency_amount::NativeCurrencyAmount;
     use neptune_types::network::Network;
     use neptune_types::output_format::OutputFormat;
     use neptune_types::transaction_details::TransactionDetails;
     use neptune_types::transaction_kernel_id::TransactionKernelId;
-
     use tarpc::client;
     use tarpc::context;
     use tarpc::tokio_serde::formats::Json;
     use tokio::sync::OnceCell;
+
+    use super::rpc_api;
+    use super::ApiError;
 
     fn neptune_core_rpc_port() -> u16 {
         const DEFAULT_PORT: u16 = 9799;

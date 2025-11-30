@@ -1,10 +1,12 @@
 //! Provides a specialized map for storing NPT prices against various fiat currencies.
 
-use crate::fiat_amount::FiatAmount;
-use crate::fiat_currency::FiatCurrency;
+use std::collections::HashMap;
+
 use serde::Deserialize;
 use serde::Serialize;
-use std::collections::HashMap;
+
+use crate::fiat_amount::FiatAmount;
+use crate::fiat_currency::FiatCurrency;
 
 /// A map holding the price of one NPT token in various fiat currencies.
 ///

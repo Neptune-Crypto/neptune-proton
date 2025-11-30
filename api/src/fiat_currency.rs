@@ -4,7 +4,21 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// Represents a fiat currency, containing its code, symbol, and formatting rules.
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize, Deserialize, Default, strum::EnumIs, strum::EnumIter, strum::EnumString, strum::IntoStaticStr)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    Default,
+    strum::EnumIs,
+    strum::EnumIter,
+    strum::EnumString,
+    strum::IntoStaticStr,
+)]
 #[strum(ascii_case_insensitive)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum FiatCurrency {

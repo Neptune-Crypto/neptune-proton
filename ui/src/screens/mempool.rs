@@ -1,19 +1,20 @@
 //=============================================================================
 // File: src/screens/mempool.rs
 //=============================================================================
-use crate::components::amount::Amount;
-use crate::components::amount::AmountType;
-use crate::components::pico::Card;
-use crate::components::action_link::ActionLink;
-use crate::Screen;
-use dioxus::prelude::*;
-use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
-use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
 
+use dioxus::prelude::*;
+use neptune_types::mempool_transaction_info::MempoolTransactionInfo;
+use neptune_types::native_currency_amount::NativeCurrencyAmount;
 use num_traits::CheckedSub;
+
+use crate::components::action_link::ActionLink;
+use crate::components::amount::Amount;
+use crate::components::amount::AmountType;
+use crate::components::pico::Card;
+use crate::Screen;
 
 // Enums to manage sorting state
 #[derive(Clone, Copy, PartialEq)]

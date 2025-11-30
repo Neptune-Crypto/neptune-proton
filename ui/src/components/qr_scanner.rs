@@ -2,35 +2,33 @@
 // File: src/components/qr_scanner.rs
 //=============================================================================
 
-use dioxus::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// --- Platform Implementation Selector ---
-
-// Tier 1 (Web/Mobile): Uses WebView/JS APIs.
-// Now strictly for WASM and Mobile targets.
-#[cfg(any(
-    target_arch = "wasm32",
-    target_os = "android",
-    target_os = "ios"
-))]
-use self::web_impl as platform_impl;
+use dioxus::prelude::*;
+use serde::Deserialize;
+use serde::Serialize;
 
 // Tier 2 (Desktop): Uses Native Rust (Nokhwa).
 // UNIFIED: Linux, Windows, and macOS all use the native path now.
-#[cfg(all(feature = "dioxus-desktop", any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+#[cfg(all(
+    feature = "dioxus-desktop",
+    any(target_os = "linux", target_os = "windows", target_os = "macos")
+))]
 use self::native_impl as platform_impl;
-
 // Tier 3 (Server/Unknown): Stub
 #[cfg(all(
     not(target_arch = "wasm32"),
     not(feature = "dioxus-desktop"),
     not(target_os = "android"),
-    not(target_os = "ios")    
+    not(target_os = "ios")
 ))]
 use self::server_impl as platform_impl;
+// --- Platform Implementation Selector ---
 
+// Tier 1 (Web/Mobile): Uses WebView/JS APIs.
+// Now strictly for WASM and Mobile targets.
+#[cfg(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))]
+use self::web_impl as platform_impl;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VideoDevice {
@@ -41,12 +39,24 @@ pub struct VideoDevice {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum ScannerMessage {
-    Status { msg: String },
-    Error { msg: String },
-    Content { value: String },
-    DeviceList { devices: Vec<VideoDevice> },
+    Status {
+        msg: String,
+    },
+    Error {
+        msg: String,
+    },
+    Content {
+        value: String,
+    },
+    DeviceList {
+        devices: Vec<VideoDevice>,
+    },
     // Used specifically by Desktop to push frames to the UI
-    FrameBase64 { data: String, width: u32, height: u32 },
+    FrameBase64 {
+        data: String,
+        width: u32,
+        height: u32,
+    },
 }
 
 #[component]
@@ -76,16 +86,23 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
                     ScannerMessage::Status { msg } => scanner_status.set(msg),
                     ScannerMessage::Error { msg } => {
                         // The error filtering is essential here, as global errors may still be caught.
-                        let is_cosmetic_linux_error = cfg!(all(feature = "dioxus-desktop", target_os = "linux")) &&
-                                                      msg.contains("CameraFormat: Failed to Fufill");
+                        let is_cosmetic_linux_error =
+                            cfg!(all(feature = "dioxus-desktop", target_os = "linux"))
+                                && msg.contains("CameraFormat: Failed to Fufill");
 
                         if !is_cosmetic_linux_error {
                             error_message.set(Some(msg));
                         }
-                    },
+                    }
                     ScannerMessage::Content { value } => {
-                        handle_scan_result(value, on_scan, on_close, &mut scanned_parts, &mut total_parts);
-                    },
+                        handle_scan_result(
+                            value,
+                            on_scan,
+                            on_close,
+                            &mut scanned_parts,
+                            &mut total_parts,
+                        );
+                    }
                     ScannerMessage::DeviceList { devices } => {
                         if video_devices.read().len() != devices.len() {
                             if selected_device_id.read().is_empty() {
@@ -95,8 +112,12 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
                             }
                             video_devices.set(devices);
                         }
-                    },
-                    ScannerMessage::FrameBase64 { data, width, height } => {
+                    }
+                    ScannerMessage::FrameBase64 {
+                        data,
+                        width,
+                        height,
+                    } => {
                         // Nokhwa (Desktop) uses this to render frames via JS eval
                         let js = format!(
                             r#"
@@ -122,8 +143,10 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
         });
     });
 
-    let error_display = error_message.read().as_ref().map(|err| rsx! {
-        p { style: "color: var(--pico-color-red-500);", "{err}" }
+    let error_display = error_message.read().as_ref().map(|err| {
+        rsx! {
+            p { style: "color: var(--pico-color-red-500);", "{err}" }
+        }
     });
 
     // Determine status text
@@ -131,7 +154,11 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
 
     let status_text = if *total_parts.read() > 0 {
         // Multi-part scan in progress
-        format!("Scan Progress: {} of {}", scanned_parts.read().len(), total_parts.read())
+        format!(
+            "Scan Progress: {} of {}",
+            scanned_parts.read().len(),
+            total_parts.read()
+        )
     } else if is_scanning_live {
         // Live feed is active, show prompt to user
         "Aim camera at QR code...".to_string()
@@ -139,7 +166,6 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
         // Initializing or loading
         scanner_status.read().clone()
     };
-
 
     let progress_indicator = if *total_parts.read() > 0 {
         rsx! {
@@ -188,7 +214,11 @@ pub fn QrScanner(on_scan: EventHandler<String>, on_close: EventHandler<()>) -> E
         rsx! {}
     };
 
-    let flip_style = if *mirror_feed.read() { "scaleX(-1)" } else { "scaleX(1)" };
+    let flip_style = if *mirror_feed.read() {
+        "scaleX(-1)"
+    } else {
+        "scaleX(1)"
+    };
     let flip_button_text = "Flip \u{21C6}".to_string();
 
     // --- UI Layout ---
@@ -261,7 +291,7 @@ fn handle_scan_result(
     on_scan: EventHandler<String>,
     on_close: EventHandler<()>,
     scanned_parts: &mut Signal<HashMap<usize, String>>,
-    total_parts: &mut Signal<usize>
+    total_parts: &mut Signal<usize>,
 ) {
     if !content.starts_with('P') || content.chars().filter(|&c| c == '/').count() != 2 {
         on_scan.call(content);
@@ -269,12 +299,25 @@ fn handle_scan_result(
     } else {
         let parts: Vec<&str> = content.splitn(3, '/').collect();
         if parts.len() == 3 {
-            if let (Ok(part_num), Ok(total)) = (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>()) {
-                if *total_parts.read() == 0 { total_parts.set(total); }
-                scanned_parts.write().entry(part_num).or_insert_with(|| parts[2].to_string());
+            if let (Ok(part_num), Ok(total)) =
+                (parts[0][1..].parse::<usize>(), parts[1].parse::<usize>())
+            {
+                if *total_parts.read() == 0 {
+                    total_parts.set(total);
+                }
+                scanned_parts
+                    .write()
+                    .entry(part_num)
+                    .or_insert_with(|| parts[2].to_string());
                 if scanned_parts.read().len() == *total_parts.read() {
                     let mut result = String::new();
-                    let reassembly_ok = (1..=*total_parts.read()).all(|i| scanned_parts.read().get(&i).map(|chunk| result.push_str(chunk)).is_some());
+                    let reassembly_ok = (1..=*total_parts.read()).all(|i| {
+                        scanned_parts
+                            .read()
+                            .get(&i)
+                            .map(|chunk| result.push_str(chunk))
+                            .is_some()
+                    });
                     if reassembly_ok {
                         on_scan.call(result);
                         on_close.call(());
@@ -288,23 +331,24 @@ fn handle_scan_result(
 //=============================================================================
 // IMPLEMENTATION 1: WEB/MOBILE (JS / WebView)
 //=============================================================================
-#[cfg(any(
-    target_arch = "wasm32",
-    target_os = "android",
-    target_os = "ios"
-))]
+#[cfg(any(target_arch = "wasm32", target_os = "android", target_os = "ios"))]
 mod web_impl {
-    use super::{ScannerMessage, VideoDevice};
     use dioxus::prelude::*;
+
+    use super::ScannerMessage;
+    use super::VideoDevice;
 
     const JS_QR_SOURCE: &str = include_str!("../../assets/js/jsQR.js");
 
-    pub async fn start_scanner(device_id: &str) -> tokio::sync::mpsc::UnboundedReceiver<ScannerMessage> {
+    pub async fn start_scanner(
+        device_id: &str,
+    ) -> tokio::sync::mpsc::UnboundedReceiver<ScannerMessage> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let tx = std::sync::Arc::new(tx);
         let requested_device_id = device_id.to_string();
 
-        let script = format!(r#"
+        let script = format!(
+            r#"
             // 1. Inject the bundled JS Library
             {library_code}
 
@@ -371,7 +415,10 @@ mod web_impl {
                 }}
             }}
             run();
-        "#, library_code = JS_QR_SOURCE, req_id = requested_device_id);
+        "#,
+            library_code = JS_QR_SOURCE,
+            req_id = requested_device_id
+        );
 
         spawn(async move {
             let mut eval = document::eval(&script);
@@ -386,17 +433,28 @@ mod web_impl {
 //=============================================================================
 // IMPLEMENTATION 2: LINUX/WINDOWS/MACOS (Native Rust / Nokhwa)
 //=============================================================================
-#[cfg(all(feature = "dioxus-desktop", any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+#[cfg(all(
+    feature = "dioxus-desktop",
+    any(target_os = "linux", target_os = "windows", target_os = "macos")
+))]
 mod native_impl {
-    use super::{ScannerMessage, VideoDevice};
-    use base64::engine::{general_purpose::STANDARD as BASE64_STANDARD, Engine};
-    use nokhwa::pixel_format::RgbFormat;
-    use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType};
-    use nokhwa::Camera;
     use std::collections::HashSet;
     use std::thread;
 
-    pub async fn start_scanner(device_id: &str) -> tokio::sync::mpsc::UnboundedReceiver<ScannerMessage> {
+    use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+    use base64::engine::Engine;
+    use nokhwa::pixel_format::RgbFormat;
+    use nokhwa::utils::CameraIndex;
+    use nokhwa::utils::RequestedFormat;
+    use nokhwa::utils::RequestedFormatType;
+    use nokhwa::Camera;
+
+    use super::ScannerMessage;
+    use super::VideoDevice;
+
+    pub async fn start_scanner(
+        device_id: &str,
+    ) -> tokio::sync::mpsc::UnboundedReceiver<ScannerMessage> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
         let req_index = if let Ok(idx) = device_id.parse::<u32>() {
@@ -406,14 +464,14 @@ mod native_impl {
         };
 
         thread::spawn(move || {
-            let requested = RequestedFormat::new::<RgbFormat>(
-                RequestedFormatType::Closest(nokhwa::utils::CameraFormat::new_from(
+            let requested = RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(
+                nokhwa::utils::CameraFormat::new_from(
                     640,
                     480,
                     nokhwa::utils::FrameFormat::MJPEG,
                     30,
-                )),
-            );
+                ),
+            ));
 
             // --- Camera Initialization ---
             let camera_result = Camera::new(req_index.clone(), requested);
@@ -422,8 +480,12 @@ mod native_impl {
                 Ok(mut c) => {
                     let _ = c.open_stream();
                     c
-                },
-                Err(e) if e.to_string().contains("Could not get device property CameraFormat") || e.to_string().contains("CameraFormat: Failed to Fufill") => {
+                }
+                Err(e)
+                    if e.to_string()
+                        .contains("Could not get device property CameraFormat")
+                        || e.to_string().contains("CameraFormat: Failed to Fufill") =>
+                {
                     // Cosmetic error, silent exit.
                     return;
                 }
@@ -439,18 +501,25 @@ mod native_impl {
             // Enumerate Devices and Deduplicate
             if let Ok(devices) = nokhwa::query(nokhwa::utils::ApiBackend::Auto) {
                 let mut seen_labels = HashSet::new();
-                let list: Vec<VideoDevice> = devices.into_iter().filter_map(|d| {
-                    let label = d.human_name();
-                    // Deduplicate cameras based on their human-readable name
-                    if seen_labels.insert(label.clone()) {
-                        Some(VideoDevice {
-                            id: if let CameraIndex::Index(n) = d.index() { n.to_string() } else { "0".into() },
-                            label,
-                        })
-                    } else {
-                        None
-                    }
-                }).collect();
+                let list: Vec<VideoDevice> = devices
+                    .into_iter()
+                    .filter_map(|d| {
+                        let label = d.human_name();
+                        // Deduplicate cameras based on their human-readable name
+                        if seen_labels.insert(label.clone()) {
+                            Some(VideoDevice {
+                                id: if let CameraIndex::Index(n) = d.index() {
+                                    n.to_string()
+                                } else {
+                                    "0".into()
+                                },
+                                label,
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
                 let _ = tx.send(ScannerMessage::DeviceList { devices: list });
             }
 
@@ -458,14 +527,17 @@ mod native_impl {
             let mut is_first_frame = true;
 
             loop {
-                if tx.is_closed() { break; }
+                if tx.is_closed() {
+                    break;
+                }
 
                 if let Ok(frame) = camera.frame() {
                     if let Ok(decoded) = frame.decode_image::<RgbFormat>() {
-
                         // FIX: Send status only after the first successful frame
                         if is_first_frame {
-                            let _ = tx.send(ScannerMessage::Status { msg: "Scanning (Live Feed)...".into() });
+                            let _ = tx.send(ScannerMessage::Status {
+                                msg: "Scanning (Live Feed)...".into(),
+                            });
                             is_first_frame = false;
                         }
 
@@ -477,11 +549,21 @@ mod native_impl {
 
                         // 1. Send Frame to UI (MJPEG quality 60 for speed)
                         let mut writer = std::io::Cursor::new(&mut jpeg_data);
-                        let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut writer, 60);
+                        let mut encoder =
+                            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut writer, 60);
 
                         if encoder.encode_image(&dyn_img).is_ok() {
                             let b64 = BASE64_STANDARD.encode(&jpeg_data);
-                            if tx.send(ScannerMessage::FrameBase64 { data: b64, width, height }).is_err() { break; }
+                            if tx
+                                .send(ScannerMessage::FrameBase64 {
+                                    data: b64,
+                                    width,
+                                    height,
+                                })
+                                .is_err()
+                            {
+                                break;
+                            }
                         }
 
                         // 2. Scan for QR (throttled to 5fps)
@@ -491,7 +573,10 @@ mod native_impl {
                             let mut img = rqrr::PreparedImage::prepare(gray_img);
                             if let Some(grid) = img.detect_grids().first() {
                                 if let Ok((_, content)) = grid.decode() {
-                                    if tx.send(ScannerMessage::Content { value: content }).is_err() { break; }
+                                    if tx.send(ScannerMessage::Content { value: content }).is_err()
+                                    {
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -512,7 +597,7 @@ mod native_impl {
     not(target_arch = "wasm32"),
     not(feature = "dioxus-desktop"),
     not(target_os = "android"),
-    not(target_os = "ios")     
+    not(target_os = "ios")
 ))]
 mod server_impl {
     use super::ScannerMessage;

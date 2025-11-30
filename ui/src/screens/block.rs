@@ -1,9 +1,11 @@
 // src/screens/block.rs
-use crate::components::pico::{Card, CopyButton};
 use dioxus::prelude::*;
 use neptune_types::block_info::BlockInfo;
 use neptune_types::block_selector::BlockSelector;
 use twenty_first::tip5::Digest;
+
+use crate::components::pico::Card;
+use crate::components::pico::CopyButton;
 
 /// A small helper component to display a Digest with a label and copy button.
 #[component]

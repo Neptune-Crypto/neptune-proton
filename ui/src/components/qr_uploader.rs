@@ -1,10 +1,12 @@
 //=============================================================================
 // File: src/components/qr_uploader.rs
 //=============================================================================
+use dioxus::prelude::*;
+
 use crate::compat;
 use crate::components::pico::Button;
-use crate::components::qr_processor::{QrProcessResult, QrProcessor};
-use dioxus::prelude::*;
+use crate::components::qr_processor::QrProcessResult;
+use crate::components::qr_processor::QrProcessor;
 
 mod svg_reader {
     use image::GrayImage;
@@ -12,7 +14,9 @@ mod svg_reader {
     use quick_xml::Reader;
     use quick_xml::Writer;
     use resvg::tiny_skia;
-    use usvg::{fontdb, Transform, Tree};
+    use usvg::fontdb;
+    use usvg::Transform;
+    use usvg::Tree;
 
     /// Extracts the viewBox and the visual data for each frame from our SVG format.
     pub fn extract_svg_details(svg_data: &str) -> Result<(String, Vec<String>), String> {

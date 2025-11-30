@@ -1,12 +1,14 @@
 //=============================================================================
 // File: src/components/address.rs
 //=============================================================================
-use crate::Screen;
+use std::rc::Rc;
+
 use dioxus::prelude::*;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::block_selector::BlockSelector;
-use std::rc::Rc;
 use twenty_first::tip5::Digest;
+
+use crate::Screen;
 
 #[derive(Props, PartialEq, Clone)]
 pub struct BlockProps {

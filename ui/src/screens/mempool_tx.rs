@@ -1,19 +1,19 @@
 // src/screens/mempool_tx.rs
-use crate::components::pico::{Card, CopyButton};
 use dioxus::prelude::*;
-use neptune_types::{
-    announcement::Announcement,
-    mutator_set::{
-        addition_record::AdditionRecord,
-        chunk::Chunk,
-        chunk_dictionary::ChunkDictionary,
-        removal_record::{absolute_index_set::AbsoluteIndexSet, RemovalRecord},
-    },
-    native_currency_amount::NativeCurrencyAmount,
-    transaction_kernel_id::TransactionKernelId,
-};
+use neptune_types::announcement::Announcement;
+use neptune_types::mutator_set::addition_record::AdditionRecord;
+use neptune_types::mutator_set::chunk::Chunk;
+use neptune_types::mutator_set::chunk_dictionary::ChunkDictionary;
+use neptune_types::mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_types::mutator_set::removal_record::RemovalRecord;
+use neptune_types::native_currency_amount::NativeCurrencyAmount;
+use neptune_types::transaction_kernel_id::TransactionKernelId;
 use num_traits::Zero;
-use twenty_first::{tip5::Digest, util_types::mmr::mmr_membership_proof::MmrMembershipProof};
+use twenty_first::tip5::Digest;
+use twenty_first::util_types::mmr::mmr_membership_proof::MmrMembershipProof;
+
+use crate::components::pico::Card;
+use crate::components::pico::CopyButton;
 
 // --- Helper & Sub-Components ---
 
@@ -268,45 +268,45 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                 div {
                     style: "text-align: center; padding: 2rem;",
                     h4 {
-                
+
                         "Loading transaction details..."
                     }
                 }
             },
             Some(Err(e)) => rsx! {
                 Card {
-                
+
                     h3 {
                         style: "color: var(--pico-color-red-500);",
                         "Error"
                     }
                     p {
-                
+
                         "Could not fetch transaction details from the mempool."
                     }
                     hr {
-                    
-                
+
+
                     }
                     h5 {
-                
+
                         "Details:"
                     }
                     code {
-                
+
                         "{e}"
                     }
                 }
             },
             Some(Ok(None)) => rsx! {
                 Card {
-                
+
                     h3 {
-                
+
                         "Not Found"
                     }
                     p {
-                
+
                         "Transaction with ID was not found in the mempool:"
                     }
                     div {
@@ -324,9 +324,9 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
             Some(Ok(Some(kernel))) => {
                 rsx! {
                     Card {
-                    
+
                         h3 {
-                    
+
                             "Mempool Transaction Details"
                         }
                         // --- Transaction ID Header ---
@@ -348,8 +348,8 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                             }
                         }
                         hr {
-                        
-                    
+
+
                         }
                         // --- Summary Section ---
                         h5 {
@@ -359,57 +359,57 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                         div {
                             style: "display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: center;",
                             strong {
-                    
+
                                 "Timestamp:"
                             }
                             span {
-                    
+
                                 "{kernel.timestamp.standard_format()}"
                             }
                             strong {
-                    
+
                                 "Fee:"
                             }
                             span {
-                    
+
                                 "{kernel.fee}"
                             }
                             strong {
-                    
+
                                 "Coinbase:"
                             }
                             span {
-                    
+
                                 "{kernel.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}"
                             }
                             strong {
-                    
+
                                 "Inputs:"
                             }
                             span {
-                    
+
                                 "{kernel.inputs.len()}"
                             }
                             strong {
-                    
+
                                 "Outputs:"
                             }
                             span {
-                    
+
                                 "{kernel.outputs.len()}"
                             }
                             strong {
-                    
+
                                 "Announcements:"
                             }
                             span {
-                    
+
                                 "{kernel.announcements.len()}"
                             }
                         }
                         hr {
-                        
-                    
+
+
                         }
                         // --- Details Section ---
                         h5 {
@@ -422,9 +422,9 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                         }
                         // --- Collapsible Lists with new components ---
                         details {
-                    
+
                             summary {
-                    
+
                                 "Inputs ({kernel.inputs.len()})"
                             }
                             div {
@@ -439,9 +439,9 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                             }
                         }
                         details {
-                    
+
                             summary {
-                    
+
                                 "Outputs ({kernel.outputs.len()})"
                             }
                             div {
@@ -456,9 +456,9 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                             }
                         }
                         details {
-                    
+
                             summary {
-                    
+
                                 "Announcements ({kernel.announcements.len()})"
                             }
                             div {

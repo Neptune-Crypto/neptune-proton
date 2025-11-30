@@ -1,11 +1,13 @@
 //! Provides a safe, self-contained type for representing fiat currency amounts.
 
-use crate::fiat_currency::FiatCurrency;
 use std::fmt;
-use thiserror::Error;
 use std::ops::Add;
 use std::ops::AddAssign;
+
 use num_traits::CheckedAdd;
+use thiserror::Error;
+
+use crate::fiat_currency::FiatCurrency;
 
 /// An error that can occur when parsing a string into a `FiatAmount`.
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -127,7 +129,9 @@ impl FiatAmount {
         };
 
         let scaling_factor = 10_i64.pow(decimals - minor_str.len() as u32);
-        let scaled_minor_units = minor_units.checked_mul(scaling_factor).ok_or(ParseFiatAmountError::InvalidFormat)?;
+        let scaled_minor_units = minor_units
+            .checked_mul(scaling_factor)
+            .ok_or(ParseFiatAmountError::InvalidFormat)?;
 
         let multiplier = 10_i64.pow(decimals);
         let mut total_minor_units = major_units
@@ -187,7 +191,10 @@ impl Add for FiatAmount {
 
     fn add(self, rhs: Self) -> Self::Output {
         if self.currency != rhs.currency {
-            panic!("Cannot add amounts of different currencies: {:?} and {:?}", self.currency, rhs.currency);
+            panic!(
+                "Cannot add amounts of different currencies: {:?} and {:?}",
+                self.currency, rhs.currency
+            );
         }
         Self {
             amount: self.amount + rhs.amount,
@@ -200,7 +207,10 @@ impl Add for FiatAmount {
 impl AddAssign for FiatAmount {
     fn add_assign(&mut self, rhs: Self) {
         if self.currency != rhs.currency {
-            panic!("Cannot add amounts of different currencies: {:?} and {:?}", self.currency, rhs.currency);
+            panic!(
+                "Cannot add amounts of different currencies: {:?} and {:?}",
+                self.currency, rhs.currency
+            );
         }
         self.amount += rhs.amount;
     }
@@ -218,4 +228,3 @@ impl CheckedAdd for FiatAmount {
         })
     }
 }
-
