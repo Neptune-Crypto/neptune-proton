@@ -29,6 +29,7 @@ use screens::mempool_tx::MempoolTxScreen;
 use screens::peers::PeersScreen;
 use screens::receive::ReceiveScreen;
 use screens::send::SendScreen;
+use hooks::use_rpc_checker::{use_rpc_checker, NeptuneRpcConnectionStatus};
 
 /// Enum to represent the different screens in our application.
 #[derive(Clone, PartialEq, Default)]
@@ -343,54 +344,102 @@ pub fn App() -> Element {
 
 #[component]
 fn AppBody() -> Element {
-    // this will be processed on server before initial page is delivered.
-    let initial_data_future = use_server_future(move || async move {
-        // call the server apis concurrently
-        let (network_result, prefs_result) = tokio::join!(api::network(), api::get_user_prefs());
+    // 1. Initial Load (runs on server, hydrates on client).
+    // We unwrap() here to fix the compiler error, because we know the hook initializes.
+    // We removed '?' so it does NOT suspend.
+    let mut initial_data_future = use_server_future(move || async move {
+        dioxus_logger::tracing::info!("CALLING BACKEND APIs");
 
-        let network = match network_result {
-            Ok(n) => n,
-            Err(e) => return Err(e),
-        };
-        let user_prefs = match prefs_result {
-            Ok(p) => p,
-            Err(e) => return Err(e),
-        };
-
-        dioxus_logger::tracing::info!("prefs: {:#?}", user_prefs);
-
-        Ok((network, user_prefs))
+        let (network, prefs) = tokio::join!(api::network(), api::get_user_prefs());
+        (
+            network.map_err(|e| e.to_string()),
+            prefs.map_err(|e| e.to_string())
+        )
     })?;
 
-    // Read from the single future to ensure it's polled during SSR.
-    let body = match &*initial_data_future.read() {
-        Some(Ok((network, prefs))) => {
+    // 2. Read current state
+    let current_result = initial_data_future.read();
+
+    let needs_retry = match &*current_result {
+        Some((Err(_), _)) | Some((_, Err(_))) => true,
+        _ => false,
+    };
+
+    // 3. The "Old School" Loop
+    // This is a detached task that only spawns if we are in an error state.
+    // It does NOT rely on Dioxus resource reloading. It just loops until it wins.
+    use_effect(move || {
+        if needs_retry {
+            spawn(async move {
+                loop {
+                    // Sleep first (or between retries)
+                    compat::sleep(std::time::Duration::from_secs(3)).await;
+
+                    // Manual Check: Is backend alive?
+                    // We use block_height as a cheap ping.
+                    if api::block_height().await.is_ok() {
+                        // SUCCESS! Backend is back.
+                        // Force the main data future to reload itself now that it's safe.
+                        initial_data_future.restart();
+                        break;
+                    }
+                }
+            });
+        }
+    });
+
+    match &*current_result {
+        Some((Ok(network), Ok(user_prefs))) => rsx! {
+            LoadedApp {
+                app_state: AppState::new(*network),
+                user_prefs: user_prefs.clone(),
+            }
+        },
+        Some((Err(e), _)) | Some((_, Err(e))) => {
+             // SSR Failure or Client-side hydration of that failure
+             rsx! {
+                ConnectionModal {
+                    explicit_error: Some(format!("Failed to connect: {}", e))
+                }
+            }
+        },
+        _ => {
+            // Loading state (or initial_data_future.restart() was called)
             rsx! {
-                LoadedApp {
-                    app_state: AppState::new(*network),
-                    user_prefs: *prefs,
+                ConnectionModal {
+                    explicit_error: Some("Connecting to Neptune Core...".to_string())
                 }
             }
         }
-        Some(Err(e)) => rsx! {
-            p {
-                "An error occurred: {e}"
-            }
-        },
-        _ => rsx! {
-            p {
-                "Loading..."
-            }
-        },
-    };
-    body
+    }
 }
+
 
 /// This component holds the main app logic and only runs when data is ready.
 #[component]
 fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
     // Provide the stable, non-reactive AppState.
     use_context_provider(|| app_state.clone());
+
+    // --- GLOBAL CONNECTION STATE ---
+    // Start Connected because AppBody guaranteed we have data.
+    let mut connection_status = use_signal(|| NeptuneRpcConnectionStatus::Connected);
+    use_context_provider(|| connection_status);
+
+    // --- RECOVERY LOOP (POLLING) ---
+    // Runs only when disconnected during runtime.
+    use_resource(move || async move {
+        if let NeptuneRpcConnectionStatus::Disconnected(_) = connection_status() {
+            loop {
+                compat::sleep(std::time::Duration::from_secs(3)).await;
+                // We use block_height as a lightweight ping
+                if api::block_height().await.is_ok() {
+                    connection_status.set(NeptuneRpcConnectionStatus::Connected);
+                    break;
+                }
+            }
+        }
+    });
 
     // Create signals for mutable state at the top level of the component.
     let prices_signal = use_signal(|| None);
@@ -460,6 +509,9 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
         ""
     };
     rsx! {
+        // Modal reads from Context (no explicit_error passed)
+        ConnectionModal {}
+
         if view_mode() == ViewMode::Desktop {
             div {
                 class: "app-main-container",
@@ -599,6 +651,55 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn ConnectionModal(explicit_error: Option<Option<String>>) -> Element {
+    // Try to get context. It might not exist if called from AppBody.
+    let status_signal = try_use_context::<Signal<NeptuneRpcConnectionStatus>>();
+
+    let (show, msg) = if let Some(Some(err)) = explicit_error {
+        // Case 1: AppBody passing an explicit error/loading string
+        (true, err)
+    } else if let Some(signal) = status_signal {
+        // Case 2: LoadedApp using context
+        match *signal.read() {
+            NeptuneRpcConnectionStatus::Connected => (false, String::new()),
+            NeptuneRpcConnectionStatus::Disconnected(ref m) => (true, m.clone()),
+        }
+    } else {
+        // Case 3: Fallback (shouldn't happen in logic above)
+        (false, String::new())
+    };
+
+    if !show {
+        return rsx! {};
+    }
+
+    rsx! {
+        div {
+            style: "
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 9999;
+                display: flex; justify-content: center; align-items: center;
+                backdrop-filter: blur(5px);
+            ",
+            article {
+                style: "max-width: 500px; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);",
+                h4 { "Neptune-Core Connection" }
+                p { "{msg}" }
+                p { "Please check if neptune-core is running" }
+                div {
+                    class: "aria-busy",
+                    style: "margin-top: 1rem;",
+                    "Attempting to connect..."
+                }
+                progress {
                 }
             }
         }

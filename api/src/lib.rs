@@ -45,8 +45,49 @@ pub async fn get_user_prefs() -> Result<UserPrefs, ApiError> {
 
 #[post("/api/network")]
 pub async fn network() -> Result<Network, ApiError> {
-    neptune_rpc::network().await
+    println!("DEBUG: [network] Called");
+
+    // 1. Connection
+    println!("DEBUG: [network] calling rpc_client()...");
+    let client_res = neptune_rpc::rpc_client().await;
+
+    let client = match client_res {
+        Ok(c) => {
+            println!("DEBUG: [network] rpc_client obtained successfully");
+            c
+        }
+        Err(e) => {
+            println!("DEBUG: [network] rpc_client failed: {:?}", e);
+            // If this prints and then the frontend says "Shutdown",
+            // it confirms the crash happens when returning this error.
+            return Err(e);
+        }
+    };
+
+    // 2. Execution
+    println!("DEBUG: [network] calling client.network(context)...");
+    let result = client.network(tarpc::context::current()).await;
+
+    match result {
+        Ok(Ok(n)) => {
+            println!("DEBUG: [network] Success: {:?}", n);
+            Ok(n)
+        },
+        Ok(Err(e)) => {
+            println!("DEBUG: [network] Logic Error from Core: {:?}", e);
+            Err(e.into())
+        },
+        Err(e) => {
+            // This is the Tarpc Transport error (Shutdown/BrokenPipe)
+            println!("DEBUG: [network] Transport Error: {:?}", e);
+            Err(e.into())
+        }
+    }
 }
+
+// pub async fn network() -> Result<Network, ApiError> {
+//     neptune_rpc::network().await
+// }
 
 #[post("/api/wallet_balance")]
 pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ApiError> {
@@ -54,7 +95,7 @@ pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ApiError> {
     let token = neptune_rpc::get_token().await?;
 
     let balance = client
-        .confirmed_available_balance(tarpc::context::current(), *token)
+        .confirmed_available_balance(tarpc::context::current(), token)
         .await??;
 
     let json = serde_json::to_string(&balance)?;
@@ -69,7 +110,7 @@ pub async fn block_height() -> Result<BlockHeight, ApiError> {
     let token = neptune_rpc::get_token().await?;
 
     let height = client
-        .block_height(tarpc::context::current(), *token)
+        .block_height(tarpc::context::current(), token)
         .await??;
     Ok(height.into())
 }
@@ -80,7 +121,7 @@ pub async fn known_keys() -> Result<Vec<SpendingKey>, ApiError> {
     let token = neptune_rpc::get_token().await?;
 
     let known_keys = client
-        .known_keys(tarpc::context::current(), *token)
+        .known_keys(tarpc::context::current(), token)
         .await??;
     Ok(known_keys)
 }
@@ -91,7 +132,7 @@ pub async fn next_receiving_address(key_type: KeyType) -> Result<ReceivingAddres
     let token = neptune_rpc::get_token().await?;
 
     let address = client
-        .next_receiving_address(tarpc::context::current(), *token, key_type)
+        .next_receiving_address(tarpc::context::current(), token, key_type)
         .await??;
     Ok(address)
 }
@@ -112,7 +153,7 @@ pub async fn history(
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
-    let history = client.history(tarpc::context::current(), *token).await??;
+    let history = client.history(tarpc::context::current(), token).await??;
     Ok(history)
 }
 
@@ -125,7 +166,7 @@ pub async fn mempool_overview(
     let token = neptune_rpc::get_token().await?;
 
     let data = client
-        .mempool_overview(tarpc::context::current(), *token, start_index, number)
+        .mempool_overview(tarpc::context::current(), token, start_index, number)
         .await??;
     Ok(data)
 }
@@ -138,7 +179,7 @@ pub async fn mempool_tx_kernel(
     let token = neptune_rpc::get_token().await?;
 
     let data = client
-        .mempool_tx_kernel(tarpc::context::current(), *token, txid)
+        .mempool_tx_kernel(tarpc::context::current(), token, txid)
         .await??;
     Ok(data)
 }
@@ -149,7 +190,7 @@ pub async fn block_info(selector: BlockSelector) -> Result<Option<BlockInfo>, Ap
     let token = neptune_rpc::get_token().await?;
 
     let data = client
-        .block_info(tarpc::context::current(), *token, selector)
+        .block_info(tarpc::context::current(), token, selector)
         .await??;
     Ok(data)
 }
@@ -160,7 +201,7 @@ pub async fn dashboard_overview_data() -> Result<DashBoardOverviewDataFromClient
     let token = neptune_rpc::get_token().await?;
 
     let data = client
-        .dashboard_overview_data(tarpc::context::current(), *token)
+        .dashboard_overview_data(tarpc::context::current(), token)
         .await??;
     Ok(data)
 }
@@ -171,7 +212,7 @@ pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ApiError> {
     let token = neptune_rpc::get_token().await?;
 
     let data = client
-        .peer_info(tarpc::context::current(), *token)
+        .peer_info(tarpc::context::current(), token)
         .await??;
     Ok(data)
 }
@@ -205,6 +246,11 @@ mod neptune_rpc {
     use super::rpc_api;
     use super::ApiError;
 
+    // Added imports for retry logic
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+    use tokio::sync::Mutex;
+
     fn neptune_core_rpc_port() -> u16 {
         const DEFAULT_PORT: u16 = 9799;
         std::env::var("NEPTUNE_CORE_RPC_PORT")
@@ -233,14 +279,52 @@ mod neptune_rpc {
         Ok(RPCClient::new(client::Config::default(), transport).spawn())
     }
 
-    pub async fn rpc_client() -> Result<&'static rpc_api::RPCClient, ApiError> {
-        static STATE: OnceCell<Result<rpc_api::RPCClient, ApiError>> = OnceCell::const_new();
+    struct RpcClientState {
+        /// Stores the result of the last connection attempt.
+        /// We use Arc<ApiError> because anyhow::Error is not Clone,
+        /// and we may need to return the same error multiple times during cooldown.
+        result: Result<rpc_api::RPCClient, Arc<ApiError>>,
+        at: Instant,
+    }
 
-        STATE
-            .get_or_init(|| async { gen_rpc_client().await })
-            .await
-            .as_ref()
-            .map_err(|e| anyhow::anyhow!(e.to_string()))
+    static RPC_CLIENT_STATE: Mutex<Option<RpcClientState>> = Mutex::const_new(None);
+
+    pub async fn rpc_client() -> Result<rpc_api::RPCClient, ApiError> {
+        return gen_rpc_client().await;
+
+        let mut guard = RPC_CLIENT_STATE.lock().await;
+
+        // 1. Check existing state
+        if let Some(state) = &*guard {
+            match &state.result {
+                Ok(client) => return Ok(client.clone()),
+                Err(e) => {
+                    // If we are in the 3-second cooldown, return the cached error
+                    if state.at.elapsed() < Duration::from_secs(3) {
+                        return Err(anyhow::anyhow!(e.clone()));
+                    }
+                    // Otherwise, fall through to reconnect
+                }
+            }
+        }
+
+        // 2. Connect
+        let result = match gen_rpc_client().await {
+            Ok(client) => Ok(client),
+            Err(e) => Err(Arc::new(e)),
+        };
+
+        // 3. Update State
+        *guard = Some(RpcClientState {
+            result: result.clone(),
+            at: Instant::now(),
+        });
+
+        // 4. Return result
+        match result {
+            Ok(client) => Ok(client),
+            Err(e) => Err(anyhow::anyhow!(e)),
+        }
     }
 
     pub async fn cookie_hint() -> Result<rpc_auth::CookieHint, ApiError> {
@@ -255,14 +339,16 @@ mod neptune_rpc {
             .into())
     }
 
-    pub async fn get_token() -> Result<&'static rpc_auth::Token, ApiError> {
-        static STATE: OnceCell<Result<rpc_auth::Token, ApiError>> = OnceCell::const_new();
+    pub async fn get_token() -> Result<rpc_auth::Token, ApiError> {
+        return gen_token().await;
 
-        STATE
-            .get_or_init(|| async { gen_token().await })
-            .await
-            .as_ref()
-            .map_err(|e| anyhow::anyhow!(e.to_string()))
+        // static STATE: OnceCell<Result<rpc_auth::Token, ApiError>> = OnceCell::const_new();
+
+        // STATE
+        //     .get_or_init(|| async { gen_token().await })
+        //     .await
+        //     .as_ref()
+        //     .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
     async fn get_network() -> Result<Network, ApiError> {
@@ -272,14 +358,16 @@ mod neptune_rpc {
     }
 
     pub async fn network() -> Result<Network, ApiError> {
-        static STATE: OnceCell<Result<Network, ApiError>> = OnceCell::const_new();
+        get_network().await
 
-        STATE
-            .get_or_init(|| async { get_network().await })
-            .await
-            .as_ref()
-            .map_err(|e| anyhow::anyhow!(e.to_string()))
-            .copied()
+        // static STATE: OnceCell<Result<Network, ApiError>> = OnceCell::const_new();
+
+        // STATE
+        //     .get_or_init(|| async { get_network().await })
+        //     .await
+        //     .as_ref()
+        //     .map_err(|e| anyhow::anyhow!(e.to_string()))
+        //     .copied()
     }
 
     pub async fn send(
@@ -305,13 +393,13 @@ mod neptune_rpc {
         let tx_artifacts = client
             .send(
                 tarpc::context::current(),
-                *token,
+                token,
                 nc_outputs,
                 nc_change_policy,
                 nc_fee,
             )
             .await??;
-        // let tx_artifacts = client.send(tarpc::context::current(), *token, vec![], , nc_fee).await??;
+        // let tx_artifacts = client.send(tarpc::context::current(), token, vec![], , nc_fee).await??;
 
         let serialized = bincode::serialize(&tx_artifacts.transaction().txid()).unwrap();
         let tx_kernel_id: TransactionKernelId = bincode::deserialize(&serialized).unwrap();

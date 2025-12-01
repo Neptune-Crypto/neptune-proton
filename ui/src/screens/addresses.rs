@@ -16,6 +16,8 @@ use crate::components::pico::Card;
 use crate::components::pico::CopyButton;
 use crate::components::pico::NoTitleModal;
 use crate::components::qr_code::QrCode;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
+
 
 /// A new, self-contained component for rendering a single row in the address table.
 #[component]
@@ -87,8 +89,14 @@ fn AddressRow(
 #[component]
 pub fn AddressesScreen() -> Element {
     let network = use_context::<AppState>().network;
+    let mut rpc = use_rpc_checker(); // Initialize Hook
 
-    let mut known_keys = use_resource(move || async move { api::known_keys().await });
+    let mut known_keys = use_resource(move || async move {
+        // Subscribe to status changes.
+        // When connection status changes (e.g. back to Connected), this resource re-runs.
+        let _ = rpc.status().read();
+        api::known_keys().await
+    });
 
     rsx! {
         match &*known_keys.read() {
@@ -96,7 +104,6 @@ pub fn AddressesScreen() -> Element {
                 Card {
 
                     h3 {
-
                         "My Addresses"
                     }
                     p {
@@ -109,11 +116,19 @@ pub fn AddressesScreen() -> Element {
                     }
                 }
             },
+            Some(result) if !rpc.check_result_ref(&result) => rsx! {
+                Card {
+                    h3 {
+                        "My Addresses"
+                    }
+                    p {
+                        "Waiting for neptune-core connection"
+                    }
+                }
+            },
             Some(Err(e)) => rsx! {
                 Card {
-
                     h3 {
-
                         "Error"
                     }
                     p {
