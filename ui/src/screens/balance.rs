@@ -18,6 +18,7 @@ use crate::components::pico::Card;
 use crate::currency::npt_to_fiat;
 use crate::AppState;
 use crate::AppStateMut;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 /// A responsive container for a section of the dashboard.
 #[component]
@@ -103,20 +104,38 @@ fn BalanceRow(
 
 #[component]
 pub fn BalanceScreen() -> Element {
+    let mut rpc = use_rpc_checker(); // Initialize Hook
     let app_state = use_context::<AppState>();
     let app_state_mut = use_context::<AppStateMut>();
     let network = app_state.network;
     let mut dashboard_data =
-        use_resource(move || async move { api::dashboard_overview_data().await });
+        use_resource(move || async move {
+            // Subscribe to status changes.
+            // When connection status changes (e.g. back to Connected), this resource re-runs.
+            let _ = rpc.status().read();
+            api::dashboard_overview_data().await
+        });
+
     use_coroutine(move |_rx: UnboundedReceiver<()>| {
+        let rpc_status = rpc.status(); // Use signal handle
         let mut data_resource = dashboard_data;
+
         async move {
             loop {
+                // Wait 5 seconds
                 crate::compat::sleep(std::time::Duration::from_millis(5000)).await;
-                data_resource.restart();
+
+                // Only restart the resource if we are currently connected.
+                // When connection is lost, rpc_status.read() will be Disconnected,
+                // and we rely on the resource's *dependency* on rpc.status().read()
+                // (in the resource closure) to trigger the restart when it comes back.
+                if (*rpc_status.read()).is_connected() {
+                    data_resource.restart();
+                }
             }
         }
     });
+
     rsx! {
         match &*dashboard_data.read() {
             None => rsx! {
@@ -133,6 +152,14 @@ pub fn BalanceScreen() -> Element {
                     progress {
 
 
+                    }
+                }
+            },
+            Some(result) if !rpc.check_result_ref(&result) => rsx! {
+                // modal ConnectionLost is displayed by rpc.check_result_ref
+                Card {
+                    h3 {
+                        "Wallet Overview"
                     }
                 }
             },

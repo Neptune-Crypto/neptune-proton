@@ -18,6 +18,7 @@ use web_time::SystemTime;
 use web_time::UNIX_EPOCH;
 
 use crate::components::pico::Card;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SortableColumn {
@@ -150,7 +151,37 @@ fn EstablishedCell(time: SystemTime) -> Element {
 
 #[component]
 pub fn PeersScreen() -> Element {
-    let mut peer_info = use_resource(move || async move { api::peer_info().await });
+    let mut rpc = use_rpc_checker(); // Initialize Hook
+
+    let mut peer_info = use_resource(move || async move {
+        // Subscribe to status changes.
+        // When connection status changes (e.g. back to Connected), this resource re-runs.
+        let _ = rpc.status().read();
+
+        api::peer_info().await
+    });
+
+    // for refreshing from neptune-core every N secs
+    use_coroutine(move |_rx: UnboundedReceiver<()>| {
+        let rpc_status = rpc.status(); // Use signal handle
+        let mut data_resource = peer_info;
+
+        async move {
+            loop {
+                // Wait 60 seconds
+                crate::compat::sleep(std::time::Duration::from_secs(60)).await;
+
+                // Only restart the resource if we are currently connected.
+                // When connection is lost, rpc_status.read() will be Disconnected,
+                // and we rely on the resource's *dependency* on rpc.status().read()
+                // (in the resource closure) to trigger the restart when it comes back.
+                if (*rpc_status.read()).is_connected() {
+                    data_resource.restart();
+                }
+            }
+        }
+    });
+
 
     let sort_column = use_signal(|| SortableColumn::Standing);
     let sort_direction = use_signal(|| SortDirection::Descending);
@@ -171,6 +202,15 @@ pub fn PeersScreen() -> Element {
                     progress {
 
 
+                    }
+                }
+            },
+            // check if neptune-core rpc connection lost
+            Some(result) if !rpc.check_result_ref(&result) => rsx! {
+                // modal ConnectionLost is displayed by rpc.check_result_ref
+                Card {
+                    h3 {
+                        "Connected Peers"
                     }
                 }
             },

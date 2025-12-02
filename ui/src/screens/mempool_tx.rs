@@ -14,6 +14,7 @@ use twenty_first::util_types::mmr::mmr_membership_proof::MmrMembershipProof;
 
 use crate::components::pico::Card;
 use crate::components::pico::CopyButton;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 // --- Helper & Sub-Components ---
 
@@ -260,7 +261,15 @@ fn RemovalRecordDisplay(record: RemovalRecord, index: usize) -> Element {
 
 #[component]
 pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
-    let mempool_tx = use_resource(move || async move { api::mempool_tx_kernel(tx_id).await });
+    let mut rpc = use_rpc_checker(); // Initialize Hook
+
+    let mempool_tx = use_resource(move || async move {
+        // Subscribe to status changes.
+        // When connection status changes (e.g. back to Connected), this resource re-runs.
+        let _ = rpc.status().read();
+
+        api::mempool_tx_kernel(tx_id).await
+    });
 
     rsx! {
         match &*mempool_tx.read() {
@@ -270,6 +279,15 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                     h4 {
 
                         "Loading transaction details..."
+                    }
+                }
+            },
+            // check if neptune-core rpc connection lost
+            Some(result) if !rpc.check_result_ref(&result) => rsx! {
+                // modal ConnectionLost is displayed by rpc.check_result_ref
+                Card {
+                    h3 {
+                        "Mempool Transaction Details"
                     }
                 }
             },

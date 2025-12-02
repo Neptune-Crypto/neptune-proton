@@ -8,12 +8,42 @@ use twenty_first::prelude::Digest;
 
 use crate::components::action_link::ActionLink;
 use crate::components::pico::Card;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
 use crate::Screen;
 
 #[component]
 pub fn BlockChainScreen() -> Element {
-    let mut height_resource = use_resource(move || async move { api::block_height().await });
+    let mut rpc = use_rpc_checker(); // Initialize Hook
     let mut active_screen = use_context::<Signal<Screen>>();
+
+    let mut height_resource = use_resource(move || async move {
+        // Subscribe to status changes.
+        // When connection status changes (e.g. back to Connected), this resource re-runs.
+        let _ = rpc.status().read();
+
+        api::block_height().await
+    });
+
+    // for refreshing from neptune-core every N secs
+    use_coroutine(move |_rx: UnboundedReceiver<()>| {
+        let rpc_status = rpc.status(); // Use signal handle
+        let mut data_resource = height_resource;
+
+        async move {
+            loop {
+                // Wait 60 seconds
+                crate::compat::sleep(std::time::Duration::from_secs(60)).await;
+
+                // Only restart the resource if we are currently connected.
+                // When connection is lost, rpc_status.read() will be Disconnected,
+                // and we rely on the resource's *dependency* on rpc.status().read()
+                // (in the resource closure) to trigger the restart when it comes back.
+                if (*rpc_status.read()).is_connected() {
+                    data_resource.restart();
+                }
+            }
+        }
+    });
 
     // Signal to hold the value of the text input
     let mut lookup_input = use_signal(String::new);
@@ -39,6 +69,16 @@ pub fn BlockChainScreen() -> Element {
                     }
                 }
             }
+            // check if neptune-core rpc connection lost
+            Some(result) if !rpc.check_result_ref(&result) => rsx! {
+                // modal ConnectionLost is displayed by rpc.check_result_ref
+                Card {
+                    h3 {
+                        "Blockchain"
+                    }
+                }
+            },
+
             Some(Ok(height)) => {
                 let owned_height = *height;
                 rsx! {

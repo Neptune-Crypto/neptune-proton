@@ -345,8 +345,6 @@ pub fn App() -> Element {
 #[component]
 fn AppBody() -> Element {
     // 1. Initial Load (runs on server, hydrates on client).
-    // We unwrap() here to fix the compiler error, because we know the hook initializes.
-    // We removed '?' so it does NOT suspend.
     let mut initial_data_future = use_server_future(move || async move {
         dioxus_logger::tracing::info!("CALLING BACKEND APIs");
 
@@ -365,9 +363,8 @@ fn AppBody() -> Element {
         _ => false,
     };
 
-    // 3. The "Old School" Loop
+    // 3. Loop until we have a neptune-core RPC connection.
     // This is a detached task that only spawns if we are in an error state.
-    // It does NOT rely on Dioxus resource reloading. It just loops until it wins.
     use_effect(move || {
         if needs_retry {
             spawn(async move {
@@ -396,19 +393,17 @@ fn AppBody() -> Element {
             }
         },
         Some((Err(e), _)) | Some((_, Err(e))) => {
-             // SSR Failure or Client-side hydration of that failure
-             rsx! {
+            // SSR Failure or Client-side hydration of that failure
+            rsx! {
                 ConnectionModal {
-                    explicit_error: Some(format!("Failed to connect: {}", e))
+                    explicit_error: Some(e.to_string())
                 }
             }
         },
         _ => {
             // Loading state (or initial_data_future.restart() was called)
             rsx! {
-                ConnectionModal {
-                    explicit_error: Some("Connecting to Neptune Core...".to_string())
-                }
+                ConnectionModal {}
             }
         }
     }
@@ -673,7 +668,7 @@ fn ConnectionModal(explicit_error: Option<Option<String>>) -> Element {
         }
     } else {
         // Case 3: Fallback (shouldn't happen in logic above)
-        (false, String::new())
+        (true, String::new())
     };
 
     if !show {
@@ -691,8 +686,7 @@ fn ConnectionModal(explicit_error: Option<Option<String>>) -> Element {
             ",
             article {
                 style: "max-width: 500px; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);",
-                h4 { "Neptune-Core Connection" }
-                p { "{msg}" }
+                h5 { "No Neptune-Core Connection" }
                 p { "Please check if neptune-core is running" }
                 div {
                     class: "aria-busy",
@@ -700,6 +694,19 @@ fn ConnectionModal(explicit_error: Option<Option<String>>) -> Element {
                     "Attempting to connect..."
                 }
                 progress {
+                }
+
+                if !msg.is_empty() {
+                    details {
+                        summary {
+                            style: "margin-top: 1rem; cursor: pointer; color: var(--pico-muted-color); font-size: 0.9rem;",
+                            "Details"
+                        }
+                        p {
+                            style: "margin-top: 0.5rem; word-break: break-all; color: var(--pico-del-color);",
+                            "{msg}"
+                        }
+                    }
                 }
             }
         }

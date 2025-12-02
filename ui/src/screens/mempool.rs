@@ -14,6 +14,7 @@ use crate::components::action_link::ActionLink;
 use crate::components::amount::Amount;
 use crate::components::amount::AmountType;
 use crate::components::pico::Card;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
 use crate::Screen;
 
 // Enums to manage sorting state
@@ -187,25 +188,41 @@ fn MempoolRow(tx: MempoolTransactionInfoReadOnly) -> Element {
 
 #[component]
 pub fn MempoolScreen() -> Element {
+    let mut rpc = use_rpc_checker(); // Initialize Hook
+
     let mut mempool_overview =
-        use_resource(move || async move { api::mempool_overview(0, 1000).await });
+        use_resource(move || async move {
+            // Subscribe to status changes.
+            // When connection status changes (e.g. back to Connected), this resource re-runs.
+            let _ = rpc.status().read();
+
+            api::mempool_overview(0, 1000).await
+        });
+
+    // for refreshing from neptune-core every N secs
+    use_coroutine(move |_rx: UnboundedReceiver<()>| {
+        let rpc_status = rpc.status(); // Use signal handle
+        let mut data_resource = mempool_overview;
+
+        async move {
+            loop {
+                // Wait 10 seconds
+                crate::compat::sleep(std::time::Duration::from_secs(10)).await;
+
+                // Only restart the resource if we are currently connected.
+                // When connection is lost, rpc_status.read() will be Disconnected,
+                // and we rely on the resource's *dependency* on rpc.status().read()
+                // (in the resource closure) to trigger the restart when it comes back.
+                if (*rpc_status.read()).is_connected() {
+                    data_resource.restart();
+                }
+            }
+        }
+    });
 
     // State for sorting
     let sort_column = use_signal(|| SortableColumn::Fee);
     let sort_direction = use_signal(|| SortDirection::Descending);
-
-    // API Polling every 10 seconds
-    // This effect runs once on component mount and starts a background task.
-    use_effect(move || {
-        // We need to clone the signal to move it into the async task.
-        let mut mempool_overview = mempool_overview;
-        spawn(async move {
-            loop {
-                crate::compat::sleep(Duration::from_secs(10)).await;
-                mempool_overview.restart();
-            }
-        });
-    });
 
     rsx! {
         match &*mempool_overview.read() {
@@ -223,6 +240,15 @@ pub fn MempoolScreen() -> Element {
                     progress {
 
 
+                    }
+                }
+            },
+            // check if neptune-core rpc connection lost
+            Some(result) if !rpc.check_result_ref(&result) => rsx! {
+                // modal ConnectionLost is displayed by rpc.check_result_ref
+                Card {
+                    h3 {
+                        "Mempool"
                     }
                 }
             },

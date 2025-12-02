@@ -6,6 +6,7 @@ use twenty_first::tip5::Digest;
 
 use crate::components::pico::Card;
 use crate::components::pico::CopyButton;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 /// A small helper component to display a Digest with a label and copy button.
 #[component]
@@ -57,10 +58,19 @@ fn DigestDisplay(
 
 #[component]
 pub fn BlockScreen(selector: BlockSelector) -> Element {
+    let mut rpc = use_rpc_checker(); // Initialize Hook
+
     let mut current_selector = use_signal(|| selector);
-    let mut block_resource =
-        use_resource(move || async move { api::block_info(current_selector()).await });
     let mut displayed_info = use_signal::<Option<BlockInfo>>(|| None);
+
+    let mut block_resource =
+        use_resource(move || async move {
+            // Subscribe to status changes.
+            // When connection status changes (e.g. back to Connected), this resource re-runs.
+            let _ = rpc.status().read();
+
+            api::block_info(current_selector()).await
+        });
 
     use_effect(move || match block_resource.read().as_ref() {
         Some(Ok(Some(info))) => {
@@ -325,6 +335,15 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
                         progress {
 
 
+                        }
+                    }
+                },
+                // check if neptune-core rpc connection lost
+                Some(result) if !rpc.check_result_ref(&result) => rsx! {
+                    // modal ConnectionLost is displayed by rpc.check_result_ref
+                    Card {
+                        h3 {
+                            "View Block"
                         }
                     }
                 },

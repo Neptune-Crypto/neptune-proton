@@ -121,9 +121,6 @@ pub fn AddressesScreen() -> Element {
                     h3 {
                         "My Addresses"
                     }
-                    p {
-                        "Waiting for neptune-core connection"
-                    }
                 }
             },
             Some(Err(e)) => rsx! {

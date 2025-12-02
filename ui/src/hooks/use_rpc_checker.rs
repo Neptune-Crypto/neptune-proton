@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 use api::ApiError;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, strum::EnumIs)]
 pub enum NeptuneRpcConnectionStatus {
     Connected,
     Disconnected(String),
