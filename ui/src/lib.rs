@@ -29,7 +29,7 @@ use screens::mempool_tx::MempoolTxScreen;
 use screens::peers::PeersScreen;
 use screens::receive::ReceiveScreen;
 use screens::send::SendScreen;
-use hooks::use_rpc_checker::{use_rpc_checker, NeptuneRpcConnectionStatus};
+use hooks::use_rpc_checker::NeptuneRpcConnectionStatus;
 
 /// Enum to represent the different screens in our application.
 #[derive(Clone, PartialEq, Default)]

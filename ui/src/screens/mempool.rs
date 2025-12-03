@@ -3,7 +3,6 @@
 //=============================================================================
 use std::ops::Deref;
 use std::rc::Rc;
-use std::time::Duration;
 
 use dioxus::prelude::*;
 use neptune_types::mempool_transaction_info::MempoolTransactionInfo;

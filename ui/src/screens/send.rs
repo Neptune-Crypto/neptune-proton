@@ -27,7 +27,6 @@ use crate::components::pico::Button;
 use crate::components::pico::ButtonType;
 use crate::components::pico::Card;
 use crate::components::pico::CloseButton;
-use crate::components::pico::CopyButton;
 use crate::components::pico::Modal;
 use crate::components::pico::NoTitleModal;
 use crate::components::qr_scanner::QrScanner;
