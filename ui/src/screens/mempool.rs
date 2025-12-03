@@ -190,9 +190,7 @@ pub fn MempoolScreen() -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
     let mut mempool_overview =
-        use_resource(move || async move {
-            api::mempool_overview(0, 1000).await
-        });
+        use_resource(move || async move { api::mempool_overview(0, 1000).await });
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();

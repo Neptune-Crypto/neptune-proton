@@ -14,7 +14,8 @@ use crate::components::pico::ButtonType;
 use crate::components::pico::Card;
 use crate::components::pico::CopyButton;
 use crate::components::qr_code::QrCode;
-use crate::hooks::use_rpc_checker::{use_rpc_checker, NeptuneRpcConnectionStatus};
+use crate::hooks::use_rpc_checker::use_rpc_checker;
+use crate::hooks::use_rpc_checker::NeptuneRpcConnectionStatus;
 use crate::ConnectionModal;
 
 /// Helper structure to hold the parameters needed to generate a receiving address.
@@ -27,7 +28,6 @@ struct GenerationTask {
 async fn run_generation_task(task: GenerationTask) -> Result<ReceivingAddress, api::ApiError> {
     api::next_receiving_address(task.key_type).await
 }
-
 
 #[component]
 pub fn ReceiveScreen() -> Element {
@@ -52,8 +52,10 @@ pub fn ReceiveScreen() -> Element {
 
         // Condition: Connection is restored AND we have a pending generation task
         // AND we are not already running a generation task (the spawned loop handles the delay).
-        if *status_read == NeptuneRpcConnectionStatus::Connected && task_option.is_some() && !generating {
-
+        if *status_read == NeptuneRpcConnectionStatus::Connected
+            && task_option.is_some()
+            && !generating
+        {
             // Set generating state
             is_generating.set(true);
 
@@ -92,7 +94,6 @@ pub fn ReceiveScreen() -> Element {
             });
         }
     });
-
 
     // Determine if the main generate button should be disabled.
     let generate_button_disabled = is_generating()

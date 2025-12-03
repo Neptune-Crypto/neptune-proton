@@ -134,9 +134,7 @@ fn HistoryRow(
 pub fn HistoryScreen() -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
-    let mut history = use_resource(move || async move {
-        api::history().await
-    });
+    let mut history = use_resource(move || async move { api::history().await });
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();

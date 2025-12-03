@@ -64,9 +64,7 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
     let mut displayed_info = use_signal::<Option<BlockInfo>>(|| None);
 
     let mut block_resource =
-        use_resource(move || async move {
-            api::block_info(current_selector()).await
-        });
+        use_resource(move || async move { api::block_info(current_selector()).await });
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();

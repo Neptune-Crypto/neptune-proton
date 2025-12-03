@@ -1,7 +1,8 @@
 // File: src/screens/peers.rs
 
 // Added for SocketAddr and IpAddr types
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
+use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
 #[cfg(not(target_arch = "wasm32"))]
@@ -153,9 +154,7 @@ fn EstablishedCell(time: SystemTime) -> Element {
 pub fn PeersScreen() -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
-    let mut peer_info = use_resource(move || async move {
-        api::peer_info().await
-    });
+    let mut peer_info = use_resource(move || async move { api::peer_info().await });
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();
@@ -185,7 +184,6 @@ pub fn PeersScreen() -> Element {
             }
         }
     });
-
 
     let sort_column = use_signal(|| SortableColumn::Standing);
     let sort_direction = use_signal(|| SortDirection::Descending);

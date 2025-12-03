@@ -16,9 +16,9 @@ use crate::components::currency_chooser::CurrencyChooser;
 use crate::components::currency_chooser::CurrencyInfo;
 use crate::components::pico::Card;
 use crate::currency::npt_to_fiat;
+use crate::hooks::use_rpc_checker::use_rpc_checker;
 use crate::AppState;
 use crate::AppStateMut;
-use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 /// A responsive container for a section of the dashboard.
 #[component]
@@ -109,9 +109,7 @@ pub fn BalanceScreen() -> Element {
     let app_state_mut = use_context::<AppStateMut>();
     let network = app_state.network;
     let mut dashboard_data =
-        use_resource(move || async move {
-            api::dashboard_overview_data().await
-        });
+        use_resource(move || async move { api::dashboard_overview_data().await });
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();

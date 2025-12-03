@@ -18,7 +18,6 @@ use crate::components::pico::NoTitleModal;
 use crate::components::qr_code::QrCode;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
 
-
 /// A new, self-contained component for rendering a single row in the address table.
 #[component]
 fn AddressRow(
@@ -91,9 +90,7 @@ pub fn AddressesScreen() -> Element {
     let network = use_context::<AppState>().network;
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
-    let mut known_keys = use_resource(move || async move {
-        api::known_keys().await
-    });
+    let mut known_keys = use_resource(move || async move { api::known_keys().await });
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();

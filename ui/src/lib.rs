@@ -17,6 +17,7 @@ use app_state_mut::AppStateMut;
 use components::pico::Button;
 use components::pico::ButtonType;
 use components::pico::Container;
+use hooks::use_rpc_checker::NeptuneRpcConnectionStatus;
 use neptune_types::block_selector::BlockSelector;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
 use screens::addresses::AddressesScreen;
@@ -29,7 +30,6 @@ use screens::mempool_tx::MempoolTxScreen;
 use screens::peers::PeersScreen;
 use screens::receive::ReceiveScreen;
 use screens::send::SendScreen;
-use hooks::use_rpc_checker::NeptuneRpcConnectionStatus;
 
 /// Enum to represent the different screens in our application.
 #[derive(Clone, PartialEq, Default)]
@@ -351,7 +351,7 @@ fn AppBody() -> Element {
         let (network, prefs) = tokio::join!(api::network(), api::get_user_prefs());
         (
             network.map_err(|e| e.to_string()),
-            prefs.map_err(|e| e.to_string())
+            prefs.map_err(|e| e.to_string()),
         )
     })?;
 
@@ -399,7 +399,7 @@ fn AppBody() -> Element {
                     explicit_error: Some(e.to_string())
                 }
             }
-        },
+        }
         _ => {
             // Loading state (or initial_data_future.restart() was called)
             rsx! {
@@ -408,7 +408,6 @@ fn AppBody() -> Element {
         }
     }
 }
-
 
 /// This component holds the main app logic and only runs when data is ready.
 #[component]

@@ -10,6 +10,9 @@ pub mod price_providers;
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
 
+use std::net::Ipv4Addr;
+use std::net::SocketAddr;
+
 use dioxus::prelude::*;
 use neptune_types::address::KeyType;
 use neptune_types::address::ReceivingAddress;
@@ -31,9 +34,6 @@ use neptune_types::transaction_kernel_id::TransactionKernelId;
 use prefs::user_prefs::UserPrefs;
 use price_map::PriceMap;
 use twenty_first::tip5::Digest;
-
-use std::net::SocketAddr;
-use std::net::Ipv4Addr;
 
 pub type ApiError = anyhow::Error;
 
@@ -75,11 +75,11 @@ pub async fn network() -> Result<Network, ApiError> {
         Ok(Ok(n)) => {
             println!("DEBUG: [network] Success: {:?}", n);
             Ok(n)
-        },
+        }
         Ok(Err(e)) => {
             println!("DEBUG: [network] Logic Error from Core: {:?}", e);
             Err(e.into())
-        },
+        }
         Err(e) => {
             // This is the Tarpc Transport error (Shutdown/BrokenPipe)
             println!("DEBUG: [network] Transport Error: {:?}", e);
@@ -214,9 +214,7 @@ pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ApiError> {
     let client = neptune_rpc::rpc_client().await?;
     let token = neptune_rpc::get_token().await?;
 
-    let data = client
-        .peer_info(tarpc::context::current(), token)
-        .await??;
+    let data = client.peer_info(tarpc::context::current(), token).await??;
     Ok(data)
 }
 
@@ -232,7 +230,6 @@ pub async fn neptune_core_rpc_socket_addr() -> Result<SocketAddr, ApiError> {
         neptune_rpc::neptune_core_rpc_port(),
     ))
 }
-
 
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]

@@ -16,9 +16,7 @@ pub fn BlockChainScreen() -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
     let mut active_screen = use_context::<Signal<Screen>>();
 
-    let mut height_resource = use_resource(move || async move {
-        api::block_height().await
-    });
+    let mut height_resource = use_resource(move || async move { api::block_height().await });
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();

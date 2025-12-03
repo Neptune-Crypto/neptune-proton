@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use api::ApiError;
+use dioxus::prelude::*;
 
 #[derive(Clone, PartialEq, Debug, strum::EnumIs)]
 pub enum NeptuneRpcConnectionStatus {
@@ -20,7 +20,10 @@ impl RpcChecker {
         match result {
             Ok(val) => {
                 // If we were disconnected, we are back now.
-                if matches!(*self.status.peek(), NeptuneRpcConnectionStatus::Disconnected(_)) {
+                if matches!(
+                    *self.status.peek(),
+                    NeptuneRpcConnectionStatus::Disconnected(_)
+                ) {
                     self.status.set(NeptuneRpcConnectionStatus::Connected);
                 }
                 Some(val)
@@ -31,7 +34,8 @@ impl RpcChecker {
 
                 // Heuristic: Check if this is a connection-related error.
                 if self.is_connection_error(&error_msg) {
-                    self.status.set(NeptuneRpcConnectionStatus::Disconnected(error_msg));
+                    self.status
+                        .set(NeptuneRpcConnectionStatus::Disconnected(error_msg));
                     None
                 } else {
                     None
@@ -47,7 +51,10 @@ impl RpcChecker {
         match result {
             Ok(_) => {
                 // If we were disconnected, we are back now.
-                if matches!(*self.status.peek(), NeptuneRpcConnectionStatus::Disconnected(_)) {
+                if matches!(
+                    *self.status.peek(),
+                    NeptuneRpcConnectionStatus::Disconnected(_)
+                ) {
                     self.status.set(NeptuneRpcConnectionStatus::Connected);
                 }
                 true
@@ -57,7 +64,8 @@ impl RpcChecker {
                 // Only log warnings if it looks like a connection drop, otherwise it might just be valid logic flow
                 if self.is_connection_error(&error_msg) {
                     dioxus_logger::tracing::warn!("RPC Error (Ref): {}", error_msg);
-                    self.status.set(NeptuneRpcConnectionStatus::Disconnected(error_msg));
+                    self.status
+                        .set(NeptuneRpcConnectionStatus::Disconnected(error_msg));
                 }
                 false
             }
