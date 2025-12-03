@@ -92,10 +92,15 @@ pub fn AddressesScreen() -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
     let mut known_keys = use_resource(move || async move {
-        // Subscribe to status changes.
-        // When connection status changes (e.g. back to Connected), this resource re-runs.
-        let _ = rpc.status().read();
         api::known_keys().await
+    });
+
+    // Effect: Restarts the resource when connection is restored.
+    let status_sig = rpc.status();
+    use_effect(move || {
+        if status_sig.read().is_connected() {
+            known_keys.restart();
+        }
     });
 
     rsx! {

@@ -65,12 +65,16 @@ pub fn BlockScreen(selector: BlockSelector) -> Element {
 
     let mut block_resource =
         use_resource(move || async move {
-            // Subscribe to status changes.
-            // When connection status changes (e.g. back to Connected), this resource re-runs.
-            let _ = rpc.status().read();
-
             api::block_info(current_selector()).await
         });
+
+    // Effect: Restarts the resource when connection is restored.
+    let status_sig = rpc.status();
+    use_effect(move || {
+        if status_sig.read().is_connected() {
+            block_resource.restart();
+        }
+    });
 
     use_effect(move || match block_resource.read().as_ref() {
         Some(Ok(Some(info))) => {

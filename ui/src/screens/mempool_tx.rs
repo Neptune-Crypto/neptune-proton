@@ -263,12 +263,16 @@ fn RemovalRecordDisplay(record: RemovalRecord, index: usize) -> Element {
 pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
-    let mempool_tx = use_resource(move || async move {
-        // Subscribe to status changes.
-        // When connection status changes (e.g. back to Connected), this resource re-runs.
-        let _ = rpc.status().read();
-
+    let mut mempool_tx = use_resource(move || async move {
         api::mempool_tx_kernel(tx_id).await
+    });
+
+    // Effect: Restarts the resource when connection is restored.
+    let status_sig = rpc.status();
+    use_effect(move || {
+        if status_sig.read().is_connected() {
+            mempool_tx.restart();
+        }
     });
 
     rsx! {

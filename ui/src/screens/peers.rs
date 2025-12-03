@@ -154,11 +154,15 @@ pub fn PeersScreen() -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
     let mut peer_info = use_resource(move || async move {
-        // Subscribe to status changes.
-        // When connection status changes (e.g. back to Connected), this resource re-runs.
-        let _ = rpc.status().read();
-
         api::peer_info().await
+    });
+
+    // Effect: Restarts the resource when connection is restored.
+    let status_sig = rpc.status();
+    use_effect(move || {
+        if status_sig.read().is_connected() {
+            peer_info.restart();
+        }
     });
 
     // for refreshing from neptune-core every N secs

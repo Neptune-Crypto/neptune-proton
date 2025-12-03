@@ -110,12 +110,19 @@ pub fn BalanceScreen() -> Element {
     let network = app_state.network;
     let mut dashboard_data =
         use_resource(move || async move {
-            // Subscribe to status changes.
-            // When connection status changes (e.g. back to Connected), this resource re-runs.
-            let _ = rpc.status().read();
             api::dashboard_overview_data().await
         });
 
+    // Effect: Restarts the resource when connection is restored.
+    let status_sig = rpc.status();
+    use_effect(move || {
+        if status_sig.read().is_connected() {
+            dashboard_data.restart();
+        }
+    });
+
+    // Coroutine: Polls every 5 seconds while connected.
+    // This ensures we detect if the connection dies while sitting on this screen.
     use_coroutine(move |_rx: UnboundedReceiver<()>| {
         let rpc_status = rpc.status(); // Use signal handle
         let mut data_resource = dashboard_data;
@@ -125,10 +132,8 @@ pub fn BalanceScreen() -> Element {
                 // Wait 5 seconds
                 crate::compat::sleep(std::time::Duration::from_millis(5000)).await;
 
-                // Only restart the resource if we are currently connected.
-                // When connection is lost, rpc_status.read() will be Disconnected,
-                // and we rely on the resource's *dependency* on rpc.status().read()
-                // (in the resource closure) to trigger the restart when it comes back.
+                // Only restart (poll) if we believe we are connected.
+                // If disconnected, the global AppBody loop handles the "pinging".
                 if (*rpc_status.read()).is_connected() {
                     data_resource.restart();
                 }

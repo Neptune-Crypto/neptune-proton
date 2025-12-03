@@ -17,11 +17,15 @@ pub fn BlockChainScreen() -> Element {
     let mut active_screen = use_context::<Signal<Screen>>();
 
     let mut height_resource = use_resource(move || async move {
-        // Subscribe to status changes.
-        // When connection status changes (e.g. back to Connected), this resource re-runs.
-        let _ = rpc.status().read();
-
         api::block_height().await
+    });
+
+    // Effect: Restarts the resource when connection is restored.
+    let status_sig = rpc.status();
+    use_effect(move || {
+        if status_sig.read().is_connected() {
+            height_resource.restart();
+        }
     });
 
     // for refreshing from neptune-core every N secs
