@@ -32,6 +32,9 @@ use prefs::user_prefs::UserPrefs;
 use price_map::PriceMap;
 use twenty_first::tip5::Digest;
 
+use std::net::SocketAddr;
+use std::net::Ipv4Addr;
+
 pub type ApiError = anyhow::Error;
 
 /// Retrieves the user's preferences.
@@ -222,6 +225,15 @@ pub async fn fiat_prices() -> Result<PriceMap, ApiError> {
     Ok(price_caching::get_cached_fiat_prices().await?)
 }
 
+#[get("/api/neptune_core_rpc_socket_addr")]
+pub async fn neptune_core_rpc_socket_addr() -> Result<SocketAddr, ApiError> {
+    Ok(SocketAddr::new(
+        std::net::IpAddr::V4(Ipv4Addr::LOCALHOST),
+        neptune_rpc::neptune_core_rpc_port(),
+    ))
+}
+
+
 #[cfg(not(target_arch = "wasm32"))]
 #[allow(dead_code)]
 mod neptune_rpc {
@@ -241,17 +253,11 @@ mod neptune_rpc {
     use tarpc::client;
     use tarpc::context;
     use tarpc::tokio_serde::formats::Json;
-    use tokio::sync::OnceCell;
 
     use super::rpc_api;
     use super::ApiError;
 
-    // Added imports for retry logic
-    use std::sync::Arc;
-    use std::time::{Duration, Instant};
-    use tokio::sync::Mutex;
-
-    fn neptune_core_rpc_port() -> u16 {
+    pub fn neptune_core_rpc_port() -> u16 {
         const DEFAULT_PORT: u16 = 9799;
         std::env::var("NEPTUNE_CORE_RPC_PORT")
             .unwrap_or("".to_string())
@@ -278,53 +284,10 @@ mod neptune_rpc {
 
         Ok(RPCClient::new(client::Config::default(), transport).spawn())
     }
-
-    struct RpcClientState {
-        /// Stores the result of the last connection attempt.
-        /// We use Arc<ApiError> because anyhow::Error is not Clone,
-        /// and we may need to return the same error multiple times during cooldown.
-        result: Result<rpc_api::RPCClient, Arc<ApiError>>,
-        at: Instant,
-    }
-
-    static RPC_CLIENT_STATE: Mutex<Option<RpcClientState>> = Mutex::const_new(None);
-
     pub async fn rpc_client() -> Result<rpc_api::RPCClient, ApiError> {
-        return gen_rpc_client().await;
-
-        let mut guard = RPC_CLIENT_STATE.lock().await;
-
-        // 1. Check existing state
-        if let Some(state) = &*guard {
-            match &state.result {
-                Ok(client) => return Ok(client.clone()),
-                Err(e) => {
-                    // If we are in the 3-second cooldown, return the cached error
-                    if state.at.elapsed() < Duration::from_secs(3) {
-                        return Err(anyhow::anyhow!(e.clone()));
-                    }
-                    // Otherwise, fall through to reconnect
-                }
-            }
-        }
-
-        // 2. Connect
-        let result = match gen_rpc_client().await {
-            Ok(client) => Ok(client),
-            Err(e) => Err(Arc::new(e)),
-        };
-
-        // 3. Update State
-        *guard = Some(RpcClientState {
-            result: result.clone(),
-            at: Instant::now(),
-        });
-
-        // 4. Return result
-        match result {
-            Ok(client) => Ok(client),
-            Err(e) => Err(anyhow::anyhow!(e)),
-        }
+        // no caching for now.  very fast to establish a connection on localhost
+        // and this way there is no need to invalidate cache on connection error.
+        gen_rpc_client().await
     }
 
     pub async fn cookie_hint() -> Result<rpc_auth::CookieHint, ApiError> {
@@ -340,15 +303,9 @@ mod neptune_rpc {
     }
 
     pub async fn get_token() -> Result<rpc_auth::Token, ApiError> {
+        // no caching for now. it's fast enough just to get from disk each time
+        // and no need to invalidate upon connection error.
         return gen_token().await;
-
-        // static STATE: OnceCell<Result<rpc_auth::Token, ApiError>> = OnceCell::const_new();
-
-        // STATE
-        //     .get_or_init(|| async { gen_token().await })
-        //     .await
-        //     .as_ref()
-        //     .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
     async fn get_network() -> Result<Network, ApiError> {
@@ -358,16 +315,9 @@ mod neptune_rpc {
     }
 
     pub async fn network() -> Result<Network, ApiError> {
+        // no caching for now. it's fast enough just to query from neptune-core
+        // and no need to invalidate upon connection error.
         get_network().await
-
-        // static STATE: OnceCell<Result<Network, ApiError>> = OnceCell::const_new();
-
-        // STATE
-        //     .get_or_init(|| async { get_network().await })
-        //     .await
-        //     .as_ref()
-        //     .map_err(|e| anyhow::anyhow!(e.to_string()))
-        //     .copied()
     }
 
     pub async fn send(
@@ -399,7 +349,6 @@ mod neptune_rpc {
                 nc_fee,
             )
             .await??;
-        // let tx_artifacts = client.send(tarpc::context::current(), token, vec![], , nc_fee).await??;
 
         let serialized = bincode::serialize(&tx_artifacts.transaction().txid()).unwrap();
         let tx_kernel_id: TransactionKernelId = bincode::deserialize(&serialized).unwrap();
@@ -415,8 +364,3 @@ mod neptune_rpc {
     //     Ok(tx_details)
     // }
 }
-
-// let rpc_auth::CookieHint {
-//     data_directory,
-//     network,
-// } = get_cookie_hint(&client, &args).await;
