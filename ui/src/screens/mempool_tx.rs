@@ -1,4 +1,4 @@
-// src/screens/mempool_tx.rs
+// ui/src/screens/mempool_tx.rs
 use dioxus::prelude::*;
 use neptune_types::announcement::Announcement;
 use neptune_types::mutator_set::addition_record::AdditionRecord;
@@ -37,8 +37,6 @@ fn DigestDisplay(digest: Digest, label: String, abbreviated: Option<bool>) -> El
         div {
             style: "display: flex; justify-content: space-between; align-items: center; padding: 0.25rem 0;",
             strong {
-
-
                 "{label}:"
             }
             div {
@@ -65,11 +63,7 @@ fn ChunkDisplay(chunk: Chunk) -> Element {
         .join(", ");
     rsx! {
         details {
-
-
             summary {
-
-
                 "Chunk ({chunk.relative_indices.len()} indices)"
             }
             div {
@@ -77,8 +71,6 @@ fn ChunkDisplay(chunk: Chunk) -> Element {
                 p {
                     style: "margin: 0; word-break: break-all;",
                     strong {
-
-
                         "Relative Indices: "
                     }
                     "{indices_str}"
@@ -92,11 +84,7 @@ fn ChunkDisplay(chunk: Chunk) -> Element {
 fn MmrMembershipProofDisplay(proof: MmrMembershipProof) -> Element {
     rsx! {
         details {
-
-
             summary {
-
-
                 "MMR Membership Proof ({proof.authentication_path.len()} digests)"
             }
             div {
@@ -125,11 +113,7 @@ fn AbsoluteIndexSetDisplay(ais: AbsoluteIndexSet) -> Element {
         div {
             style: "border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); padding: 0.75rem; margin-bottom: 0.75rem;",
             details {
-
-
                 summary {
-
-
                     "Absolute Index Set ({absolute_indices.len()} indices)"
                 }
                 div {
@@ -162,18 +146,12 @@ fn ChunkDictionaryDisplay(dictionary: ChunkDictionary) -> Element {
                         p {
                             style: "margin: 0 0 0.5rem 0;",
                             strong {
-
-
                                 "Entry {i}: "
                             }
                             span {
-
-
                                 "Chunk at index "
                             }
                             code {
-
-
                                 "{*chunk_index}"
                             }
                         }
@@ -202,8 +180,6 @@ fn AnnouncementDisplay(announcement: Announcement, index: usize) -> Element {
             div {
                 style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;",
                 strong {
-
-
                     "Announcement {index}"
                 }
                 CopyButton {
@@ -213,8 +189,6 @@ fn AnnouncementDisplay(announcement: Announcement, index: usize) -> Element {
             pre {
                 style: "background-color: var(--pico-secondary-background-color); padding: 0.5rem; border-radius: var(--pico-border-radius); max-height: 120px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin: 0;",
                 code {
-
-
                     "{announcement_str}"
                 }
             }
@@ -279,7 +253,6 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                 div {
                     style: "text-align: center; padding: 2rem;",
                     h4 {
-
                         "Loading transaction details..."
                     }
                 }
@@ -295,38 +268,29 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
             },
             Some(Err(e)) => rsx! {
                 Card {
-
                     h3 {
                         style: "color: var(--pico-color-red-500);",
                         "Error"
                     }
                     p {
-
                         "Could not fetch transaction details from the mempool."
                     }
                     hr {
-
-
                     }
                     h5 {
-
                         "Details:"
                     }
                     code {
-
                         "{e}"
                     }
                 }
             },
             Some(Ok(None)) => rsx! {
                 Card {
-
                     h3 {
-
                         "Not Found"
                     }
                     p {
-
                         "Transaction with ID was not found in the mempool:"
                     }
                     div {
@@ -344,9 +308,7 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
             Some(Ok(Some(kernel))) => {
                 rsx! {
                     Card {
-
                         h3 {
-
                             "Mempool Transaction Details"
                         }
                         // --- Transaction ID Header ---
@@ -368,126 +330,113 @@ pub fn MempoolTxScreen(tx_id: TransactionKernelId) -> Element {
                             }
                         }
                         hr {
-
-
                         }
-                        // --- Summary Section ---
-                        h5 {
-                            style: "margin-top: 1rem; margin-bottom: 0.5rem;",
-                            "Summary"
-                        }
+
+                        // --- SCROLLABLE CONTENT WRAPPER ---
                         div {
-                            style: "display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: center;",
-                            strong {
+                            // flex: 1 takes up remaining space.
+                            // overflow-y: auto enables scrolling.
+                            // min-height: 0 ensures flex items can shrink properly in Firefox/Chrome.
+                            style: "flex: 1; overflow-y: auto; min-height: 0; padding-right: 0.5rem;",
 
-                                "Timestamp:"
-                            }
-                            span {
-
-                                "{kernel.timestamp.standard_format()}"
-                            }
-                            strong {
-
-                                "Fee:"
-                            }
-                            span {
-
-                                "{kernel.fee}"
-                            }
-                            strong {
-
-                                "Coinbase:"
-                            }
-                            span {
-
-                                "{kernel.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}"
-                            }
-                            strong {
-
-                                "Inputs:"
-                            }
-                            span {
-
-                                "{kernel.inputs.len()}"
-                            }
-                            strong {
-
-                                "Outputs:"
-                            }
-                            span {
-
-                                "{kernel.outputs.len()}"
-                            }
-                            strong {
-
-                                "Announcements:"
-                            }
-                            span {
-
-                                "{kernel.announcements.len()}"
-                            }
-                        }
-                        hr {
-
-
-                        }
-                        // --- Details Section ---
-                        h5 {
-                            style: "margin-top: 1rem; margin-bottom: 0.5rem;",
-                            "Details"
-                        }
-                        DigestDisplay {
-                            label: "Mutator Set Hash".to_string(),
-                            digest: kernel.mutator_set_hash,
-                        }
-                        // --- Collapsible Lists with new components ---
-                        details {
-
-                            summary {
-
-                                "Inputs ({kernel.inputs.len()})"
+                            // --- Summary Section ---
+                            h5 {
+                                style: "margin-top: 1rem; margin-bottom: 0.5rem;",
+                                "Summary"
                             }
                             div {
-                                class: "list-container",
-                                style: "margin-top: 0.5rem; padding-left: 1rem;",
-                                for (i , input) in kernel.inputs.iter().enumerate() {
-                                    RemovalRecordDisplay {
-                                        record: input.clone(),
-                                        index: i,
+                                style: "display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; align-items: center;",
+                                strong {
+                                    "Timestamp:"
+                                }
+                                span {
+                                    "{kernel.timestamp.standard_format()}"
+                                }
+                                strong {
+                                    "Fee:"
+                                }
+                                span {
+                                    "{kernel.fee}"
+                                }
+                                strong {
+                                    "Coinbase:"
+                                }
+                                span {
+                                    "{kernel.coinbase.unwrap_or_else(NativeCurrencyAmount::zero)}"
+                                }
+                                strong {
+                                    "Inputs:"
+                                }
+                                span {
+                                    "{kernel.inputs.len()}"
+                                }
+                                strong {
+                                    "Outputs:"
+                                }
+                                span {
+                                    "{kernel.outputs.len()}"
+                                }
+                                strong {
+                                    "Announcements:"
+                                }
+                                span {
+                                    "{kernel.announcements.len()}"
+                                }
+                            }
+                            hr {
+                            }
+                            // --- Details Section ---
+                            h5 {
+                                style: "margin-top: 1rem; margin-bottom: 0.5rem;",
+                                "Details"
+                            }
+                            DigestDisplay {
+                                label: "Mutator Set Hash".to_string(),
+                                digest: kernel.mutator_set_hash,
+                            }
+                            // --- Collapsible Lists ---
+                            details {
+                                summary {
+                                    "Inputs ({kernel.inputs.len()})"
+                                }
+                                div {
+                                    class: "list-container",
+                                    style: "margin-top: 0.5rem; padding-left: 1rem;",
+                                    for (i , input) in kernel.inputs.iter().enumerate() {
+                                        RemovalRecordDisplay {
+                                            record: input.clone(),
+                                            index: i,
+                                        }
                                     }
                                 }
                             }
-                        }
-                        details {
-
-                            summary {
-
-                                "Outputs ({kernel.outputs.len()})"
-                            }
-                            div {
-                                class: "list-container",
-                                style: "margin-top: 0.5rem; padding-left: 1rem;",
-                                for (i , output) in kernel.outputs.iter().enumerate() {
-                                    AdditionRecordDisplay {
-                                        record: *output,
-                                        index: i,
+                            details {
+                                summary {
+                                    "Outputs ({kernel.outputs.len()})"
+                                }
+                                div {
+                                    class: "list-container",
+                                    style: "margin-top: 0.5rem; padding-left: 1rem;",
+                                    for (i , output) in kernel.outputs.iter().enumerate() {
+                                        AdditionRecordDisplay {
+                                            record: *output,
+                                            index: i,
+                                        }
                                     }
                                 }
                             }
-                        }
-                        details {
-
-                            summary {
-
-                                "Announcements ({kernel.announcements.len()})"
-                            }
-                            div {
-                                class: "list-container",
-                                style: "margin-top: 0.5rem; padding-left: 1rem;",
-                                for (i , announcement) in kernel.announcements.iter().enumerate() {
-                                    AnnouncementDisplay {
-                                        announcement: announcement.clone(),
-                                        index: i,
+                            details {
+                                summary {
+                                    "Announcements ({kernel.announcements.len()})"
+                                }
+                                div {
+                                    class: "list-container",
+                                    style: "margin-top: 0.5rem; padding-left: 1rem;",
+                                    for (i , announcement) in kernel.announcements.iter().enumerate() {
+                                        AnnouncementDisplay {
+                                            announcement: announcement.clone(),
+                                            index: i,
+                                        }
                                     }
                                 }
                             }
