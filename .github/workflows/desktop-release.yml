@@ -55,6 +55,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Required for changelog builder to read commit history
+      - name: Fetch tags for changelog
+        run: git fetch --prune --unshallow --tags
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -135,12 +139,53 @@ jobs:
           cd desktop
           dx bundle --release --trace
 
+      # ---------------------------------------------------------
+      # Generate Changelog (Smart Regex + Catch-all)
+      # ---------------------------------------------------------
+      - name: Build Changelog
+        id: build_changelog
+        # Only run on mac to avoid duplicates, and only on tags
+        if: matrix.os == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          ignorePredefinedLabels: true
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n\n## 🔌 Other Changes\n#{{UNCATEGORIZED}}",
+              "categories": [
+                {
+                  "title": "## 🚀 Features",
+                  "labels": ["feat"]
+                },
+                {
+                  "title": "## 🐛 Fixes",
+                  "labels": ["fix"]
+                },
+                {
+                  "title": "## 🛠 Maintenance",
+                  "labels": ["chore", "ci", "test", "refactor"]
+                }
+              ],
+              "label_extractor": [
+                {
+                  "pattern": "^(feat|fix|chore|ci|test|refactor)(\\(.*\\))?:",
+                  "target": "$1"
+                }
+              ]
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Upload the final installer to the GitHub Release
       # We only run this step if the reference is a tag
       - name: Upload Release Artifacts
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          # Use the output from the step above
+          body: ${{ steps.build_changelog.outputs.changelog }}
+          # Ensure only mac runner updates the text to prevent overwrite race conditions
+          append_body: ${{ matrix.os == 'macos-latest' }}
           files: |
             target/dx/neptune-proton/bundle/*/*/*/*.AppImage
             target/dx/neptune-proton/bundle/*/*/*/*.deb
