@@ -67,6 +67,7 @@ dioxus-clipboard = "0.3.0"
 
 # for linux/gtk qr_scanner.rs. can be removed when dioxus issue 5037 resolved.
 nokhwa = { version = "0.10", features = ["input-native", "output-threaded"], optional = true }
+humantime = "2.3.0"
 
 [features]
 dioxus-desktop = ["dep:dioxus-desktop", "dep:nokhwa"]

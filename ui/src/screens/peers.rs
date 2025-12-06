@@ -17,6 +17,7 @@ use neptune_types::peer_info::PeerInfo;
 use web_time::SystemTime;
 #[cfg(target_arch = "wasm32")]
 use web_time::UNIX_EPOCH;
+use std::time::Duration;
 
 use crate::components::pico::Card;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
@@ -136,7 +137,16 @@ fn EstablishedCell(time: SystemTime) -> Element {
     .unwrap();
     let established_utc = Utc.from_utc_datetime(&naive_datetime);
     let established_local = established_utc.with_timezone(&chrono::Local);
-    let formatted_timestamp = established_local.format("%Y-%m-%d %H:%M:%S").to_string();
+    let date = established_local.format("%Y-%m-%d").to_string();
+    let hour = established_local.format("%H:%M:%S").to_string();
+
+    let elapsed_time_secs = Duration::from_secs(SystemTime::now()
+        .duration_since(time)
+        .unwrap_or_default()
+        .as_secs());
+
+    let human_duration = humantime::format_duration(elapsed_time_secs);
+
     let seconds_ago = SystemTime::now()
         .duration_since(time)
         .unwrap_or_default()
@@ -144,8 +154,10 @@ fn EstablishedCell(time: SystemTime) -> Element {
 
     rsx! {
         td {
-            title: "{formatted_timestamp}",
-            "{seconds_ago}s ago"
+            title: "{human_duration}",
+            "{date}"
+            br {}
+            "{hour}"
         }
     }
 }

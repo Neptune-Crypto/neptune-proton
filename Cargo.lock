@@ -8332,6 +8332,7 @@ dependencies = [
  "futures",
  "futures-channel",
  "gloo-timers",
+ "humantime",
  "image 0.25.9",
  "itertools 0.14.0",
  "js-sys",
