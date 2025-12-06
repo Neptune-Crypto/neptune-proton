@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Changed 'ubuntu-latest' to 'ubuntu-22.04'
+        # specify older linux (22.04) for widest glibc compatibility.
         os: [ubuntu-22.04, windows-latest, macos-latest]
 
     env:
@@ -55,7 +55,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Required for changelog builder to read commit history
+      # Required for changelog builder to read commit history between tags
       - name: Fetch tags for changelog
         run: git fetch --prune --unshallow --tags
 
@@ -75,9 +75,7 @@ jobs:
             --force
 
       # Install Dioxus desktop dependencies (Linux only)
-      # This is critical for the AppImage build
       - name: Install Linux Dependencies
-        # Updated this condition to match the matrix
         if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
@@ -176,75 +174,74 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Upload the final installer to the GitHub Release
-      # We only run this step if the reference is a tag
+      # ------------------------------------------------------------------
+      # Collect Assets (Staging Step)
+      # ------------------------------------------------------------------
+      - name: Collect Release Assets
+        shell: bash
+        run: |
+          mkdir -p release-assets
+
+          # Find only the final binary artifacts.
+          # The -exec cp copies them into our flat staging folder.
+          find target/dx/neptune-proton/bundle -type f \( \
+            -name "*.AppImage" -o \
+            -name "*.deb" -o \
+            -name "*.rpm" -o \
+            -name "*.msi" -o \
+            -name "*.exe" -o \
+            -name "*.dmg" \
+          \) -exec cp {} release-assets/ \;
+
+          echo "Final set of artifacts for release:"
+          ls -lh release-assets/
+
+      # ------------------------------------------------------------------
+      # Generate Checksums (Generic)
+      # ------------------------------------------------------------------
+      - name: Generate Checksums
+        shell: bash
+        run: |
+          cd release-assets
+          
+          # Choose the correct hashing tool
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            CMD="shasum -a 256"
+          else
+            CMD="sha256sum"
+          fi
+          
+          # Calculate hash for every file in this folder
+          $CMD * > "../checksums-${{ matrix.os }}.txt"
+          
+          # Move the text file into the folder so it gets uploaded too
+          mv "../checksums-${{ matrix.os }}.txt" .
+          
+          echo "Checksums content:"
+          cat "checksums-${{ matrix.os }}.txt"
+
+      # ------------------------------------------------------------------
+      # Upload Release to GitHub (when 'v...' tag is pushed)
+      # ------------------------------------------------------------------
       - name: Upload Release Artifacts
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
-          # Use the output from the step above
+          # Use the changelog generated earlier
           body: ${{ steps.build_changelog.outputs.changelog }}
-          # Ensure only mac runner updates the text to prevent overwrite race conditions
+          # Only macOS updates the text body (prevents race conditions)
           append_body: ${{ matrix.os == 'macos-latest' }}
-          files: |
-            target/dx/neptune-proton/bundle/*/*/*/*.AppImage
-            target/dx/neptune-proton/bundle/*/*/*/*.deb
-            target/dx/neptune-proton/bundle/*/*/*/*.rpm
-            target/dx/neptune-proton/bundle/*/*/*/*.msi
-            target/dx/neptune-proton/bundle/*/*/*/*.exe
-            target/dx/neptune-proton/bundle/*/*/*/*.dmg
+          # Upload everything in the staging folder
+          files: release-assets/*
 
-      - name: ⬆️ Upload macOS DMG Installer
+      # ------------------------------------------------------------------
+      # 5. Upload Artifacts to Action Summary (when commit(s) pushed)
+      # ------------------------------------------------------------------
+      - name: ⬆️ Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-dmg-installer
-          # Your specified path for DMG files:
-          path: target/dx/neptune-proton/bundle/*/*/*/*.dmg
-          if-no-files-found: ignore
-          retention-days: 1
-
-      - name: ⬆️ Upload Windows MSI Installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-msi-installer
-          # Your specified path for MSI files:
-          path: target/dx/neptune-proton/bundle/*/*/*/*.msi
-          if-no-files-found: ignore
-          retention-days: 1
-
-      - name: ⬆️ Upload Windows EXE Installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-exe-installer
-          # Your specified path for EXE files:
-          path: target/dx/neptune-proton/bundle/*/*/*/*.exe
-          if-no-files-found: ignore
-          retention-days: 1
-
-      - name: ⬆️ Upload Linux AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-appimage
-          # Your specified path for AppImage files:
-          path: target/dx/neptune-proton/bundle/*/*/*/*.AppImage
-          if-no-files-found: ignore
-          retention-days: 1
-
-      - name: ⬆️ Upload Linux DEB Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-deb-package
-          # Your specified path for DEB files:
-          path: target/dx/neptune-proton/bundle/*/*/*/*.deb
-          if-no-files-found: ignore
-          retention-days: 1
-
-      - name: ⬆️ Upload Linux RPM Package
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}-rpm-package
-          # Your specified path for RPM files:
-          path: target/dx/neptune-proton/bundle/*/*/*/*.rpm
+          name: ${{ matrix.os }}-artifacts
+          path: release-assets/
           if-no-files-found: ignore
           retention-days: 1
 
