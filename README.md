@@ -24,7 +24,7 @@ wallet.  neptune-proton does not generate any wallet keys of its own.
    https://github.com/Neptune-Crypto/neptune-core
 
 2. Run neptune-core.
-   
+
 3. Download neptune-proton binary for your platform from
 
    https://github.com/Neptune-Crypto/neptune-proton/releases/latest
@@ -106,9 +106,38 @@ As of 2025-07-09:
 2. Dioxus 0.7.1 -- [Instructions](https://dioxuslabs.com/learn/0.7.1/getting_started/)
 3. neptune-core -- [Instructions](https://github.com/Neptune-Crypto/neptune-core/)
 
-for desktop platform:
-* libv4l-dev  ubuntu: apt install libv4l-dev
-* libxdo-dev  ubuntu: apt install libxdo-dev
+for desktop platform, on ubuntu:
+
+```
+sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential pkg-config librsvg2-dev libv4l-dev libxdo-dev
+```
+
+for desktop platform, on macos:
+
+```
+brew install leveldb snappy
+
+# --- Fix for OpenSSL (reqwest) ---
+OPENSSL_DIR=$(brew --prefix openssl@3)
+echo "OPENSSL_ROOT_DIR=$OPENSSL_DIR" >> $GITHUB_ENV
+echo "OPENSSL_LIB_DIR=$OPENSSL_DIR/lib" >> $GITHUB_ENV
+echo "OPENSSL_INCLUDE_DIR=$OPENSSL_DIR/include" >> $GITHUB_ENV
+
+# --- Fix for CMake (leveldb-sys) ---
+echo "CMAKE_POLICY_VERSION_MINIMUM=3.5" >> $GITHUB_ENV
+
+# --- Fix for LevelDB/Snappy (just in case) ---
+# Build the PKG_CONFIG_PATH safely
+PKG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig"
+PKG_PATH="$PKG_PATH:$(brew --prefix leveldb)/lib/pkgconfig"
+PKG_PATH="$PKG_PATH:$(brew --prefix snappy)/lib/pkgconfig"
+echo "PKG_CONFIG_PATH=$PKG_PATH" >> $GITHUB_ENV
+```
+
+on windows:
+
+no special deps.
+
 
 ### Start neptune-core
 
