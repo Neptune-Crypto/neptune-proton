@@ -7,34 +7,54 @@
      stroke-linejoin="round">
 
     <style>
-        /* Animation: Rising and fading out */
+        /* Animation: continuously rising bubbles */
         @keyframes bubble-rise {
-            0% { transform: translate(0, 0); opacity: 0; }
-            50% { opacity: 0.8; }
-            100% { transform: translate(0, -20px); opacity: 0; }
+            0% { 
+                transform: translateY(0px) scale(0.8); 
+                opacity: 0; 
+            }
+            10% {
+                opacity: 0.6; /* Fade in quickly at bottom */
+            }
+            50% {
+                transform: translateY(-12px) scale(1);
+            }
+            80% {
+                opacity: 0.6; /* Stay visible */
+            }
+            100% { 
+                transform: translateY(-28px) scale(1.1); 
+                opacity: 0; /* Fade out at top */
+            }
         }
-        /* Animation: Slight horizontal drift */
-        @keyframes bubble-drift {
-            0% { transform: translateX(0); }
-            50% { transform: translateX(1px); }
-            100% { transform: translateX(0); }
+
+        .mempool-bubble {
+            fill: currentColor;
+            stroke: none;
+            /* No default opacity: 0 to avoid getting stuck invisible if animation fails */
+            transform-origin: center;
         }
-        .bubble {
-            stroke-width: 1.5;
-            stroke: currentColor;
-            fill: none;
-            opacity: 0;
-            animation: bubble-rise 6s ease-in-out infinite, bubble-drift 4s ease-in-out infinite alternate;
+
+        .bubble-group {
+            /* Linear rise */
+            animation: bubble-rise 4s linear infinite;
         }
-        /* Stagger the animation start times */
-        #b1 { animation-delay: 0s, 0s; }
-        #b2 { animation-delay: 1.5s, 1s; }
-        #b3 { animation-delay: 3s, 2s; }
-        #b4 { animation-delay: 4.5s, 3s; }
     </style>
 
-    <circle id="b1" class="bubble" cx="12" cy="20" r="1.5" />
-    <circle id="b2" class="bubble" cx="8" cy="22" r="1" />
-    <circle id="b3" class="bubble" cx="16" cy="21" r="2" />
-    <circle id="b4" class="bubble" cx="10" cy="18" r="1" />
+    <g class="bubble-group" style="animation-duration: 4s; animation-delay: -1s;">
+        <circle cx="6" cy="24" r="1.5" class="mempool-bubble" />
+    </g>
+
+    <g class="bubble-group" style="animation-duration: 6s; animation-delay: -3s;">
+        <circle cx="16" cy="25" r="2.5" class="mempool-bubble" />
+    </g>
+
+    <g class="bubble-group" style="animation-duration: 5s; animation-delay: -2s;">
+        <circle cx="10" cy="23" r="1.8" class="mempool-bubble" />
+    </g>
+    
+    <g class="bubble-group" style="animation-duration: 4.5s; animation-delay: -0.5s;">
+        <circle cx="20" cy="24" r="1" class="mempool-bubble" />
+    </g>
+
 </svg>
