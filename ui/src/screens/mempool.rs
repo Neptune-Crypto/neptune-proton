@@ -280,10 +280,6 @@ pub fn MempoolScreen() -> Element {
                     h3 {
                         "Mempool"
                     }
-                    p {
-                        "Transactions: {tx_list.len()}"
-                    }
-
                     EmptyState {
                         title: "Mempool is Empty".to_string(),
                         description: Some("There are no pending transactions waiting to be mined.".to_string()),
@@ -325,10 +321,17 @@ pub fn MempoolScreen() -> Element {
                     Card {
 
                         h3 {
+                            // 1. Flexbox to push items to opposite edges
+                            style: "display: flex; justify-content: space-between; align-items: baseline;",
+
                             "Mempool"
-                        }
-                        p {
-                            "Transactions: {tx_list.len()}"
+
+                            small {
+                                // 2. Reset font styles to look like normal body text
+                                style: "font-weight: normal; font-size: 1rem; color: var(--pico-muted-color);",
+
+                                "{tx_list.len()} transactions"
+                            }
                         }
 
                         div {
