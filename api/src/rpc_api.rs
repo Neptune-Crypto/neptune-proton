@@ -18,6 +18,7 @@ use neptune_types::peer_info::PeerInfo;
 use neptune_types::timestamp::Timestamp;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use neptune_types::ui_utxo::UiUtxo;
 use twenty_first::prelude::*;
 
 #[tarpc::service]
@@ -111,6 +112,9 @@ pub trait RPC {
 
     /// Return the number of expected UTXOs, including already received UTXOs.
     async fn num_expected_utxos(token: rpc_auth::Token) -> RpcResult<u64>;
+
+    /// Generate a list of all UTXOs, currently owned, historical, time-locked, not abandoned.
+    async fn list_utxos(token: rpc_auth::Token) -> RpcResult<Vec<UiUtxo>>;
 
     /// generate a new receiving address of the specified type
     async fn next_receiving_address(

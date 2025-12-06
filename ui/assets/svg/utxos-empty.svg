@@ -1,0 +1,63 @@
+<svg width="100%" height="100%" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .sw-container {
+        width: 100%;
+        height: 100%;
+        perspective: 200px;
+        overflow: hidden;
+      }
+      
+      .sw-crawl {
+        color: #00008B; /* DarkBlue */
+        font-family: 'Arial Black', 'Impact', sans-serif;
+        font-weight: bold;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        line-height: 1.5;
+        font-size: 28px;
+        
+        /* Positioning */
+        position: absolute;
+        width: 100%;
+        top: 0;
+        
+        /* The Animation: Increased to 35s (was 12s) */
+        animation: crawl 35s linear infinite;
+      }
+      
+      @keyframes crawl {
+        0% {
+          /* Rotate + Start completely below the container */
+          transform: rotateX(25deg) translateY(300px);
+          opacity: 0;
+        }
+        5% {
+           opacity: 1;
+        }
+        100% {
+          /* Rotate + Move completely above the container */
+          transform: rotateX(25deg) translateY(-150%);
+          opacity: 0; 
+        }
+      }
+    </style>
+  </defs>
+  
+  <foreignObject width="100%" height="100%">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="sw-container">
+      <div class="sw-crawl">
+          EPISODE 0<br/>
+          THE EMPTY WALLET<br/><br/>
+          It is a period of<br/>
+          financial silence.<br/><br/>
+          No UTXOs have been<br/>
+          detected in the<br/>
+          sector.<br/><br/>
+          Waiting for<br/>
+          inbound transactions...
+      </div>
+    </div>
+  </foreignObject>
+</svg>

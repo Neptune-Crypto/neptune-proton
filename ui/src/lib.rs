@@ -30,6 +30,7 @@ use screens::mempool_tx::MempoolTxScreen;
 use screens::peers::PeersScreen;
 use screens::receive::ReceiveScreen;
 use screens::send::SendScreen;
+use screens::utxos::UtxosScreen;
 
 /// Enum to represent the different screens in our application.
 #[derive(Clone, PartialEq, Default)]
@@ -39,6 +40,7 @@ enum Screen {
     Send,
     Receive,
     History,
+    Utxos,
     Addresses,
     Peers,
     BlockChain,
@@ -55,6 +57,7 @@ impl Screen {
             Screen::Send => "Send",
             Screen::Receive => "Receive",
             Screen::History => "History",
+            Screen::Utxos => "Utxos",
             Screen::Addresses => "Addresses",
             Screen::Peers => "Peers",
             Screen::BlockChain => "BlockChain",
@@ -74,11 +77,12 @@ enum ViewMode {
 }
 
 /// A list of all available screens for easy iteration.
-const ALL_SCREENS: [Screen; 8] = [
+const ALL_SCREENS: [Screen; 9] = [
     Screen::Balance,
     Screen::Send,
     Screen::Receive,
     Screen::History,
+    Screen::Utxos,
     Screen::Addresses,
     Screen::Peers,
     Screen::BlockChain,
@@ -547,6 +551,9 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                             Screen::History => rsx! {
                                 HistoryScreen {}
                             },
+                            Screen::Utxos => rsx! {
+                                UtxosScreen {}
+                            },
                             Screen::Addresses => rsx! {
                                 AddressesScreen {}
                             },
@@ -616,6 +623,9 @@ fn LoadedApp(app_state: AppState, user_prefs: UserPrefs) -> Element {
                             },
                             Screen::History => rsx! {
                                 HistoryScreen {}
+                            },
+                            Screen::Utxos => rsx! {
+                                UtxosScreen {}
                             },
                             Screen::Addresses => rsx! {
                                 AddressesScreen {}

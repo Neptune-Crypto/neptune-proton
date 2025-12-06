@@ -31,6 +31,7 @@ use neptune_types::timestamp::Timestamp;
 use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
+use neptune_types::ui_utxo::UiUtxo;
 use prefs::user_prefs::UserPrefs;
 use price_map::PriceMap;
 use twenty_first::tip5::Digest;
@@ -158,6 +159,17 @@ pub async fn history(
 
     let history = client.history(tarpc::context::current(), token).await??;
     Ok(history)
+}
+
+#[server(input = Json, output = Json)]
+#[post("/api/list_utxos")]
+pub async fn list_utxos(
+) -> Result<Vec<UiUtxo>, ApiError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    let ui_utxos = client.list_utxos(tarpc::context::current(), token).await??;
+    Ok(ui_utxos)
 }
 
 #[post("/api/mempool_overview")]

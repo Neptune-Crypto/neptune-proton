@@ -10,3 +10,4 @@ pub mod mempool_tx;
 pub mod peers;
 pub mod receive;
 pub mod send;
+pub mod utxos;
