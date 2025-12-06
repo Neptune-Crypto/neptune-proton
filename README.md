@@ -103,7 +103,7 @@ As of 2025-07-09:
 ### Dependencies
 
 1. Rust compiler -- [Instructions](https://www.rust-lang.org/tools/install).
-2. Dioxus 0.7.1 -- [Instructions](https://dioxuslabs.com/learn/0.7.1/getting_started/)
+2. Dioxus 0.7.1 -- [Instructions](https://dioxuslabs.com/learn/0.7/getting_started/)
 3. neptune-core -- [Instructions](https://github.com/Neptune-Crypto/neptune-core/)
 
 for desktop platform, on ubuntu:
