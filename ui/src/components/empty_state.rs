@@ -41,11 +41,11 @@ pub fn EmptyState(props: EmptyStateProps) -> Element {
                         /* PURE SCALING (VMIN): */
                         /* 20% of the viewport's smaller dimension (width or height). */
                         /* No min, no max. Just pure scaling. */
-                        width: 20vmin;
-                        height: 20vmin;
+                        width: 30vmin;
+                        height: 30vmin;
                         
                         /* Ensure Emojis match the box size exactly */
-                        font-size: 20vmin;
+                        font-size: 30vmin;
                         
                         margin-bottom: 1rem;
                         color: var(--pico-primary-background); 
@@ -62,7 +62,7 @@ pub fn EmptyState(props: EmptyStateProps) -> Element {
 
             if let Some(desc) = props.description {
                 p {
-                    style: "max-width: 400px; margin: 0 auto 1.5rem auto;",
+                    style: "max-width: 600px; margin: 0 auto 1.5rem auto;",
                     "{desc}"
                 }
             }
