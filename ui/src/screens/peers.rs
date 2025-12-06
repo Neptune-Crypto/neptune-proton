@@ -13,11 +13,11 @@ use chrono::TimeZone;
 use chrono::Utc;
 use dioxus::prelude::*;
 use neptune_types::peer_info::PeerInfo;
+use std::time::Duration;
 #[cfg(target_arch = "wasm32")]
 use web_time::SystemTime;
 #[cfg(target_arch = "wasm32")]
 use web_time::UNIX_EPOCH;
-use std::time::Duration;
 
 use crate::components::pico::Card;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
@@ -140,10 +140,12 @@ fn EstablishedCell(time: SystemTime) -> Element {
     let date = established_local.format("%Y-%m-%d").to_string();
     let hour = established_local.format("%H:%M:%S").to_string();
 
-    let elapsed_time_secs = Duration::from_secs(SystemTime::now()
-        .duration_since(time)
-        .unwrap_or_default()
-        .as_secs());
+    let elapsed_time_secs = Duration::from_secs(
+        SystemTime::now()
+            .duration_since(time)
+            .unwrap_or_default()
+            .as_secs(),
+    );
 
     let human_duration = humantime::format_duration(elapsed_time_secs);
 
