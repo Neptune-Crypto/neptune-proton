@@ -3,6 +3,7 @@
 // Added for SocketAddr and IpAddr types
 use std::net::IpAddr;
 use std::net::SocketAddr;
+use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
 #[cfg(not(target_arch = "wasm32"))]
@@ -13,7 +14,6 @@ use chrono::TimeZone;
 use chrono::Utc;
 use dioxus::prelude::*;
 use neptune_types::peer_info::PeerInfo;
-use std::time::Duration;
 #[cfg(target_arch = "wasm32")]
 use web_time::SystemTime;
 #[cfg(target_arch = "wasm32")]
@@ -25,7 +25,6 @@ use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 // Embed the SVG content as a static string at compile time.
 const PEERS_EMPTY_SVG: &str = include_str!("../../assets/svg/peers-empty.svg");
-
 
 #[derive(Clone, Copy, PartialEq)]
 enum SortableColumn {

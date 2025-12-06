@@ -10,11 +10,11 @@ use neptune_types::network::Network;
 
 use crate::app_state::AppState;
 use crate::components::address::Address;
+use crate::components::empty_state::EmptyState;
 use crate::components::pico::Button;
 use crate::components::pico::ButtonType;
 use crate::components::pico::Card;
 use crate::components::pico::CopyButton;
-use crate::components::empty_state::EmptyState;
 use crate::components::pico::NoTitleModal;
 use crate::components::qr_code::QrCode;
 use crate::hooks::use_rpc_checker::use_rpc_checker;

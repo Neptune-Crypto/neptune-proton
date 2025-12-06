@@ -29,7 +29,7 @@ pub fn EmptyState(props: EmptyStateProps) -> Element {
                 background-color: var(--pico-card-sectioning-background-color);
                 margin: 1rem 0;
             ",
-            
+
             // Icon Container
             if let Some(icon) = props.icon {
                 div {
@@ -66,7 +66,7 @@ pub fn EmptyState(props: EmptyStateProps) -> Element {
                     "{desc}"
                 }
             }
-            
+
             if let Some(action) = props.primary_action {
                 div {
                     {action}

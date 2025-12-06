@@ -13,8 +13,8 @@ use twenty_first::tip5::Digest;
 
 use crate::components::amount::Amount;
 use crate::components::block::Block;
-use crate::components::pico::Card;
 use crate::components::empty_state::EmptyState;
+use crate::components::pico::Card;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 // Embed the SVG content as a static string at compile time.
