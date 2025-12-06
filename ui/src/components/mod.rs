@@ -8,6 +8,7 @@ pub mod block;
 pub mod currency_amount_input;
 pub mod currency_chooser;
 pub mod digest_display;
+pub mod empty_state;
 pub mod pico;
 pub mod qr_code;
 pub mod qr_processor;

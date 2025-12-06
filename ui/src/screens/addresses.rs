@@ -14,9 +14,13 @@ use crate::components::pico::Button;
 use crate::components::pico::ButtonType;
 use crate::components::pico::Card;
 use crate::components::pico::CopyButton;
+use crate::components::empty_state::EmptyState;
 use crate::components::pico::NoTitleModal;
 use crate::components::qr_code::QrCode;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
+
+// Embed the SVG content as a static string at compile time.
+const ADDRESSES_EMPTY_SVG: &str = include_str!("../../assets/svg/addresses-empty.svg");
 
 /// A new, self-contained component for rendering a single row in the address table.
 #[component]
@@ -140,6 +144,28 @@ pub fn AddressesScreen() -> Element {
                     }
                 }
             },
+            Some(Ok(keys)) if keys.is_empty() => {
+                rsx! {
+                    Card {
+
+                        h3 {
+
+                            "My Addresses"
+                        }
+                        EmptyState {
+                            title: "No Addresses Found".to_string(),
+                            description: Some("Visit the Receive tab to generate a new address.".to_string()),
+                            icon: rsx! {
+                                // Inject the SVG string directly into the DOM
+                                span {
+                                    dangerous_inner_html: ADDRESSES_EMPTY_SVG,
+                                    style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;",
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Some(Ok(keys)) => {
                 let mut qr_code_content = use_signal::<
                     Option<Rc<ReceivingAddress>>,

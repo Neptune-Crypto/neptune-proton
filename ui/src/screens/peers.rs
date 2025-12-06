@@ -19,8 +19,13 @@ use web_time::SystemTime;
 #[cfg(target_arch = "wasm32")]
 use web_time::UNIX_EPOCH;
 
+use crate::components::empty_state::EmptyState;
 use crate::components::pico::Card;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
+
+// Embed the SVG content as a static string at compile time.
+const PEERS_EMPTY_SVG: &str = include_str!("../../assets/svg/peers-empty.svg");
+
 
 #[derive(Clone, Copy, PartialEq)]
 enum SortableColumn {
@@ -247,6 +252,26 @@ pub fn PeersScreen() -> Element {
                     }
                 }
             },
+            Some(Ok(peers)) if peers.is_empty() => rsx! {
+                Card {
+
+                    h3 {
+                        "Connected Peers ({peers.len()})"
+                    }
+
+                    EmptyState {
+                        title: "No Peers Connected".to_string(),
+                        description: Some("Your node is currently scanning the network. New connections will appear here automatically.".to_string()),
+                        icon: rsx! {
+                            // Inject the SVG string directly into the DOM
+                            span {
+                                dangerous_inner_html: PEERS_EMPTY_SVG,
+                                style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;",
+                            }
+                        }
+                    }
+                }
+            },
             Some(Ok(peers)) => {
                 let mut sorted_peers = peers.clone();
                 sorted_peers
@@ -285,9 +310,9 @@ pub fn PeersScreen() -> Element {
                     Card {
 
                         h3 {
-
                             "Connected Peers ({peers.len()})"
                         }
+
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {

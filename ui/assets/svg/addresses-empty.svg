@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 250 40"
+     fill="none"
+     stroke="none"
+     font-family="monospace"
+     font-size="20">
+
+    <style>
+        @keyframes full-sequence {
+            /* 0% (0.0s): START: Off-screen left, letters are invisible/at starting X */
+            0% { transform: translateX(0); opacity: 0; }
+            
+            /* 10% (0.55s): 'a' is moving into position (start of sequence) */
+            10% { transform: translateX(0); }
+            
+            /* 30% (1.65s): All letters are in position (End of slide-in) */
+            30% { transform: translateX(0); opacity: 1; }
+
+            /* 40% (2.2s): Start of dance (brief pause) */
+            40% { transform: translateX(0) translateY(0); }
+
+            /* 60% (3.3s): End of dance (Still in center) */
+            60% { transform: translateX(0) translateY(0); }
+
+            /* 70% (3.85s): Start of slide-out to right */
+            70% { transform: translateX(0); }
+            
+            /* 95% (5.225s): End of slide-out (Off-screen right) */
+            95% { transform: translateX(250px); opacity: 1; }
+            
+            /* 100% (5.5s): INSTANT RESET (Off-screen, invisible) */
+            100% { transform: translateX(0); opacity: 0; }
+        }
+        
+        .animated-group {
+            fill: currentColor;
+            /* Runs the full 5.5s sequence, indefinitely */
+            animation: full-sequence 5.5s linear infinite; 
+            transform-origin: center;
+        }
+
+        /* LETTER STAGGER: Delay the visibility/X-position for each letter relative to the group's animation */
+        #n { animation-delay: -1.2s; } /* Adjust these delays relative to the 5.5s cycle */
+        #o { animation-delay: -0.9s; }
+        #l { animation-delay: -0.6s; }
+        #g { animation-delay: -0.3s; }
+        #a { animation-delay: 0s; } /* 'a' starts immediately */
+    </style>
+
+    <g class="animated-group">
+        <text id="n" x="10" y="25" font-weight="bold">n</text>
+        <text id="o" x="30" y="25" font-weight="bold">o</text>
+        <text id="l" x="50" y="25" font-weight="bold">l</text>
+        <text id="g" x="70" y="25" font-weight="bold">g</text>
+        <text id="a" x="90" y="25" font-weight="bold">a</text>
+        <text id="dots" x="110" y="25">...</text>
+    </g>
+    
+    <animateTransform attributeName="transform" href=".animated-group" 
+        type="translate" 
+        values="0 0; 0 -2; 0 0; 0 2; 0 0" 
+        keyTimes="0; 0.25; 0.5; 0.75; 1" 
+        dur="1.5s" 
+        begin="2.0s" 
+        fill="freeze" />
+</svg>

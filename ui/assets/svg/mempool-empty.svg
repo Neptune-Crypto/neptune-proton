@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 24 24"
+     fill="none"
+     stroke="currentColor"
+     stroke-width="1.5"
+     stroke-linecap="round"
+     stroke-linejoin="round">
+
+    <style>
+        /* Animation: Rising and fading out */
+        @keyframes bubble-rise {
+            0% { transform: translate(0, 0); opacity: 0; }
+            50% { opacity: 0.8; }
+            100% { transform: translate(0, -20px); opacity: 0; }
+        }
+        /* Animation: Slight horizontal drift */
+        @keyframes bubble-drift {
+            0% { transform: translateX(0); }
+            50% { transform: translateX(1px); }
+            100% { transform: translateX(0); }
+        }
+        .bubble {
+            stroke-width: 1.5;
+            stroke: currentColor;
+            fill: none;
+            opacity: 0;
+            animation: bubble-rise 6s ease-in-out infinite, bubble-drift 4s ease-in-out infinite alternate;
+        }
+        /* Stagger the animation start times */
+        #b1 { animation-delay: 0s, 0s; }
+        #b2 { animation-delay: 1.5s, 1s; }
+        #b3 { animation-delay: 3s, 2s; }
+        #b4 { animation-delay: 4.5s, 3s; }
+    </style>
+
+    <circle id="b1" class="bubble" cx="12" cy="20" r="1.5" />
+    <circle id="b2" class="bubble" cx="8" cy="22" r="1" />
+    <circle id="b3" class="bubble" cx="16" cy="21" r="2" />
+    <circle id="b4" class="bubble" cx="10" cy="18" r="1" />
+</svg>

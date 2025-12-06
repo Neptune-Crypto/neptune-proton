@@ -12,9 +12,13 @@ use num_traits::CheckedSub;
 use crate::components::action_link::ActionLink;
 use crate::components::amount::Amount;
 use crate::components::amount::AmountType;
+use crate::components::empty_state::EmptyState; // <--- Import Added
 use crate::components::pico::Card;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
 use crate::Screen;
+
+// Embed the SVG content as a static string at compile time.
+const MEMPOOL_SVG: &str = include_str!("../../assets/svg/mempool-empty.svg");
 
 // Enums to manage sorting state
 #[derive(Clone, Copy, PartialEq)]
@@ -270,6 +274,29 @@ pub fn MempoolScreen() -> Element {
                     }
                 }
             },
+            Some(Ok(tx_list)) if tx_list.is_empty() => rsx! {
+                Card {
+
+                    h3 {
+                        "Mempool"
+                    }
+                    p {
+                        "Transactions: {tx_list.len()}"
+                    }
+
+                    EmptyState {
+                        title: "Mempool is Empty".to_string(),
+                        description: Some("There are no pending transactions waiting to be mined.".to_string()),
+                        icon: rsx! {
+                            // Inject the SVG string directly into the DOM
+                            span {
+                                dangerous_inner_html: MEMPOOL_SVG,
+                                style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;",
+                            }
+                        }
+                    }
+                }
+            },
             Some(Ok(tx_list)) => {
                 let mut sorted_txs = tx_list.clone();
                 sorted_txs
@@ -298,13 +325,12 @@ pub fn MempoolScreen() -> Element {
                     Card {
 
                         h3 {
-
                             "Mempool"
                         }
                         p {
-
                             "Transactions: {tx_list.len()}"
                         }
+
                         div {
                             style: "max-height: 70vh; overflow-y: auto;",
                             table {

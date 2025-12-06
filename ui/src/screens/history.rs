@@ -14,7 +14,11 @@ use twenty_first::tip5::Digest;
 use crate::components::amount::Amount;
 use crate::components::block::Block;
 use crate::components::pico::Card;
+use crate::components::empty_state::EmptyState;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
+
+// Embed the SVG content as a static string at compile time.
+const HISTORY_EMPTY_SVG: &str = include_str!("../../assets/svg/history-empty.svg");
 
 // Enums to manage sorting state
 #[derive(Clone, Copy, PartialEq)]
@@ -211,6 +215,26 @@ pub fn HistoryScreen() -> Element {
                     button {
                         onclick: move |_| history.restart(),
                         "Retry"
+                    }
+                }
+            },
+            Some(Ok(utxos)) if utxos.is_empty() => rsx! {
+                Card {
+
+                    h3 {
+                        "History"
+                    }
+
+                    EmptyState {
+                        title: "No Transactions".to_string(),
+                        description: Some("You have no transactions confirmed in a block yet.  You can also check the mempool for unconfirmed transctions.".to_string()),
+                        icon: rsx! {
+                            // Inject the SVG string directly into the DOM
+                            span {
+                                dangerous_inner_html: HISTORY_EMPTY_SVG,
+                                style: "width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;",
+                            }
+                        }
                     }
                 }
             },
