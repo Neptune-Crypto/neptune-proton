@@ -7,14 +7,11 @@ use std::rc::Rc;
 use dioxus::prelude::*;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::block_selector::BlockSelector;
-use neptune_types::native_currency_amount::NativeCurrencyAmount;
-use neptune_types::timestamp::Timestamp;
 use neptune_types::ui_utxo::UiUtxo;
 use neptune_types::ui_utxo::UtxoStatusEvent;
 
 use crate::components::action_link::ActionLink;
 use crate::components::amount::Amount;
-use crate::components::amount::AmountType;
 use crate::components::empty_state::EmptyState;
 use crate::components::pico::Card;
 use crate::hooks::use_rpc_checker::use_rpc_checker;

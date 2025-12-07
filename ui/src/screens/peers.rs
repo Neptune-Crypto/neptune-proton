@@ -145,6 +145,7 @@ impl PartialEq for ClearStandingModalContentProps {
 }
 
 // Component containing the modal's internal logic and buttons
+#[component]
 fn ClearStandingModalContent(props: ClearStandingModalContentProps) -> Element {
     let peer_ip = props.peer_ip;
     let mut show_modal = props.show_modal;
@@ -304,11 +305,6 @@ fn EstablishedCell(time: SystemTime) -> Element {
     );
 
     let human_duration = humantime::format_duration(elapsed_time_secs);
-
-    let _seconds_ago = SystemTime::now()
-        .duration_since(time)
-        .unwrap_or_default()
-        .as_secs();
 
     rsx! {
         td {

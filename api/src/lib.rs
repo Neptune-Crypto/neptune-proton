@@ -11,7 +11,6 @@ pub mod price_providers;
 mod rpc_api;
 
 use std::net::IpAddr;
-use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 
 use dioxus::prelude::*;
@@ -260,7 +259,7 @@ pub async fn fiat_prices() -> Result<PriceMap, ApiError> {
 #[get("/api/neptune_core_rpc_socket_addr")]
 pub async fn neptune_core_rpc_socket_addr() -> Result<SocketAddr, ApiError> {
     Ok(SocketAddr::new(
-        std::net::IpAddr::V4(Ipv4Addr::LOCALHOST),
+        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
         neptune_rpc::neptune_core_rpc_port(),
     ))
 }
