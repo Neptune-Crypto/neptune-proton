@@ -174,8 +174,12 @@ fn ClearStandingModalContent(props: ClearStandingModalContentProps) -> Element {
 
         spawn(async move {
             let result = match ip_to_clear {
-                Some(ip) => api::clear_standing_by_ip(ip).await.map_err(|e| format!("API Error: {}", e)),
-                None => api::clear_all_standings().await.map_err(|e| format!("API Error: {}", e)),
+                Some(ip) => api::clear_standing_by_ip(ip)
+                    .await
+                    .map_err(|e| format!("API Error: {}", e)),
+                None => api::clear_all_standings()
+                    .await
+                    .map_err(|e| format!("API Error: {}", e)),
             };
 
             api_in_progress.set(false);
@@ -195,7 +199,10 @@ fn ClearStandingModalContent(props: ClearStandingModalContentProps) -> Element {
         clear_status.set(None);
     };
 
-    let error_message = clear_status.read().as_ref().and_then(|res| res.as_ref().err().cloned());
+    let error_message = clear_status
+        .read()
+        .as_ref()
+        .and_then(|res| res.as_ref().err().cloned());
 
     rsx! {
         div {
@@ -319,9 +326,8 @@ pub fn PeersScreen() -> Element {
 
     // Resource type explicitly targets Vec<PeerInfo> with a String error type,
     // and maps the internal error to String for consistency.
-    let mut peer_info: Resource<Result<Vec<PeerInfo>, String>> = use_resource(move || async move {
-        api::peer_info().await.map_err(|e| e.to_string())
-    });
+    let mut peer_info: Resource<Result<Vec<PeerInfo>, String>> =
+        use_resource(move || async move { api::peer_info().await.map_err(|e| e.to_string()) });
 
     // Clone the resource handle for the immutable Fn() closure
     let peer_info_handle = peer_info.clone();

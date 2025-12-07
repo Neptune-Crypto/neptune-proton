@@ -5,12 +5,12 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use dioxus::prelude::*;
-use neptune_types::native_currency_amount::NativeCurrencyAmount;
-use neptune_types::ui_utxo::UiUtxo;
-use neptune_types::ui_utxo::UtxoStatusEvent;
-use neptune_types::timestamp::Timestamp;
 use neptune_types::block_height::BlockHeight;
 use neptune_types::block_selector::BlockSelector;
+use neptune_types::native_currency_amount::NativeCurrencyAmount;
+use neptune_types::timestamp::Timestamp;
+use neptune_types::ui_utxo::UiUtxo;
+use neptune_types::ui_utxo::UtxoStatusEvent;
 
 use crate::components::action_link::ActionLink;
 use crate::components::amount::Amount;
@@ -49,7 +49,9 @@ struct UiUtxoReadOnly(Rc<UiUtxo>);
 
 impl Deref for UiUtxoReadOnly {
     type Target = UiUtxo;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 fn get_event_sort_key(event: &UtxoStatusEvent) -> u64 {
@@ -76,23 +78,28 @@ fn BlockHeightDisplay(height: BlockHeight) -> Element {
 }
 
 #[component]
-fn UtxoEventDisplay(
-    event: UtxoStatusEvent,
-    mode: Signal<DisplayMode>,
-) -> Element {
-
+fn UtxoEventDisplay(event: UtxoStatusEvent, mode: Signal<DisplayMode>) -> Element {
     let tooltip_text = match event {
-        UtxoStatusEvent::Confirmed { block_height, timestamp } => {
+        UtxoStatusEvent::Confirmed {
+            block_height,
+            timestamp,
+        } => {
             format!("{} (Block {})", timestamp.standard_format(), block_height)
-        },
+        }
         UtxoStatusEvent::Pending => "Exists in mempool.  Unconfirmed in a  block.".to_string(),
-        UtxoStatusEvent::Expected => "We expect to receive this UTXO but it has not yet been confirmed in a block.".to_string(),
+        UtxoStatusEvent::Expected => {
+            "We expect to receive this UTXO but it has not yet been confirmed in a block."
+                .to_string()
+        }
         UtxoStatusEvent::Abandoned => "Never confirmed in a block".to_string(),
         UtxoStatusEvent::None => "Not yet spent".to_string(),
     };
 
     match event {
-        UtxoStatusEvent::Confirmed { block_height, timestamp } => {
+        UtxoStatusEvent::Confirmed {
+            block_height,
+            timestamp,
+        } => {
             rsx! {
                 span {
                     title: "{tooltip_text}",
@@ -104,7 +111,7 @@ fn UtxoEventDisplay(
                     }
                 }
             }
-        },
+        }
         _ => {
             let text = event.to_string();
 
@@ -180,7 +187,7 @@ fn UtxoRow(utxo: UiUtxoReadOnly, display_mode: Signal<DisplayMode>) -> Element {
                 _ => ts.format("%Y-%m-%d %H:%M"),
             };
             (text, format!("Can be spent after {}", ts.standard_format()))
-        },
+        }
         None => ("-".to_string(), "Not Applicable".to_string()),
     };
 
