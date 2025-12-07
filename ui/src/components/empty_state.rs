@@ -30,28 +30,60 @@ pub fn EmptyState(props: EmptyStateProps) -> Element {
                 margin: 1rem 0;
             ",
 
-            // Icon Container
             if let Some(icon) = props.icon {
-                div {
-                    style: "
+                {
+                    rsx! {
+                        style {
+                            "
+                            /* 1. Force SVG to fill the clamped box & show overflow */
+                            .empty-state-icon-wrapper svg {{
+                                width: 100% !important;
+                                height: 100% !important;
+                                min-width: 100% !important;
+                                min-height: 100% !important;
+                                overflow: visible !important; 
+                            }}
+
+                            /* 2. FIX FOR 3D/STAR WARS OFFSET */
+                            /* Target all groups/paths inside the SVG */
+                            .empty-state-icon-wrapper svg * {{
+                                /* Force the origin to be the center of the VIEWBOX, not the element */
+                                /* 'view-box' is crucial for scene-wide 3D effects like scrolling text */
+                                transform-box: view-box !important; 
+                                
+                                /* Ensure rotation happens around the center */
+                                transform-origin: center center !important;
+                            }}
+                            "
+                        }
+                        div {
+                            class: "empty-state-icon-wrapper",
+                            style: "
                         display: flex;
                         align-items: center;
                         justify-content: center;
                         
-                        /* PURE SCALING (VMIN): */
-                        /* 20% of the viewport's smaller dimension (width or height). */
-                        /* No min, no max. Just pure scaling. */
-                        width: 30vmin;
-                        height: 30vmin;
+                        /* 1. FORCE SQUARE & SCALING */
+                        width: clamp(100px, 30vmin, 1000px);
+                        height: clamp(100px, 30vmin, 1000px);
+                        font-size: clamp(100px, 30vmin, 1000px);
                         
-                        /* Ensure Emojis match the box size exactly */
-                        font-size: 30vmin;
+                        /* 2. NUCLEAR OPTION FOR CLIPPING */
+                        /* This forces the browser to cut off anything that drifts outside */
+                        overflow: hidden; 
+                        
+                        /* 3. RELATIVE POSITIONING */
+                        /* Ensures absolute children inside the SVG know where '0,0' is */
+                        position: relative;
                         
                         margin-bottom: 1rem;
                         color: var(--pico-primary-background); 
-                        opacity: 0.8;
-                    ",
-                    {icon}
+                        opacity: 0.8;                            
+                            ",
+                            
+                            {icon}
+                        }
+                    }
                 }
             }
 
