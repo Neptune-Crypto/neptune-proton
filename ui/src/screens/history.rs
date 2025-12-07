@@ -42,6 +42,7 @@ fn SortableHeader(
     column: SortableColumn,
     sort_column: Signal<SortableColumn>,
     sort_direction: Signal<SortDirection>,
+    style: Option<&'static str>,
 ) -> Element {
     let (arrow_char, is_active) = if *sort_column.read() == column {
         (
@@ -57,7 +58,7 @@ fn SortableHeader(
 
     rsx! {
         th {
-            style: "position: sticky; top: 0; background: var(--pico-card-background-color); cursor: pointer; white-space: nowrap;",
+            style: format!("{}{}", "position: sticky; top: 0; background: var(--pico-card-background-color); cursor: pointer; white-space: nowrap;", style.unwrap_or("")),
             onclick: move |_| {
                 if is_active {
                     sort_direction
@@ -115,7 +116,7 @@ fn HistoryRow(
                 "{tx_type}"
             }
             td {
-                style: "min-width: 21ch",
+                style: "min-width: 21ch; text-align: right; white-space: nowrap;",
 
                 Amount {
                     amount,
@@ -310,6 +311,7 @@ pub fn HistoryScreen() -> Element {
                                             column: SortableColumn::Amount,
                                             sort_column,
                                             sort_direction,
+                                            style: "text-align: right",
                                         }
                                         SortableHeader {
                                             title: "Block",
