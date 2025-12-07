@@ -1,8 +1,8 @@
 // File: src/screens/peers.rs
 
-// Added for SocketAddr and IpAddr types
 use std::net::IpAddr;
 use std::net::SocketAddr;
+use std::rc::Rc;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
@@ -21,6 +21,7 @@ use web_time::UNIX_EPOCH;
 
 use crate::components::empty_state::EmptyState;
 use crate::components::pico::Card;
+use crate::components::pico::{Button, ButtonType, NoTitleModal};
 use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 // Embed the SVG content as a static string at compile time.
@@ -128,6 +129,150 @@ fn SortableHeader(
     }
 }
 
+// Props for the modal content
+#[derive(Clone)]
+struct ClearStandingModalContentProps {
+    peer_ip: Option<IpAddr>,
+    show_modal: Signal<bool>,
+    on_success: std::rc::Rc<dyn Fn()>,
+}
+
+impl PartialEq for ClearStandingModalContentProps {
+    fn eq(&self, other: &Self) -> bool {
+        // Skip comparison for Rc<dyn Fn()>.
+        self.peer_ip == other.peer_ip && self.show_modal == other.show_modal
+    }
+}
+
+// Component containing the modal's internal logic and buttons
+fn ClearStandingModalContent(props: ClearStandingModalContentProps) -> Element {
+    let peer_ip = props.peer_ip;
+    let mut show_modal = props.show_modal;
+    let on_success = props.on_success;
+
+    let mut clear_status = use_signal::<Option<Result<(), String>>>(|| None);
+    let mut api_in_progress = use_signal(|| false);
+
+    let action_title = match peer_ip {
+        Some(ip) => format!("IP {}", ip),
+        None => "All Peers".to_string(),
+    };
+
+    let ip_to_clear = peer_ip;
+
+    let handle_clear = move |_| {
+        if *api_in_progress.read() {
+            return;
+        }
+
+        api_in_progress.set(true);
+        clear_status.set(None);
+
+        let on_success = on_success.clone();
+        let mut show_modal = show_modal.clone();
+        let ip_to_clear = ip_to_clear; // Capture the IP value
+
+        spawn(async move {
+            let result = match ip_to_clear {
+                Some(ip) => api::clear_standing_by_ip(ip).await.map_err(|e| format!("API Error: {}", e)),
+                None => api::clear_all_standings().await.map_err(|e| format!("API Error: {}", e)),
+            };
+
+            api_in_progress.set(false);
+
+            let is_success = result.is_ok();
+            clear_status.set(Some(result));
+
+            if is_success {
+                show_modal.set(false);
+                on_success();
+            }
+        });
+    };
+
+    let handle_close = move |_| {
+        show_modal.set(false);
+        clear_status.set(None);
+    };
+
+    let error_message = clear_status.read().as_ref().and_then(|res| res.as_ref().err().cloned());
+
+    rsx! {
+        div {
+
+            header {
+                h3 {
+                    "Clear Peer Standings"
+                }
+            }
+
+            if let Some(err) = error_message {
+                p { "Error clearing standing." }
+                p { "Details: {err}" }
+                footer {
+                    Button {
+                        button_type: ButtonType::Secondary,
+                        on_click: handle_close,
+                        "Close"
+                    }
+                }
+            } else {
+                p { "Are you sure you want to clear the standing for:" }
+                ul {
+                    li { b { "{action_title}" } }
+                }
+
+                footer {
+                    Button {
+                        button_type: ButtonType::Secondary,
+                        on_click: handle_close,
+                        disabled: *api_in_progress.read(),
+                        style: "margin-right: 1rem;",
+                        "Cancel"
+                    }
+                    Button {
+                        button_type: ButtonType::Primary,
+                        on_click: handle_clear,
+                        disabled: *api_in_progress.read(),
+                        {
+                            if *api_in_progress.read() {
+                                rsx! { "Clearing..." }
+                            } else {
+                                rsx! { "Confirm Clear" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn ClearStandingCell(
+    /// Content to display in the cell (e.g., IP address or sanction info).
+    display_content: Element,
+    /// The SocketAddr of the peer.
+    peer_addr: SocketAddr,
+    /// Signal to control modal visibility.
+    show_modal: Signal<bool>,
+    /// Signal to set the IP address for the modal.
+    modal_ip: Signal<Option<IpAddr>>,
+) -> Element {
+    let canonical_ip = get_canonical_ip(&peer_addr);
+
+    rsx! {
+        td {
+            style: "cursor: pointer;",
+            onclick: move |_| {
+                modal_ip.set(Some(canonical_ip));
+                show_modal.set(true);
+            },
+            {display_content}
+        }
+    }
+}
+
 #[component]
 fn EstablishedCell(time: SystemTime) -> Element {
     let duration_since_epoch = time
@@ -153,7 +298,7 @@ fn EstablishedCell(time: SystemTime) -> Element {
 
     let human_duration = humantime::format_duration(elapsed_time_secs);
 
-    let seconds_ago = SystemTime::now()
+    let _seconds_ago = SystemTime::now()
         .duration_since(time)
         .unwrap_or_default()
         .as_secs();
@@ -172,7 +317,14 @@ fn EstablishedCell(time: SystemTime) -> Element {
 pub fn PeersScreen() -> Element {
     let mut rpc = use_rpc_checker(); // Initialize Hook
 
-    let mut peer_info = use_resource(move || async move { api::peer_info().await });
+    // Resource type explicitly targets Vec<PeerInfo> with a String error type,
+    // and maps the internal error to String for consistency.
+    let mut peer_info: Resource<Result<Vec<PeerInfo>, String>> = use_resource(move || async move {
+        api::peer_info().await.map_err(|e| e.to_string())
+    });
+
+    // Clone the resource handle for the immutable Fn() closure
+    let peer_info_handle = peer_info.clone();
 
     // Effect: Restarts the resource when connection is restored.
     let status_sig = rpc.status();
@@ -206,7 +358,32 @@ pub fn PeersScreen() -> Element {
     let sort_column = use_signal(|| SortableColumn::Standing);
     let sort_direction = use_signal(|| SortDirection::Descending);
 
+    // MODAL STATE:
+    let mut show_clear_standing_modal = use_signal(|| false);
+    let mut modal_peer_ip = use_signal::<Option<IpAddr>>(|| None);
+
+    // ACTION/CONTROL LOGIC:
+    let refresh_data_on_success = Rc::new(move || {
+        peer_info_handle.clone().restart();
+    }) as Rc<dyn Fn()>;
+
     rsx! {
+        // MODAL RENDER: Using the imported NoTitleModal component
+        if *show_clear_standing_modal.read() {
+            NoTitleModal {
+                is_open: show_clear_standing_modal,
+                children: rsx! {
+                    {
+                        ClearStandingModalContent(ClearStandingModalContentProps {
+                            peer_ip: *modal_peer_ip.read(),
+                            show_modal: show_clear_standing_modal,
+                            on_success: refresh_data_on_success.clone(),
+                        })
+                    }
+                }
+            }
+        }
+
         match &*peer_info.read() {
             None => rsx! {
                 Card {
@@ -245,8 +422,8 @@ pub fn PeersScreen() -> Element {
 
                         "Failed to load peer data: {e}"
                     }
-                    button {
-                        onclick: move |_| peer_info.restart(),
+                    Button {
+                        on_click: move |_| peer_info.restart(),
                         "Retry"
                     }
                 }
@@ -255,7 +432,7 @@ pub fn PeersScreen() -> Element {
                 Card {
 
                     h3 {
-                        "Connected Peers ({peers.len()})"
+                        "Connected Peers"
                     }
 
                     EmptyState {
@@ -307,9 +484,31 @@ pub fn PeersScreen() -> Element {
                     });
                 rsx! {
                     Card {
+                        div {
+                            // MODIFIED: Added align-items: center and adjusted margins for vertical alignment
+                            style: "display: flex; align-items: center; width: 100%;",
 
-                        h3 {
-                            "Connected Peers ({peers.len()})"
+                            h3 {
+                                style: "margin-right: 0.5rem; margin-bottom: 0;",
+                                "Connected Peers"
+                            }
+                            small {
+                                style: "font-weight: normal; font-size: 0.8rem; color: var(--pico-muted-color);",
+                                "({peers.len()})"
+                            }
+                            // Added button to clear all standings
+                            Button {
+                                button_type: ButtonType::Secondary,
+                                outline: true,
+                                // RESTORED inline styles for small button size
+                                style: "margin-left: auto; margin-right: 0; padding: 0.2rem 0.5rem; font-size: 0.8rem;",
+                                title: "Resets standing scores for all connected peers back to zero",
+                                on_click: move |_| {
+                                    modal_peer_ip.set(None); // Set to None for "All Peers"
+                                    show_clear_standing_modal.set(true);
+                                },
+                                "Clear All Standings"
+                            }
                         }
 
                         div {
@@ -363,12 +562,16 @@ pub fn PeersScreen() -> Element {
                                     for peer in sorted_peers.iter() {
                                         tr {
 
-                                            td {
-
-                                                code {
-
-                                                    "{format_socket_addr(peer.connected_address())}"
-                                                }
+                                            // Fixed: Use peer.connected_address() directly
+                                            ClearStandingCell {
+                                                display_content: rsx! {
+                                                    code {
+                                                        "{format_socket_addr(peer.connected_address())}"
+                                                    }
+                                                },
+                                                peer_addr: peer.connected_address(),
+                                                show_modal: show_clear_standing_modal,
+                                                modal_ip: modal_peer_ip,
                                             }
                                             td {
 
@@ -381,13 +584,19 @@ pub fn PeersScreen() -> Element {
 
                                                 "{peer.standing.standing}"
                                             }
-                                            td {
-
-                                                "{format_sanction(peer.standing.latest_punishment)}"
+                                            // Fixed: Use peer.connected_address() directly
+                                            ClearStandingCell {
+                                                display_content: rsx! { "{format_sanction(peer.standing.latest_punishment)}" },
+                                                peer_addr: peer.connected_address(),
+                                                show_modal: show_clear_standing_modal,
+                                                modal_ip: modal_peer_ip,
                                             }
-                                            td {
-
-                                                "{format_sanction(peer.standing.latest_reward)}"
+                                            // Fixed: Use peer.connected_address() directly
+                                            ClearStandingCell {
+                                                display_content: rsx! { "{format_sanction(peer.standing.latest_reward)}" },
+                                                peer_addr: peer.connected_address(),
+                                                show_modal: show_clear_standing_modal,
+                                                modal_ip: modal_peer_ip,
                                             }
                                         }
                                     }

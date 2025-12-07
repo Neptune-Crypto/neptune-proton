@@ -10,6 +10,7 @@ pub mod price_providers;
 #[cfg(not(target_arch = "wasm32"))]
 mod rpc_api;
 
+use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 
@@ -228,6 +229,22 @@ pub async fn peer_info() -> Result<Vec<NeptunePeerInfo>, ApiError> {
 
     let data = client.peer_info(tarpc::context::current(), token).await??;
     Ok(data)
+}
+
+#[post("/api/clear_all_standings")]
+pub async fn clear_all_standings() -> Result<(), ApiError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    Ok(client.clear_all_standings(tarpc::context::current(), token).await??)
+}
+
+#[post("/api/clear_standing_by_ip")]
+pub async fn clear_standing_by_ip(ip: IpAddr) -> Result<(), ApiError> {
+    let client = neptune_rpc::rpc_client().await?;
+    let token = neptune_rpc::get_token().await?;
+
+    Ok(client.clear_standing_by_ip(tarpc::context::current(), token, ip).await??)
 }
 
 #[post("/api/fiat_prices")]
