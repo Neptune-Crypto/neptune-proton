@@ -7,23 +7,27 @@
 # This pattern ensures we match "version = " followed by a semantic version string.
 VERSION_EXTRACT_REGEX='^version[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)"'
 
+# Global variable to store the new version for tagging
+NEW_VERSION=""
+
 # --- Utility Functions ---
 
 # Function to display usage information
 usage() {
-    echo "Usage: $(basename "$0") [OPTION]..."
+    echo "Usage: $(basename "$0") [COMMAND]..."
     echo
     echo "Manages the 'version' string in all Cargo.toml files within the project."
-    echo "Default action is --check."
+    echo "Default action is check."
     echo
-    echo "Options:"
-    echo "  --help                       Display this help message."
-    echo "  --check                      Report the 'version' string from all Cargo.toml files (default)."
-    echo "  --set <version-string>       Set a specific version (e.g., 1.2.3) in all files."
-    echo "  --bump <major|minor|point>   Increment the version number and update all files."
-    echo "  --tag                        Create a Git tag (vX.Y.Z) for the newly set or bumped version (force if tag exists)."
+    echo "Commands (no hyphens required):"
+    echo "  help                       Display this help message."
+    echo "  check                      Report the 'version' string from all Cargo.toml files (default)."
+    echo "  set <version-string>       Set a specific version (e.g., 1.2.3) in all files."
+    echo "  bump <major|minor|point>   Increment the version number and update all files."
+    echo "  changelog <version-string> Generate CHANGELOG.md content for the specified version."
+    echo "  tag                        Create a Git tag (vX.Y.Z) for the newly set/bumped version."
     echo
-    echo "Example: $(basename "$0") --bump minor"
+    echo "Example: $(basename "$0") bump minor"
     exit 0
 }
 
@@ -43,7 +47,6 @@ get_current_version() {
         return 1
     fi
 
-    # Use awk to find the version line under the first [package] section encountered.
     local version_string
     version_string=$(awk '
         /^\s*\[package\]/ { in_package = 1; next }
@@ -115,6 +118,220 @@ update_version_in_file() {
 
     # Clean up the backup file created by sed -i.bak (common on macOS)
     rm -f "$file.bak"
+}
+
+# ---------------------------------------------------------------------
+# FINALIZED FUNCTION: action_changelog (FIXED BLANK LINE ISSUE)
+# ---------------------------------------------------------------------
+action_changelog() {
+    local new_version="$1"
+    
+    # 1. Validation
+    if ! [[ "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Error: changelog requires a valid version string (e.g., 1.2.3) as its argument." >&2
+        return 1
+    fi
+
+    local output_file="CHANGELOG.md"
+    local final_prepend_file=$(mktemp)
+    
+    # 2. Get the last documented tag from the file (e.g., v0.1.0)
+    local last_doc_tag=""
+    if [ -f "$output_file" ]; then
+        # Find the most recent tag mentioned in the changelog file
+        last_doc_tag=$(grep -E '^## v[0-9]+\.[0-9]+\.[0-9]+' "$output_file" | head -n 1 | sed -E 's/## (v[0-9]+\.[0-9]+\.[0-9]+)/\1/')
+    fi
+
+    # 3. Collect Tags to Process (in chronological/ascending order)
+    local current_tag_name="v$new_version"
+    local raw_tags
+    local -a processing_tags=()
+
+    # Get all tags (version sorted ascending: v0.1.0, v0.2.0, v0.3.0, ...)
+    raw_tags=$(git tag --sort=version:refname --no-column --merged HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+')
+    
+    local start_filtering=false
+    # Filter the list to include only tags newer than the last documented one.
+    if [ -z "$last_doc_tag" ]; then
+        start_filtering=true # Start from the beginning if no file exists
+    fi
+
+    while IFS= read -r tag; do
+        if [ "$tag" == "$last_doc_tag" ]; then
+            start_filtering=true
+            continue # Skip the documented tag itself
+        fi
+        if $start_filtering; then
+            processing_tags+=("$tag")
+        fi
+    done <<< "$raw_tags"
+
+    # Ensure the new version tag is the final element, representing commits up to HEAD
+    if [[ ! " ${processing_tags[@]} " =~ " ${current_tag_name} " ]]; then
+        processing_tags+=("$current_tag_name")
+    fi
+    
+    
+    local -a generated_sections_files=() # Array to hold filenames of content sections
+    local previous_tag_ref="$last_doc_tag"
+    if [ -z "$previous_tag_ref" ]; then previous_tag_ref=""; fi
+    local all_found=false
+
+
+    # 4. Iterate and generate content for each release tag found (chronological order)
+    for tag_name in "${processing_tags[@]}"; do
+        
+        local section_content_file=$(mktemp) # Temp file for this section
+        
+        local current_ref
+        if [ "$tag_name" == "$current_tag_name" ]; then
+            current_ref="HEAD"
+        else
+            current_ref="$tag_name"
+        fi
+        
+        local tag_log_range
+        if [ -n "$previous_tag_ref" ]; then
+            tag_log_range="$previous_tag_ref..$current_ref"
+        else
+            tag_log_range="$current_ref"
+        fi
+
+        # Skip range if it's empty
+        if [ "$previous_tag_ref" == "$current_ref" ]; then
+             previous_tag_ref="$current_ref"
+             rm -f "$section_content_file"
+             continue
+        fi
+
+        # Print progress message
+        if [ -n "$previous_tag_ref" ]; then
+            echo "Generating changelog for $tag_name from $previous_tag_ref to $current_ref..."
+        else
+            echo "Generating changelog for $tag_name from beginning of history to $current_ref..."
+        fi
+        
+        local all_found_in_section=false
+
+        # Start the content block for this specific release
+        echo "## $tag_name" >> "$section_content_file"
+        echo "" >> "$section_content_file"
+        
+        # Define categories and their corresponding prefixes (FIXED CHORE EMOJI)
+        local -a categories=(
+            "🚀 Features;^feat(\(.*\))?:"
+            "🔧 Fixes;^fix(\(.*\))?:"
+            "📦 Build System;^build(\(.*\))?:"
+            "⚙️  CI/CD;^ci(\(.*\))?:"
+            "🛠️ Chore;^chore(\(.*\))?:" 
+            "📝 Documentation;^docs(\(.*\))?:"
+            "♻️  Refactoring;^refactor(\(.*\))?:"
+            "✅ Tests;^test(\(.*\))?:"
+            "⚠️  Work in Progress;^wip(\(.*\))?:"
+        )
+
+        # List of all prefixes used for filtering uncategorized commits
+        local all_prefixes="^feat(\(.*\))?:|^fix(\(.*\))?:|^build(\(.*\))?:|^ci(\(.*\))?:|^chore(\(.*\))?:|^docs(\(.*\))?:|^refactor(\(.*\))?:|^test(\(.*\))?:|^wip(\(.*\))?:"
+
+        for cat_item in "${categories[@]}"; do
+            IFS=';' read -r title regex_prefix <<< "$cat_item"
+            
+            local commits
+            # Added -E for extended regex matching
+            commits=$(git log -E "$tag_log_range" --no-merges --pretty=format:"* %s ([%h](https://github.com/${GITHUB_REPOSITORY}/commit/%H))" --grep="$regex_prefix")
+
+            if [ -n "$commits" ]; then
+                all_found_in_section=true
+                echo "$title" >> "$section_content_file"
+                echo "" >> "$section_content_file"
+                # Remove redundant conventional commit prefix from the message body
+                echo "$commits" | sed -E 's/^(\* \w+(\([^)]*\))?: )/\* /' >> "$section_content_file"
+                echo "" >> "$section_content_file" # Blank line after commit list
+            fi
+        done
+        
+        # Handle Uncategorized commits (Inverse grep uses all prefixes collected)
+        local uncategorized_commits
+        # Added -E for extended regex matching
+        uncategorized_commits=$(git log -E "$tag_log_range" --no-merges --pretty=format:"* %s ([%h](https://github.com/${GITHUB_REPOSITORY}/commit/%H))" --invert-grep --grep="$all_prefixes")
+
+        if [ -n "$uncategorized_commits" ]; then
+            all_found_in_section=true
+            echo "Other Changes" >> "$section_content_file" 
+            echo "" >> "$section_content_file"
+            echo "$uncategorized_commits" >> "$section_content_file"
+            echo "" >> "$section_content_file" # Blank line after commit list
+        fi
+
+        # Remove the final trailing blank line from the temporary file content
+        if [ -f "$section_content_file" ]; then
+            # Remove all trailing blank lines, leaving only content
+            # This is the critical step for controlling spacing
+            sed -i.bak -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$section_content_file"
+            rm -f "$section_content_file.bak"
+        fi
+
+
+        # Store the filename in the array (still oldest-to-newest)
+        generated_sections_files+=("$section_content_file")
+
+        # Update the previous tag reference for the next iteration
+        previous_tag_ref="$current_ref"
+        if $all_found_in_section; then all_found=true; fi
+    done # End of tag iteration loop
+
+
+    # 5. Reverse the generated sections and write them to the final prepend file (Newest first)
+
+    local i
+    local is_first_section=true
+    # Iterate BACKWARDS (reverse order) over the file array
+    for ((i=${#generated_sections_files[@]}-1; i>=0; i--)); do
+        local content_file="${generated_sections_files[i]}"
+        
+        # Read the content
+        local content=$(cat "$content_file")
+        
+        if $is_first_section; then
+            is_first_section=false
+	else
+            # FIX: Add a single, guaranteed blank line BEFORE the older release block
+            echo "" >> "$final_prepend_file"
+        fi
+        
+        # Write to the final prepend file (Newest at top)
+        # Since content has no trailing newlines, echo adds exactly one trailing newline.
+        echo "$content" >> "$final_prepend_file"
+        
+        rm -f "$content_file" # Clean up temp file
+    done
+    
+    # 6. Finalize Files
+    
+    # Prepend the total content (all new sections) to the CHANGELOG.md file
+    if [ -f "$output_file" ]; then
+        
+        # FIX: Check if the changelog file is NOT empty (i.e., has content other than the header),
+        # and if so, add a blank line to separate the newly generated content
+        # from the existing content at the top of the old file.
+        if [ -s "$output_file" ]; then
+            # The changelog file is NOT empty.
+            echo "" >> "$final_prepend_file"
+        fi
+        
+        # Prepend new content + optional blank line
+        cat "$final_prepend_file" "$output_file" > "$output_file.tmp"
+        mv "$output_file.tmp" "$output_file"
+    else
+        # Create new file with header
+        echo "# Changelog" > "$output_file"
+        cat "$final_prepend_file" >> "$output_file"
+    fi
+    
+    rm -f "$final_prepend_file"
+
+    # Final success message refers only to the files and action.
+    echo "Success: Changelog content generated and prepended to $output_file."
 }
 
 # --- Main Actions ---
@@ -221,7 +438,7 @@ action_bump() {
 
     if [ $? -ne 0 ]; then
         return 1
-    fi # FIX: Closing the 'if' block with 'fi' instead of '}'
+    fi
 
     echo "Bumping version from $current_version to $new_version (Type: $bump_type)..."
 
@@ -230,7 +447,7 @@ action_bump() {
 
 action_tag() {
     if [ -z "$NEW_VERSION" ]; then
-        echo "Error: Cannot tag. Please run --set or --bump first in the same script execution." >&2
+        echo "Error: Cannot tag. Please run set or bump first in the same script execution." >&2
         return 1
     fi
 
@@ -238,11 +455,16 @@ action_tag() {
 
     echo "Creating Git tag '$tag_name'..."
 
-    # Check for uncommitted changes
+    # Check for uncommitted changes (from set/bump and changelog)
     if ! git diff-index --quiet HEAD --; then
-        echo "Committing version changes before tagging..."
-        git commit -a -m "build: Bump project version to $NEW_VERSION" || {
-            echo "Error: Failed to commit version changes." >&2
+        echo "Committing version and changelog changes before tagging..."
+        
+        # Stage the files that were modified/created
+        git add --update . # Adds modified Cargo.toml files
+        git add CHANGELOG.md # Adds or updates the changelog
+        
+        git commit -m "build: Release $NEW_VERSION and update changelog" || {
+            echo "Error: Failed to commit version and changelog changes." >&2
             return 1
         }
     fi
@@ -254,7 +476,7 @@ action_tag() {
     }
 
     echo "Success: Tag '$tag_name' created."
-    echo "Run 'git push --tags' to push the new tag to the remote repository."
+    # The CI job will push the commit and the tag to the remote repository.
 }
 
 # --- Script Execution ---
@@ -273,43 +495,51 @@ LAST_ACTION=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --help)
+        help)
             usage
             ;;
-        --check)
+        check)
             action_check
             exit $?
             ;;
-        --set)
+        set)
             if [ -z "$2" ]; then
-                echo "Error: --set requires a version string argument." >&2
+                echo "Error: set requires a version string argument." >&2
                 exit 1
             fi
             action_set "$2"
             LAST_ACTION="set"
             shift 2
             ;;
-        --bump)
+        bump)
             if [ -z "$2" ]; then
-                echo "Error: --bump requires an argument (major, minor, or point)." >&2
+                echo "Error: bump requires an argument (major, minor, or point)." >&2
                 exit 1
             fi
-            action_bump "$2"
+            action_bump "$2" || exit 1
             LAST_ACTION="bump"
             shift 2
             ;;
-        --tag)
-            # If --tag is used without a preceding --set or --bump,
-            # we infer the version from the files and commit/tag immediately.
-            if [ "$LAST_ACTION" != "set" ] && [ "$LAST_ACTION" != "bump" ]; then
+        changelog)
+            if [ -z "$2" ]; then
+                echo "Error: changelog requires a version string argument (e.g., 1.2.3)." >&2
+                exit 1
+            fi
+            action_changelog "$2" || exit 1
+            LAST_ACTION="changelog"
+            shift 2
+            ;;
+        tag)
+            # Ensure the version is known before tagging
+            if [ -z "$NEW_VERSION" ]; then
                 NEW_VERSION=$(get_current_version)
                 if [ $? -ne 0 ]; then exit 1; fi
             fi
-            action_tag
+            action_tag || exit 1
             shift
             ;;
         *)
-            echo "Error: Unknown option or command '$1'. Use --help for usage." >&2
+            echo "Error: Unknown command '$1'. Use help for usage." >&2
             exit 1
             ;;
     esac
