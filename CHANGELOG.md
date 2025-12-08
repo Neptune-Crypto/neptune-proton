@@ -1,3 +1,45 @@
+## v0.2.0
+
+🚀 Features
+
+* clear peer standings ([49b2cad](https://github.com//commit/49b2cad37e82f87f891e811c41e47e1e537d3ec9))
+* increase size of the SVG graphic ([c7620ea](https://github.com//commit/c7620ea71f61de51dcf255a51e579d844dea7d69))
+* add utxos screen ([84e572b](https://github.com//commit/84e572b644ba6e3399a3563b9956f15679443e8e))
+* screens handle empty list better ([fdb2cc1](https://github.com//commit/fdb2cc14c75da680fa72fe81e3866c4ad355fe59))
+* improve display of peer connection time ([b7ce016](https://github.com//commit/b7ce016119f0f89383cac7056d3bab3d36191e3a))
+
+🔧 Fixes
+
+* make svg anims work on webkit(gtk) ([be89be5](https://github.com//commit/be89be506c9110c2d0d316fd8e0e0d60b820d57e))
+* right align amount field ([c8e337d](https://github.com//commit/c8e337d32e8f59fc11a3a6d842e256191658ba95))
+
+📦 Build System
+
+* add changelog command/script ([efcec56](https://github.com//commit/efcec56b17685d54fd3e90f521bc8d96737ddb04))
+* bump minor version to 0.2.0 ([3630759](https://github.com//commit/3630759ef6450cba16d32ca67479314c6c1e3610))
+* add checksums to release page, and some cleanup ([039f283](https://github.com//commit/039f28303283d81b8bc4aec2521bff5ddfa837c6))
+* include changelog with each release ([7f6b18d](https://github.com//commit/7f6b18d63b02a3c2c98b9a9720a931840c9650f9))
+
+⚙️  CI/CD
+
+* read changelog file for release page ([c51cc3f](https://github.com//commit/c51cc3f4d90db721adec314ae4b63eb36663c33f))
+* fix how repo is cloned, for changelog ([3bfba45](https://github.com//commit/3bfba45fb3ad4c4940cd0dbbebfb7bc6744b4f59))
+
+🛠️ Chore
+
+* fix rustc warnings ([d3dd4df](https://github.com//commit/d3dd4dfb8fa7a2a2b758407632ac9d65417e390a))
+* cargo +nightly fmt ([9509058](https://github.com//commit/9509058338c731cfe26753ed6c9ccdda2156e249))
+* improve mempool formatting ([673a72b](https://github.com//commit/673a72b965248b0bd053d5b81c3f18ec61dd1ddb))
+* improve mempool-empty.svg animation ([2918eae](https://github.com//commit/2918eaef8880b4a88a531f279a7ef4dc6feb6259))
+* cargo +nightly fmt ([71252c2](https://github.com//commit/71252c2aab53491d9fdf9c447a94c57c7b5329dc))
+* cargo +nightly fmt ([dbf750e](https://github.com//commit/dbf750e2ea9be568cd4dfa9001a91658a1bf8679))
+
+📝 Documentation
+
+* add changelog file ([d0d5f13](https://github.com//commit/d0d5f13c0c6db1bb72e15455982251bbc3b40241))
+* Fix broken link ([917e6bb](https://github.com//commit/917e6bb6f65793c9eb6b53410963952a363b9e99))
+* fix build deps ([0958a57](https://github.com//commit/0958a5755177d3e0a999728513b6c91f10496513))
+
 ## v0.1.3
 
 🔧 Fixes
