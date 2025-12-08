@@ -52,12 +52,13 @@ jobs:
         }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      # Required for changelog builder to read commit history between tags
-      - name: Fetch tags for changelog
-        run: git fetch --prune --unshallow --tags
+      - name: Checkout code (fetch full history & tags)
+        uses: actions/checkout@v4
+        with:
+          # This fetches all history (depth 0) and all tags.
+          # required for the changelog builder.
+          fetch-depth: 0       
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
