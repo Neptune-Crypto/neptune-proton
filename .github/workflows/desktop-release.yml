@@ -185,27 +185,6 @@ jobs:
           ls -lh release-assets/
 
       # ------------------------------------------------------------------
-      # Generate Checksums (Generic)
-      # ------------------------------------------------------------------
-      - name: Generate Checksums
-        shell: bash
-        run: |
-          cd release-assets
-          
-          # Choose the correct hashing tool
-          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            CMD="shasum -a 256"
-          else
-            CMD="sha256sum"
-          fi
-          
-          $CMD * > "../checksums-${{ matrix.os }}.txt"
-          mv "../checksums-${{ matrix.os }}.txt" .
-          
-          echo "Checksums content:"
-          cat "checksums-${{ matrix.os }}.txt"
-
-      # ------------------------------------------------------------------
       # Upload Release to GitHub (when 'v...' tag is pushed)
       # ------------------------------------------------------------------
       - name: Upload Release Artifacts
