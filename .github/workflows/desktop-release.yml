@@ -57,7 +57,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # This fetches all history (depth 0) and all tags.
-          # required for the changelog builder.
+          # required to get the correct version of CHANGELOG.md from the tagged commit.
           fetch-depth: 0       
 
       - name: Install Rust toolchain
@@ -139,42 +139,30 @@ jobs:
           dx bundle --release --trace
 
       # ---------------------------------------------------------
-      # Generate Changelog (Smart Regex + Catch-all)
+      # NEW STEP: Extract Release Notes from CHANGELOG.md
       # ---------------------------------------------------------
-      - name: Build Changelog
-        id: build_changelog
-        # Only run on mac to avoid duplicates, and only on tags
-        if: matrix.os == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
-        uses: mikepenz/release-changelog-builder-action@v4
-        with:
-          ignorePredefinedLabels: true
-          configurationJson: |
-            {
-              "template": "#{{CHANGELOG}}\n\n## 🔌 Other Changes\n#{{UNCATEGORIZED}}",
-              "categories": [
-                {
-                  "title": "## 🚀 Features",
-                  "labels": ["feat"]
-                },
-                {
-                  "title": "## 🐛 Fixes",
-                  "labels": ["fix"]
-                },
-                {
-                  "title": "## 🛠 Maintenance",
-                  "labels": ["chore", "ci", "test", "refactor"]
-                }
-              ],
-              "label_extractor": [
-                {
-                  "pattern": "^(feat|fix|chore|ci|test|refactor)(\\(.*\\))?:",
-                  "target": "$1"
-                }
-              ]
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+      - name: Extract Release Notes
+        id: extract_notes
+        # Only run on macos-latest and on a tag push, as only one runner needs to extract the text.
+        if: matrix.os == 'macos-latest' && startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          # Get the current tag name (e.g., v1.2.3)
+          TAG_NAME="${{ github.ref_name }}"
+          
+          # Use awk to extract the section between '## $TAG_NAME' and the next '## ' or EOF
+          # This assumes the CHANGELOG.md file was committed with the tag.
+          awk "/^## $TAG_NAME/{p=1; next}/^## /{p=0}p" CHANGELOG.md > release_body.md
+          
+          # Check if extraction failed (e.g., the file wasn't found or formatted incorrectly)
+          if [ ! -s release_body.md ]; then
+            echo "Error: Could not extract release notes for $TAG_NAME from CHANGELOG.md. Creating fallback." >&2
+            echo "## Release $TAG_NAME" > release_body.md
+          fi
+          
+          # Set the path to the file for the next step to use
+          echo "release_body_path=release_body.md" >> $GITHUB_OUTPUT
+          
       # ------------------------------------------------------------------
       # Collect Assets (Staging Step)
       # ------------------------------------------------------------------
@@ -184,7 +172,6 @@ jobs:
           mkdir -p release-assets
 
           # Find only the final binary artifacts.
-          # The -exec cp copies them into our flat staging folder.
           find target/dx/neptune-proton/bundle -type f \( \
             -name "*.AppImage" -o \
             -name "*.deb" -o \
@@ -212,10 +199,7 @@ jobs:
             CMD="sha256sum"
           fi
           
-          # Calculate hash for every file in this folder
           $CMD * > "../checksums-${{ matrix.os }}.txt"
-          
-          # Move the text file into the folder so it gets uploaded too
           mv "../checksums-${{ matrix.os }}.txt" .
           
           echo "Checksums content:"
@@ -228,10 +212,11 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          # Use the changelog generated earlier
-          body: ${{ steps.build_changelog.outputs.changelog }}
-          # Only macOS updates the text body (prevents race conditions)
-          append_body: ${{ matrix.os == 'macos-latest' }}
+          # Use the extracted file content (body_path is preferred over body)
+          body_path: ${{ steps.extract_notes.outputs.release_body_path }}
+          # Only macOS needs to update the release text, but using body_path 
+          # on a single runner (macos-latest) handles this naturally.
+          append_body: ${{ matrix.os == 'macos-latest' }} 
           # Upload everything in the staging folder
           files: release-assets/*
 
@@ -248,12 +233,7 @@ jobs:
 
       - name: Start tmate debug session
         uses: mxschmitt/action-tmate@v3
-        # This step will run on all OSes.
-        # It will only run if the workflow is manually triggered
-        # or if a previous step has failed.
         if: ${{ failure() || github.event_name == 'workflow_dispatch' }}
         with:
-          # This makes the job wait for 30 minutes for you to connect
           limit-access-to-actor: true
-          # 30 minutes
           timeout: 1800
