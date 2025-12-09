@@ -20,8 +20,10 @@ use web_time::SystemTime;
 use web_time::UNIX_EPOCH;
 
 use crate::components::empty_state::EmptyState;
+use crate::components::pico::Button;
+use crate::components::pico::ButtonType;
 use crate::components::pico::Card;
-use crate::components::pico::{Button, ButtonType, NoTitleModal};
+use crate::components::pico::NoTitleModal;
 use crate::hooks::use_rpc_checker::use_rpc_checker;
 
 // Embed the SVG content as a static string at compile time.

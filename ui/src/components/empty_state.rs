@@ -80,7 +80,7 @@ pub fn EmptyState(props: EmptyStateProps) -> Element {
                         color: var(--pico-primary-background); 
                         opacity: 0.8;                            
                             ",
-                            
+
                             {icon}
                         }
                     }

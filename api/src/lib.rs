@@ -32,6 +32,10 @@ use neptune_types::transaction_details::TransactionDetails;
 use neptune_types::transaction_kernel::TransactionKernel;
 use neptune_types::transaction_kernel_id::TransactionKernelId;
 use neptune_types::ui_utxo::UiUtxo;
+use neptune_types::wallet_file::WalletFile;
+use neptune_types::wallet_file_context::WalletFileContext;
+use neptune_types::secret_key_material::SecretKeyMaterial;
+
 use prefs::user_prefs::UserPrefs;
 use price_map::PriceMap;
 use twenty_first::tip5::Digest;
@@ -49,49 +53,8 @@ pub async fn get_user_prefs() -> Result<UserPrefs, ApiError> {
 
 #[post("/api/network")]
 pub async fn network() -> Result<Network, ApiError> {
-    println!("DEBUG: [network] Called");
-
-    // 1. Connection
-    println!("DEBUG: [network] calling rpc_client()...");
-    let client_res = neptune_rpc::rpc_client().await;
-
-    let client = match client_res {
-        Ok(c) => {
-            println!("DEBUG: [network] rpc_client obtained successfully");
-            c
-        }
-        Err(e) => {
-            println!("DEBUG: [network] rpc_client failed: {:?}", e);
-            // If this prints and then the frontend says "Shutdown",
-            // it confirms the crash happens when returning this error.
-            return Err(e);
-        }
-    };
-
-    // 2. Execution
-    println!("DEBUG: [network] calling client.network(context)...");
-    let result = client.network(tarpc::context::current()).await;
-
-    match result {
-        Ok(Ok(n)) => {
-            println!("DEBUG: [network] Success: {:?}", n);
-            Ok(n)
-        }
-        Ok(Err(e)) => {
-            println!("DEBUG: [network] Logic Error from Core: {:?}", e);
-            Err(e.into())
-        }
-        Err(e) => {
-            // This is the Tarpc Transport error (Shutdown/BrokenPipe)
-            println!("DEBUG: [network] Transport Error: {:?}", e);
-            Err(e.into())
-        }
-    }
+    neptune_rpc::network().await
 }
-
-// pub async fn network() -> Result<Network, ApiError> {
-//     neptune_rpc::network().await
-// }
 
 #[post("/api/wallet_balance")]
 pub async fn wallet_balance() -> Result<NativeCurrencyAmount, ApiError> {
@@ -262,6 +225,40 @@ pub async fn neptune_core_rpc_socket_addr() -> Result<SocketAddr, ApiError> {
         std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST),
         neptune_rpc::neptune_core_rpc_port(),
     ))
+}
+
+/// Asynchronously retrieves the SecretKeyMaterial by reading the wallet.dat file.
+#[post("/api/get_wallet_secret_key")]
+pub async fn get_wallet_secret_key() -> Result<SecretKeyMaterial, ApiError> {
+    use anyhow::Context;
+
+    let cookie_hint = neptune_rpc::cookie_hint().await?;
+
+    // Note: We use tokio::task::spawn_blocking for file I/O as it blocks the thread.
+    // This is required for non-async I/O operations like WalletFile::read_from_file.
+    tokio::task::spawn_blocking(move || {
+        // 1. Get the wallet directory path
+        let wallet_dir = cookie_hint.data_directory.wallet_directory_path();
+
+        // 2. Determine wallet file path and check existence
+        let wallet_file = WalletFileContext::wallet_secret_path(&wallet_dir);
+
+        if !wallet_file.exists() {
+            anyhow::bail!(
+                "Wallet file not found at: {}. Please generate or import a wallet first.",
+                wallet_file.display()
+            );
+        }
+
+        // 3. Read the WalletFile and extract the secret key
+        let wallet_secret = WalletFile::read_from_file(&wallet_file)
+            .context(format!(
+                "Could not read WalletFile from disk at {}",
+                wallet_file.display()
+            ))?;
+
+        Ok(wallet_secret.secret_key())
+    }).await?
 }
 
 #[cfg(not(target_arch = "wasm32"))]

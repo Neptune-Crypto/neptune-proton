@@ -1,5 +1,5 @@
 //=============================================================================
-// File: src/screens/addresses.rs
+// File: src/screens/addresses.rs (MODIFIED)
 //=============================================================================
 use std::rc::Rc;
 
@@ -11,6 +11,7 @@ use neptune_types::network::Network;
 use crate::app_state::AppState;
 use crate::components::address::Address;
 use crate::components::empty_state::EmptyState;
+use crate::components::export_seed_phrase_modal::ExportSeedPhraseModal;
 use crate::components::pico::Button;
 use crate::components::pico::ButtonType;
 use crate::components::pico::Card;
@@ -104,7 +105,15 @@ pub fn AddressesScreen() -> Element {
         }
     });
 
+    // Signal for the Modal state
+    let mut modal_is_open = use_signal(|| false);
+
     rsx! {
+        // >> MODIFIED: Use the new component name
+        ExportSeedPhraseModal {
+            is_open: modal_is_open,
+        }
+
         match &*known_keys.read() {
             None => rsx! {
                 Card {
@@ -149,7 +158,6 @@ pub fn AddressesScreen() -> Element {
                     Card {
 
                         h3 {
-
                             "My Addresses"
                         }
                         EmptyState {
@@ -191,9 +199,22 @@ pub fn AddressesScreen() -> Element {
                     }
                     Card {
 
-                        h3 {
-
-                            "My Addresses"
+                        // Container for heading and button
+                        div {
+                            style: "display: flex; justify-content: space-between; align-items: center;",
+                            h3 {
+                                "My Addresses"
+                            }
+                            // Button for Export Seed Phrase
+                            Button {
+                                button_type: ButtonType::Primary,
+                                outline: true,
+                                // Smaller height by modifying Pico variables
+                                style: "height: 1.8rem; line-height: 1.8rem; font-size: 0.8em; padding: 0 1rem;",
+                                on_click: move |_| modal_is_open.set(true),
+                                title: "Backup your wallet to offline storage", // Tooltip
+                                "Export Seed Phrase"
+                            }
                         }
                         // This div is the scrollable container for the table.
                         div {

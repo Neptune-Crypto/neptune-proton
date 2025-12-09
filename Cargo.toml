@@ -13,7 +13,7 @@ twenty-first = "1.0"
 dioxus = { version = "0.7.1", features = ["router", "logger"] }
 dioxus-logger = "0.7.1"
 getrandom = { version = "0.3", features = ["wasm_js"] }
-neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", rev = "cb240441ec07b91f4dffaa8099895a62210f7220"}
+neptune-types = {git = "https://github.com/Neptune-Crypto/neptune-types.git", rev = "7175bf047067134a8383b689f0b3f8fe110086fb"}
 thiserror = "1.0"
 serde_json = "1.0.145"
 serde = { version = "1.0", features = ["derive"] }
