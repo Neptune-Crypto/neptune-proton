@@ -1,3 +1,13 @@
+## v0.2.1
+
+🔧 Fixes
+
+* improve numeric entry in amount field ([4bbd146](https://github.com//commit/4bbd14667975de6b3fb5a88d1d6358c9785c55de))
+
+⚙️  CI/CD
+
+* remove dup checksum files ([194570c](https://github.com//commit/194570c6580b83102bc316066b0c4bfa66959529))
+
 ## v0.2.0
 
 🚀 Features
