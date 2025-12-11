@@ -56,8 +56,6 @@ pub fn NumericKeypad(on_key_press: EventHandler<String>, on_close: EventHandler<
 
     rsx! {
         style {
-
-
             {
                 r#" .key-flash { animation: keyFlash 0.25s ease-out; } @keyframes keyFlash { 0% { background-color: var(--pico-secondary-border); transform: scale(1.0); } 50% { background-color: var(--pico-background-inverse); color: var(--pico-color-inverse); transform: scale(0.96); } 100% { background-color: var(--pico-background-color); color: var(--pico-color-text); transform: scale(1.0); } } "#
             }
@@ -150,13 +148,11 @@ pub fn CurrencyAmountInput(
     let is_touch_device = use_is_touch_device();
     let is_popup_visible = use_memo(move || popup_state.read().is_some());
 
-    let is_zero = value.parse::<f64>() == Ok(0.0);
+    let is_numerically_zero = value.trim().parse::<f64>() == Ok(0.0);
 
     let mut value_signal = use_signal(|| value.clone());
 
-    // An effect to synchronize the internal signal when the `value` prop changes
-    // from the parent. This is the idiomatic way to handle such updates and
-    // avoids writing to a signal during the render phase.
+    // Sync signal with prop
     use_effect({
         let value = value.clone();
         move || {
@@ -201,12 +197,13 @@ pub fn CurrencyAmountInput(
     };
 
     let mut handle_interaction = move || {
-        if is_zero {
+        if is_numerically_zero {
             on_input.call("".to_string());
             value_signal.set("".to_string());
         }
     };
     let mut handle_interaction_clone = handle_interaction;
+    let mut handle_interaction_click = handle_interaction.clone();
 
     let open_keypad = {
         let value = value.clone();
@@ -260,25 +257,32 @@ pub fn CurrencyAmountInput(
 
     let mut open_keypad_clone = open_keypad.clone();
 
-    let display_value = if is_zero { placeholder } else { value };
-    let input_style = if is_zero {
-        "margin-bottom: 0; width: 100%; color: var(--pico-muted-color);"
-    } else {
-        "margin-bottom: 0; width: 100%;"
-    };
+    let show_placeholder = value.is_empty();
+    let display_value = if show_placeholder { "" } else { &value };
+
+    let focus_css = r#"
+        input.hide-placeholder-focus:focus::placeholder {
+            color: transparent;
+            opacity: 0;
+        }
+    "#;
 
     rsx! {
+        style { "{focus_css}" }
         div {
             style: "display: flex; flex-grow: 1; gap: 0.5rem;",
             div {
                 style: "flex-grow: 1; display: flex;",
                 input {
                     r#type: "text",
-                    class: "pico-input",
-                    style: "{input_style}",
+                    // Added custom class 'hide-placeholder-focus'
+                    class: "pico-input hide-placeholder-focus",
+                    style: "margin-bottom: 0; width: 100%;",
                     inputmode: "decimal",
-                    placeholder: "",
+
+                    placeholder: "{placeholder}",
                     value: "{display_value}",
+
                     onkeydown: handle_input_keydown,
                     onfocus: move |_| handle_interaction_clone(),
                     oninput: move |event| { handle_new_input(event.value()) },
@@ -286,6 +290,8 @@ pub fn CurrencyAmountInput(
                         e.stop_propagation();
                         if is_touch_device() {
                             open_keypad_clone(e);
+                        } else {
+                            handle_interaction_click();
                         }
                     },
                 }
