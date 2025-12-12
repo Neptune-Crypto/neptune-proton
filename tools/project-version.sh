@@ -7,6 +7,8 @@
 # This pattern ensures we match "version = " followed by a semantic version string.
 VERSION_EXTRACT_REGEX='^version[[:space:]]*=[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)"'
 
+GITHUB_REPOSITORY="Neptune-Crypto/neptune-proton";
+
 # Global variable to store the new version for tagging
 NEW_VERSION=""
 
@@ -125,7 +127,7 @@ update_version_in_file() {
 # ---------------------------------------------------------------------
 action_changelog() {
     local new_version="$1"
-    
+
     # 1. Validation
     if ! [[ "$new_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "Error: changelog requires a valid version string (e.g., 1.2.3) as its argument." >&2
@@ -134,7 +136,7 @@ action_changelog() {
 
     local output_file="CHANGELOG.md"
     local final_prepend_file=$(mktemp)
-    
+
     # 2. Get the last documented tag from the file (e.g., v0.1.0)
     local last_doc_tag=""
     if [ -f "$output_file" ]; then
@@ -149,7 +151,7 @@ action_changelog() {
 
     # Get all tags (version sorted ascending: v0.1.0, v0.2.0, v0.3.0, ...)
     raw_tags=$(git tag --sort=version:refname --no-column --merged HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+')
-    
+
     local start_filtering=false
     # Filter the list to include only tags newer than the last documented one.
     if [ -z "$last_doc_tag" ]; then
@@ -170,8 +172,8 @@ action_changelog() {
     if [[ ! " ${processing_tags[@]} " =~ " ${current_tag_name} " ]]; then
         processing_tags+=("$current_tag_name")
     fi
-    
-    
+
+
     local -a generated_sections_files=() # Array to hold filenames of content sections
     local previous_tag_ref="$last_doc_tag"
     if [ -z "$previous_tag_ref" ]; then previous_tag_ref=""; fi
@@ -180,16 +182,16 @@ action_changelog() {
 
     # 4. Iterate and generate content for each release tag found (chronological order)
     for tag_name in "${processing_tags[@]}"; do
-        
+
         local section_content_file=$(mktemp) # Temp file for this section
-        
+
         local current_ref
         if [ "$tag_name" == "$current_tag_name" ]; then
             current_ref="HEAD"
         else
             current_ref="$tag_name"
         fi
-        
+
         local tag_log_range
         if [ -n "$previous_tag_ref" ]; then
             tag_log_range="$previous_tag_ref..$current_ref"
@@ -210,20 +212,20 @@ action_changelog() {
         else
             echo "Generating changelog for $tag_name from beginning of history to $current_ref..."
         fi
-        
+
         local all_found_in_section=false
 
         # Start the content block for this specific release
         echo "## $tag_name" >> "$section_content_file"
         echo "" >> "$section_content_file"
-        
+
         # Define categories and their corresponding prefixes (FIXED CHORE EMOJI)
         local -a categories=(
             "🚀 Features;^feat(\(.*\))?:"
             "🔧 Fixes;^fix(\(.*\))?:"
             "📦 Build System;^build(\(.*\))?:"
             "⚙️  CI/CD;^ci(\(.*\))?:"
-            "🛠️ Chore;^chore(\(.*\))?:" 
+            "🛠️ Chore;^chore(\(.*\))?:"
             "📝 Documentation;^docs(\(.*\))?:"
             "♻️  Refactoring;^refactor(\(.*\))?:"
             "✅ Tests;^test(\(.*\))?:"
@@ -235,7 +237,7 @@ action_changelog() {
 
         for cat_item in "${categories[@]}"; do
             IFS=';' read -r title regex_prefix <<< "$cat_item"
-            
+
             local commits
             # Added -E for extended regex matching
             commits=$(git log -E "$tag_log_range" --no-merges --pretty=format:"* %s ([%h](https://github.com/${GITHUB_REPOSITORY}/commit/%H))" --grep="$regex_prefix")
@@ -249,7 +251,7 @@ action_changelog() {
                 echo "" >> "$section_content_file" # Blank line after commit list
             fi
         done
-        
+
         # Handle Uncategorized commits (Inverse grep uses all prefixes collected)
         local uncategorized_commits
         # Added -E for extended regex matching
@@ -257,7 +259,7 @@ action_changelog() {
 
         if [ -n "$uncategorized_commits" ]; then
             all_found_in_section=true
-            echo "Other Changes" >> "$section_content_file" 
+            echo "Other Changes" >> "$section_content_file"
             echo "" >> "$section_content_file"
             echo "$uncategorized_commits" >> "$section_content_file"
             echo "" >> "$section_content_file" # Blank line after commit list
@@ -288,29 +290,29 @@ action_changelog() {
     # Iterate BACKWARDS (reverse order) over the file array
     for ((i=${#generated_sections_files[@]}-1; i>=0; i--)); do
         local content_file="${generated_sections_files[i]}"
-        
+
         # Read the content
         local content=$(cat "$content_file")
-        
+
         if $is_first_section; then
             is_first_section=false
 	else
             # FIX: Add a single, guaranteed blank line BEFORE the older release block
             echo "" >> "$final_prepend_file"
         fi
-        
+
         # Write to the final prepend file (Newest at top)
         # Since content has no trailing newlines, echo adds exactly one trailing newline.
         echo "$content" >> "$final_prepend_file"
-        
+
         rm -f "$content_file" # Clean up temp file
     done
-    
+
     # 6. Finalize Files
-    
+
     # Prepend the total content (all new sections) to the CHANGELOG.md file
     if [ -f "$output_file" ]; then
-        
+
         # FIX: Check if the changelog file is NOT empty (i.e., has content other than the header),
         # and if so, add a blank line to separate the newly generated content
         # from the existing content at the top of the old file.
@@ -318,7 +320,7 @@ action_changelog() {
             # The changelog file is NOT empty.
             echo "" >> "$final_prepend_file"
         fi
-        
+
         # Prepend new content + optional blank line
         cat "$final_prepend_file" "$output_file" > "$output_file.tmp"
         mv "$output_file.tmp" "$output_file"
@@ -327,7 +329,7 @@ action_changelog() {
         echo "# Changelog" > "$output_file"
         cat "$final_prepend_file" >> "$output_file"
     fi
-    
+
     rm -f "$final_prepend_file"
 
     # Final success message refers only to the files and action.
@@ -338,7 +340,7 @@ action_changelog() {
 
 action_check() {
     echo "--- Current Project Versions ---"
-    
+
     local found_versions_count=0
     local -a file_details=() # Stores array of "version;filepath"
     declare -A version_map    # Key: version string, Value: 1 (for counting unique)
@@ -365,7 +367,7 @@ action_check() {
         IFS=';' read -r version file <<< "$item"
         echo "$version in $file"
     done
-    
+
     # Check if any files were processed
     if [ "$found_versions_count" -eq 0 ]; then
         echo "" # Blank line before summary
@@ -423,7 +425,7 @@ action_bump() {
         echo "Error: Aborting bump operation. Cargo.toml files are inconsistent." >&2
         return 1
     fi
-    
+
     # After check, get the consistent current version
     local current_version
     current_version=$(get_current_version)
@@ -458,11 +460,11 @@ action_tag() {
     # Check for uncommitted changes (from set/bump and changelog)
     if ! git diff-index --quiet HEAD --; then
         echo "Committing version and changelog changes before tagging..."
-        
+
         # Stage the files that were modified/created
         git add --update . # Adds modified Cargo.toml files
         git add CHANGELOG.md # Adds or updates the changelog
-        
+
         git commit -m "build: Release $NEW_VERSION and update changelog" || {
             echo "Error: Failed to commit version and changelog changes." >&2
             return 1
